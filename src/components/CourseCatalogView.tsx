@@ -1,0 +1,514 @@
+import React, { useRef, useState } from 'react';
+import { AppSettings, Course, MasteryLevel, RevisionItem, Subject } from '../types';
+import { MasteryBadge } from './MasteryBadge';
+import { RetentionTimeline } from './RetentionTimeline';
+import { CourseSynthesisModal } from './CourseSynthesisModal';
+import { AutoGrowTextarea } from './AutoGrowTextarea';
+import { useOutsideClick } from '../hooks/useOutsideClick';
+import { COURSE_SORT_OPTIONS, CourseSortMode, DEFAULT_COURSE_SORT, isCourseSortMode, sortCourses } from '../utils/courseSort';
+import { formatFrenchDate, getTodayIso } from '../utils/dateUtils';
+import {
+  Search,
+  Filter,
+  Plus,
+  ArrowRightLeft,
+  Trash2,
+  BookOpen,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  Sparkles,
+  ChevronDown,
+  Edit2,
+  Palette,
+  NotebookPen,
+  ArrowUpDown,
+} from 'lucide-react';
+import { getCourseEffectiveColor, getCourseSoftBackground, getSubject, getSubjectBadgeStyle } from '../utils/colorUtils';
+import { t } from '../i18n';
+
+
+const SORT_STORAGE_KEY = 'medj_catalog_sort_v1';
+
+interface CourseCatalogViewProps {
+  courses: Course[];
+  revisions: RevisionItem[];
+  subjects: Subject[];
+  settings: AppSettings;
+  onUpdateCourseMastery: (courseId: string, newLevel: MasteryLevel) => void;
+  onOpenQuickShift: (revision: RevisionItem) => void;
+  onOpenCompleteModal: (revision: RevisionItem) => void;
+  onOpenNewCourseModal: () => void;
+  onDeleteCourse: (courseId: string) => void;
+  onUpdateCourseNotes: (courseId: string, notes: string) => void;
+  onOpenCourseDetail: (course: Course) => void;
+}
+
+export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
+  courses,
+  revisions,
+  subjects,
+  settings,
+  onUpdateCourseMastery,
+  onOpenQuickShift,
+  onOpenCompleteModal,
+  onOpenNewCourseModal,
+  onDeleteCourse,
+  onUpdateCourseNotes,
+  onOpenCourseDetail,
+}) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('all');
+  const [selectedMasteryFilter, setSelectedMasteryFilter] = useState<string>('all');
+  const [editingNotesCourseId, setEditingNotesCourseId] = useState<string | null>(null);
+  const [notesBuffer, setNotesBuffer] = useState('');
+  const [synthesisCourseId, setSynthesisCourseId] = useState<string | null>(null);
+  const [sortMode, setSortMode] = useState<CourseSortMode>(() => {
+    try {
+      const saved = localStorage.getItem(SORT_STORAGE_KEY);
+      return isCourseSortMode(saved) ? saved : DEFAULT_COURSE_SORT;
+    } catch {
+      return DEFAULT_COURSE_SORT;
+    }
+  });
+  const changeSortMode = (mode: CourseSortMode) => {
+    setSortMode(mode);
+    try {
+      localStorage.setItem(SORT_STORAGE_KEY, mode);
+    } catch {
+      // stockage indisponible : le tri reste actif pour cette session
+    }
+  };
+  const notesEditorRef = useRef<HTMLDivElement>(null);
+
+  // Un clic hors de l'éditeur de notes le ferme, sauf s'il y a des modifications non enregistrées
+  useOutsideClick(
+    editingNotesCourseId !== null,
+    (target) => !!notesEditorRef.current?.contains(target),
+    () => {
+      const editing = courses.find((c) => c.id === editingNotesCourseId);
+      if (editing && notesBuffer === (editing.notes ?? '')) setEditingNotesCourseId(null);
+    },
+    editingNotesCourseId
+  );
+
+  const todayIso = getTodayIso();
+
+  // Filtered courses
+  const matchingCourses = courses.filter((course) => {
+    const matchesSearch =
+      course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      course.itemCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (course.notes && course.notes.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      revisions.some(
+        (r) =>
+          r.courseId === course.id &&
+          r.notes &&
+          r.notes.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+
+    const matchesSubject =
+      selectedSubjectFilter === 'all' || course.subjectId === selectedSubjectFilter;
+
+    const matchesMastery =
+      selectedMasteryFilter === 'all' ||
+      course.mastery.toString() === selectedMasteryFilter;
+
+    return matchesSearch && matchesSubject && matchesMastery;
+  });
+  const filteredCourses = sortCourses(matchingCourses, revisions, subjects, sortMode);
+
+  const handleSaveNotes = (courseId: string) => {
+    onUpdateCourseNotes(courseId, notesBuffer);
+    setEditingNotesCourseId(null);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Header and Filter Controls */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-2xs space-y-3 transition-colors">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              {t('Catalogue des cours ({n} chapitres)', { n: courses.length })}
+            </h2>
+          </div>
+
+          <button
+            onClick={onOpenNewCourseModal}
+            className="flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-xl shadow-xs transition-colors self-start sm:self-auto shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            <span>{t('Ajouter un cours (J0)')}</span>
+          </button>
+        </div>
+
+        {/* Search & Filter Bar */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+          {/* Search Input */}
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <input
+              type="text"
+              placeholder={t('Rechercher (ex: AVC, Item 228, Troponine)...')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+          </div>
+
+          {/* Subject Filter */}
+          <div className="flex items-center gap-1">
+            <select
+              value={selectedSubjectFilter}
+              onChange={(e) => setSelectedSubjectFilter(e.target.value)}
+              className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium"
+            >
+              <option value="all">{t('Toutes les matières ({n})', { n: subjects.length })}</option>
+              {subjects.map((sub) => (
+                <option key={sub.id} value={sub.id}>
+                  {sub.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Mastery Level Filter */}
+          <div className="flex items-center gap-1">
+            <select
+              value={selectedMasteryFilter}
+              onChange={(e) => setSelectedMasteryFilter(e.target.value)}
+              className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium"
+            >
+              <option value="all">{t('Tous les niveaux de maîtrise')}</option>
+              <option value="0">{t('0 ★ Non évalué / Nouveau')}</option>
+              <option value="1">{t('1 ★ À consolider (Faible)')}</option>
+              <option value="2">{t('2 ★ Notions clés (Moyen)')}</option>
+              <option value="3">{t('3 ★ Solide (Bon)')}</option>
+              <option value="4">{t('4 ★ Maîtrisé (Optimal)')}</option>
+            </select>
+          </div>
+
+          {/* Tri */}
+          <div className="relative">
+            <ArrowUpDown className="w-4 h-4 text-slate-400 absolute left-3 top-2 pointer-events-none" />
+            <select
+              value={sortMode}
+              onChange={(e) => changeSortMode(e.target.value as CourseSortMode)}
+              aria-label={t('Trier les cours')}
+              title={t('Trier les cours')}
+              className="w-full pl-9 pr-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium"
+            >
+              {COURSE_SORT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {t('Trier :')} {t(o.label)}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Courses List */}
+      {filteredCourses.length === 0 ? (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-12 text-center space-y-3">
+          <BookOpen className="w-10 h-10 text-slate-400 mx-auto" />
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+            {t('Aucun cours ne correspond aux critères')}
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            {t('Modifiez votre recherche ou ajoutez un nouveau cours à réviser.')}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filteredCourses.map((course) => {
+            const subject = getSubject(course.subjectId, subjects);
+            const effectiveColor = getCourseEffectiveColor(course, subject);
+            const isDark = settings.theme === 'dark';
+            const softBg = getCourseSoftBackground(effectiveColor, isDark);
+            const courseRevisions = revisions
+              .filter((r) => r.courseId === course.id)
+              .sort((a, b) => a.jIndex - b.jIndex);
+
+            const completedCount = courseRevisions.filter((r) => r.completed).length;
+            const hasAnyNotes =
+              !!course.notes?.trim() || courseRevisions.some((r) => !!r.notes?.trim());
+
+            return (
+              <div
+                key={course.id}
+                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden hover:border-slate-300 dark:hover:border-slate-700 transition-all"
+                style={softBg}
+              >
+                {/* Course Effective Color Header Stripe */}
+                <div
+                  className="h-2 w-full"
+                  style={{ backgroundColor: effectiveColor }}
+                />
+
+                <div className="p-4 space-y-3">
+                  {/* Top Bar: Subject Badge, Item Code, Title, Mastery Rating */}
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Subject Badge with custom color */}
+                        <span
+                          className="subject-badge inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-bold"
+                          style={getSubjectBadgeStyle(course, subject)}
+                        >
+                          <span
+                            className="w-2 h-2 rounded-full bg-current"
+                          />
+                          {subject.name}
+                        </span>
+
+                        {course.customColor && (
+                          <span
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                            title={t('Couleur personnalisée sur ce cours ({color})', { color: course.customColor ?? '' })}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full ring-1 ring-white/60" style={{ backgroundColor: course.customColor }} />
+                            <span>{t('Couleur spécifique')}</span>
+                          </span>
+                        )}
+
+                        {/* Item Code */}
+                        <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">
+                          {course.itemCode}
+                        </span>
+
+                        <span className="text-xs text-slate-400">·</span>
+
+                        {/* J0 date */}
+                        <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                          {t('J0 commencé le {date}', { date: formatFrenchDate(course.j0Date) })}
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => onOpenCourseDetail(course)}
+                        className="text-left text-base font-bold text-slate-900 dark:text-white hover:text-teal-600 dark:hover:text-teal-400 transition-colors cursor-pointer group flex items-center gap-1.5"
+                      >
+                        <span>{course.title}</span>
+                        <span className="text-[11px] font-normal text-teal-600 dark:text-teal-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {t('(Détails & Édition)')}
+                        </span>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0 self-start md:self-auto">
+                    {/* Synthèse des notes (cours + créneaux) */}
+                    <button
+                      type="button"
+                      onClick={() => setSynthesisCourseId(course.id)}
+                      title={t('Synthèse des notes')}
+                      aria-label={t('Synthèse des notes : {title}', { title: course.title })}
+                      className={`relative p-2 rounded-xl border transition-colors ${
+                        hasAnyNotes
+                          ? 'text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-900/30 border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/50'
+                          : 'text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:text-slate-600 dark:hover:text-slate-300'
+                      }`}
+                    >
+                      <NotebookPen className="w-4 h-4" />
+                    </button>
+
+                    {/* Mastery Level Interactive Selector */}
+                    <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 p-2 rounded-xl border border-slate-200 dark:border-slate-700">
+                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                        {t('Maîtrise :')}
+                      </span>
+                      <MasteryBadge
+                        level={course.mastery}
+                        interactive={true}
+                        onChange={(newLevel) => onUpdateCourseMastery(course.id, newLevel)}
+                      />
+                    </div>
+                    </div>
+                  </div>
+
+                  {/* Progression dans le temps (version compacte) */}
+                  <RetentionTimeline course={course} revisions={revisions} compact />
+
+                  {/* Notes / Clinical Pearls */}
+                  {editingNotesCourseId === course.id ? (
+                    <div ref={notesEditorRef} className="space-y-2 pt-1">
+                      <AutoGrowTextarea
+                        value={notesBuffer}
+                        onChange={(e) => setNotesBuffer(e.target.value)}
+                        placeholder={t('Points clés, mnémotechniques, pièges d\'annales...')}
+                        minRows={5}
+                        focusAtEnd
+                        className="w-full p-3 text-sm leading-relaxed border border-teal-300 dark:border-teal-700 rounded-xl dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500 font-sans"
+                      />
+                      <div className="flex items-center gap-2 justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setEditingNotesCourseId(null)}
+                          className="px-2.5 py-1 text-xs text-slate-500"
+                        >
+                          {t('Annuler')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveNotes(course.id)}
+                          className="px-3 py-1 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-xs"
+                        >
+                          {t('Enregistrer')}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => {
+                        setEditingNotesCourseId(course.id);
+                        setNotesBuffer(course.notes || '');
+                      }}
+                      className="cursor-pointer group p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800/70 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 flex items-start justify-between"
+                      title={t('Cliquer pour modifier les notes')}
+                    >
+                      {course.notes ? (
+                        <span className="whitespace-pre-line leading-relaxed line-clamp-3 text-slate-700 dark:text-slate-200">
+                          {course.notes}
+                        </span>
+                      ) : (
+                        <span className="italic">{t('Ajouter des notes, réflexes EDN ou pièges à retenir...')}</span>
+                      )}
+                      <span className="text-[10px] text-teal-600 dark:text-teal-400 opacity-0 group-hover:opacity-100 transition-opacity font-bold shrink-0 ml-2">
+                        {t('Modifier')}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Méthode des J Timeline Grid */}
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-teal-600" />
+                        <span>{t('Cycle de répétitions espacées')}</span>
+                        <span className="text-[11px] font-normal text-slate-500 dark:text-slate-400">
+                          {t('({done}/{total} révisions faites)', { done: completedCount, total: courseRevisions.length })}
+                        </span>
+                      </span>
+
+                      <span className="text-[11px] text-slate-400">
+                        {t('Cliquez sur un J pour décaler ou valider')}
+                      </span>
+                    </div>
+
+                    {/* Timeline pills */}
+                    <div className="flex flex-wrap gap-2">
+                      {courseRevisions.map((rev) => {
+                        const isPastDue = !rev.completed && rev.scheduledDate < todayIso;
+                        const isToday = rev.scheduledDate === todayIso;
+                        const isJ0orJ1 = rev.jIndex === 0 || rev.jIndex === 1;
+
+                        return (
+                          <div
+                            key={rev.id}
+                            className={`p-2 rounded-xl border text-xs flex flex-col justify-between min-w-[105px] transition-all ${
+                              rev.completed
+                                ? 'bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/40 text-emerald-900 dark:text-emerald-300'
+                                : isToday
+                                ? 'bg-teal-50 dark:bg-teal-950/30 border-teal-400 dark:border-teal-700 text-teal-900 dark:text-teal-300 ring-2 ring-teal-500/20'
+                                : isPastDue
+                                ? 'bg-rose-50/80 dark:bg-rose-950/20 border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-300'
+                                : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-1 mb-1">
+                              <span className="font-bold">J{rev.jIndex}</span>
+                              <span className="text-[10px] font-mono opacity-75">
+                                {isJ0orJ1 ? '1h30' : '1h00'}
+                              </span>
+                            </div>
+
+                            <span className="font-mono text-[11px] block mb-1.5">
+                              {rev.scheduledDate.slice(5)}
+                            </span>
+
+                            {/* Actions on this J */}
+                            <div className="flex items-center justify-between gap-1 pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
+                              <button
+                                onClick={() => onOpenCompleteModal(rev)}
+                                className={`text-[10px] font-bold ${
+                                  rev.completed
+                                    ? 'text-emerald-700 dark:text-emerald-400 hover:underline'
+                                    : 'text-teal-700 dark:text-teal-400 hover:underline'
+                                }`}
+                              >
+                                {rev.completed ? t('Fait ✓') : t('Valider')}
+                              </button>
+
+                              <button
+                                onClick={() => onOpenQuickShift(rev)}
+                                title={t('Décaler ce J (cascade automatique des J suivants)')}
+                                className="text-[10px] text-slate-400 hover:text-teal-600"
+                              >
+                                <ArrowRightLeft className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Course footer actions */}
+                  <div className="flex items-center justify-between pt-2 text-xs text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800">
+                    <span className="text-[11px]">
+                      {t('Ajouté le {date}', { date: formatFrenchDate(course.createdAt) })}
+                    </span>
+
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => onOpenCourseDetail(course)}
+                        className="text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1 font-bold"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                        <span>{t('Voir la fiche')}</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              t('Supprimer définitivement le cours « {title} » et toutes ses révisions planifiées ?', { title: course.title })
+                            )
+                          ) {
+                            onDeleteCourse(course.id);
+                          }
+                        }}
+                        className="text-slate-400 hover:text-rose-600 flex items-center gap-1 transition-colors"
+                        title={t('Supprimer ce cours')}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>{t('Supprimer')}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {synthesisCourseId && (() => {
+        const c = courses.find((x) => x.id === synthesisCourseId);
+        if (!c) return null;
+        return (
+          <CourseSynthesisModal
+            course={c}
+            subject={getSubject(c.subjectId, subjects)}
+            revisions={revisions}
+            isDark={settings.theme === 'dark'}
+            onUpdateCourseNotes={onUpdateCourseNotes}
+            onClose={() => setSynthesisCourseId(null)}
+          />
+        );
+      })()}
+    </div>
+  );
+};

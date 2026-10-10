@@ -1,0 +1,80 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128
+        && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function validCourse(d, userId) {
+      return d.keys().hasOnly(['id', 'userId', 'title', 'itemCode', 'subjectId', 'customColor', 'j0Date', 'activeJList', 'mastery', 'notes', 'createdAt', 'updatedAt'])
+        && d.userId == userId
+        && d.title is string && d.title.size() <= 200
+        && d.subjectId is string && d.subjectId.size() <= 64
+        && d.mastery is int && d.mastery >= 0 && d.mastery <= 4
+        && (!('notes' in d) || (d.notes is string && d.notes.size() <= 5000));
+    }
+
+    function validRevision(d, userId) {
+      return d.keys().hasOnly(['id', 'userId', 'courseId', 'jIndex', 'scheduledDate', 'durationMinutes', 'completed', 'completedDate', 'rating', 'notes', 'slotOrder', 'startTime', 'updatedAt'])
+        && d.userId == userId
+        && d.courseId is string && d.courseId.size() <= 128
+        && d.jIndex is int && d.jIndex >= 0
+        && d.scheduledDate is string && d.scheduledDate.size() <= 20
+        && d.durationMinutes is int && d.durationMinutes >= 0 && d.durationMinutes <= 600
+        && d.completed is bool
+        && (!('startTime' in d) || (d.startTime is string && d.startTime.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$')))
+        && (!('notes' in d) || (d.notes is string && d.notes.size() <= 5000));
+    }
+
+    function validSubject(d, userId) {
+      return d.keys().hasOnly(['id', 'userId', 'name', 'code', 'color', 'bgColor', 'textColor', 'borderColor', 'accentBg'])
+        && d.userId == userId
+        && d.name is string && d.name.size() <= 100
+        && d.color is string && d.color.size() <= 30;
+    }
+
+    match /users/{userId} {
+      allow get, delete: if isOwner(userId);
+      allow list: if false;
+      allow create, update: if isOwner(userId) && isValidId(userId);
+
+      match /courses/{courseId} {
+        allow read, delete: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(courseId)
+          && validCourse(request.resource.data, userId);
+        allow update: if isOwner(userId) && isValidId(courseId)
+          && validCourse(request.resource.data, userId)
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.createdAt == resource.data.createdAt;
+      }
+
+      match /revisions/{revisionId} {
+        allow read, delete: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(revisionId)
+          && validRevision(request.resource.data, userId);
+        allow update: if isOwner(userId) && isValidId(revisionId)
+          && validRevision(request.resource.data, userId)
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.courseId == resource.data.courseId;
+      }
+
+      match /subjects/{subjectId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidId(subjectId)
+          && validSubject(request.resource.data, userId);
+      }
+
+      match /settings/{docId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidId(docId)
+          && request.resource.data.userId == userId;
+      }
+    }
+  }
+}

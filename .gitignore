@@ -1,0 +1,12 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+
+# Configuration Firebase personnelle : à ne jamais publier (créée par scripts/setup-firebase.sh)
+firebase-applet-config.json
+.firebaserc
+.firebase/
