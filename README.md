@@ -6,12 +6,20 @@ methodJ planifie vos révisions selon la **méthode des J** (répétition espac�
 
 > ⚠️ methodJ est un outil d'organisation du travail. Il ne fournit aucun contenu médical ni avis médical.
 
+**Planning de la semaine** : les créneaux se déplacent au doigt ou à la souris, d'un jour à l'autre.
+
 ![Planning de la semaine](docs/screenshots/planning.png)
+
+**Écran scindé** (tablette ou grand écran) : le planning du jour à gauche, le catalogue des cours et leur cycle de répétitions (J0, J1, J3…) à droite.
+
+![Écran scindé : planning du jour et catalogue des cours](docs/screenshots/planning-split.jpg)
 
 <details>
 <summary>Thème sombre</summary>
 
 ![Planning de la semaine, thème sombre](docs/screenshots/planning-sombre.png)
+
+![Écran scindé, thème sombre](docs/screenshots/planning-split-sombre.jpg)
 
 </details>
 

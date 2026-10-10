@@ -6,12 +6,20 @@ methodJ schedules your revisions with the **"J method"** (spaced repetition): fo
 
 > ⚠️ methodJ is a study-organisation tool. It provides no medical content and no medical advice.
 
+**Weekly planner**: slots can be dragged by finger or mouse, including from one day to another.
+
 ![Weekly planner](docs/screenshots/planning.png)
+
+**Split screen** (tablet or large display): today's schedule on the left, the course catalogue and each course's repetition cycle (J0, J1, J3…) on the right.
+
+![Split screen: today's schedule and course catalogue](docs/screenshots/planning-split.jpg)
 
 <details>
 <summary>Dark theme</summary>
 
 ![Weekly planner, dark theme](docs/screenshots/planning-sombre.png)
+
+![Split screen, dark theme](docs/screenshots/planning-split-sombre.jpg)
 
 </details>
 
