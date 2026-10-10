@@ -6,6 +6,15 @@ methodJ planifie vos révisions selon la **méthode des J** (répétition espac�
 
 > ⚠️ methodJ est un outil d'organisation du travail. Il ne fournit aucun contenu médical ni avis médical.
 
+![Planning de la semaine](docs/screenshots/planning.png)
+
+<details>
+<summary>Thème sombre</summary>
+
+![Planning de la semaine, thème sombre](docs/screenshots/planning-sombre.png)
+
+</details>
+
 ## Fonctionnalités
 
 - **Méthode des J personnalisable** : choisissez vos intervalles, enregistrez vos réglages par défaut, durée de créneau par défaut et exceptions par J.

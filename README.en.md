@@ -6,6 +6,15 @@ methodJ schedules your revisions with the **"J method"** (spaced repetition): fo
 
 > ⚠️ methodJ is a study-organisation tool. It provides no medical content and no medical advice.
 
+![Weekly planner](docs/screenshots/planning.png)
+
+<details>
+<summary>Dark theme</summary>
+
+![Weekly planner, dark theme](docs/screenshots/planning-sombre.png)
+
+</details>
+
 ## Features
 
 - **Customisable J method**: pick your intervals, save your defaults, set a default slot length plus exceptions per J.
