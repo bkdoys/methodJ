@@ -37,7 +37,7 @@ methodJ planifie vos révisions selon la **méthode des J** (répétition espac�
 
 ## Démarrage rapide (sans compte, en local)
 
-Prérequis : [Node.js](https://nodejs.org) 20 ou plus.
+Prérequis : [Node.js](https://nodejs.org) 22 ou plus.
 
 ```bash
 git clone <URL-de-ce-depot>

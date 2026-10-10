@@ -12,7 +12,7 @@ methodJ fonctionne sans compte. Cette page explique comment brancher **votre pro
 
 ## Méthode rapide : le script
 
-Prérequis : Node.js 20+, un compte Google.
+Prérequis : Node.js 22+, un compte Google.
 
 ```bash
 ./scripts/setup-firebase.sh

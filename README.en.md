@@ -36,7 +36,7 @@ methodJ schedules your revisions with the **"J method"** (spaced repetition): fo
 
 ## Quick start (no account, local)
 
-Requirement: [Node.js](https://nodejs.org) 20 or later.
+Requirement: [Node.js](https://nodejs.org) 22 or later.
 
 ```bash
 git clone <this-repository-url>

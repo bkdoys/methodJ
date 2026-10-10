@@ -12,7 +12,7 @@ methodJ works without any account. This page explains how to connect **your own*
 
 ## Quick way: the script
 
-Requirements: Node.js 20+, a Google account.
+Requirements: Node.js 22+, a Google account.
 
 ```bash
 ./scripts/setup-firebase.sh
