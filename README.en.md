@@ -18,6 +18,10 @@ methodJ schedules your revisions with the **"J method"** (spaced repetition): fo
 
 ![Course catalogue with the folder tree](docs/screenshots/cours-arbre.jpg)
 
+**Dashboard**: everything that needs an action in one place (overdue slots, days above your target, slots outside the working window), with smoothing and catch-up proposals that you tick before accepting them. The rules are described in [docs/PLANNING_RULES.en.md](docs/PLANNING_RULES.en.md).
+
+![Dashboard: days to watch, proposed smoothing and overdue slots](docs/screenshots/dashboard.jpg)
+
 <details>
 <summary>Dark theme</summary>
 
@@ -26,6 +30,8 @@ methodJ schedules your revisions with the **"J method"** (spaced repetition): fo
 ![Split screen, dark theme](docs/screenshots/planning-split-sombre.jpg)
 
 ![Course catalogue with the folder tree, dark theme](docs/screenshots/cours-arbre-sombre.jpg)
+
+![Dashboard, dark theme](docs/screenshots/dashboard-sombre.jpg)
 
 </details>
 
@@ -36,6 +42,7 @@ methodJ schedules your revisions with the **"J method"** (spaced repetition): fo
 - **Cascading reschedule**: if you push a slot back, the following unfinished ones follow.
 - **Revision timer** with notes and a mastery self-assessment.
 - **Course catalogue**, customisable subjects and colours (CSV/JSON import), with a folder tree (subject › folder › sub-folder) to file and filter courses, and links (Drive, flashcards…) attached to each course, plus an `.ics` export of your slots (Google Calendar, Apple, Outlook).
+- **Dashboard**: overdue slots, days that are overloaded or have slots outside the window, load smoothing and catch-up proposals (never applied without your consent, and undoable), sync state.
 - **Statistics**: streak, overdue, upcoming load, retention per J.
 - **Installable** on iPad / phone / computer (PWA), full screen.
 - **Your data stays yours**: everything is stored in your browser, with JSON export / import. Syncing between devices is **optional** (your own Firebase project, see below).

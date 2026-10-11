@@ -18,6 +18,7 @@ import { CalendarPlanningView } from './components/CalendarPlanningView';
 import { CourseCatalogView } from './components/CourseCatalogView';
 import { StudySessionTimer } from './components/StudySessionTimer';
 import { StatsProgressView } from './components/StatsProgressView';
+import { DashboardView } from './components/DashboardView';
 import { NewCourseModal } from './components/NewCourseModal';
 import { QuickShiftModal } from './components/QuickShiftModal';
 import { CompleteRevisionModal } from './components/CompleteRevisionModal';
@@ -25,7 +26,9 @@ import { SettingsModal } from './components/SettingsModal';
 import { CourseDetailModal } from './components/CourseDetailModal';
 import { SlotDetailModal } from './components/SlotDetailModal';
 import { SyncConflictModal } from './components/SyncConflictModal';
-import { SyncData } from './utils/cloudSync';
+import { SyncData, getSyncMeta } from './utils/cloudSync';
+import { computeDashboard, countAlerts } from './utils/dashboard';
+import { findAlertDays } from './utils/dayLoad';
 import { ToastBanner } from './components/ToastBanner';
 import { useCloudSync } from './hooks/useCloudSync';
 import { useAuthActions } from './hooks/useAuthActions';
@@ -62,7 +65,7 @@ export default function App() {
   // Modals state
   const [isNewCourseOpen, setIsNewCourseOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<'subjects' | 'jPattern' | 'preferences' | 'backup' | 'help'>('subjects');
+  const [settingsTab, setSettingsTab] = useState<'subjects' | 'planning' | 'preferences' | 'backup' | 'help'>('subjects');
   const [shiftingRevision, setShiftingRevision] = useState<RevisionItem | null>(null);
   const [completingRevision, setCompletingRevision] = useState<RevisionItem | null>(null);
   const [selectedCourseForDetail, setSelectedCourseForDetail] = useState<Course | null>(null);
@@ -125,6 +128,7 @@ export default function App() {
   const {
     handleSaveNewCourse,
     handleConfirmShift,
+    handleApplyShifts,
     handleConfirmComplete,
     handleUndoComplete,
     handleUpdateCourse,
@@ -211,8 +215,8 @@ export default function App() {
 
   // Handler: Open Settings modal with specific tab
   const handleOpenSettingsModal = (defaultTab?: string) => {
-    if (defaultTab && ['subjects', 'jPattern', 'preferences', 'backup', 'help'].includes(defaultTab)) {
-      setSettingsTab(defaultTab as 'subjects' | 'jPattern' | 'preferences' | 'backup' | 'help');
+    if (defaultTab && ['subjects', 'planning', 'preferences', 'backup', 'help'].includes(defaultTab)) {
+      setSettingsTab(defaultTab as 'subjects' | 'planning' | 'preferences' | 'backup' | 'help');
     }
     setIsSettingsOpen(true);
   };
@@ -302,6 +306,22 @@ export default function App() {
     [todayRevisions]
   );
 
+  // Pastille de l'onglet Dashboard : seulement ce qui demande une action
+  const dashboardAlerts = useMemo(
+    () =>
+      countAlerts({
+        overdue: computeDashboard(courses, revisions, todayIso).stats.overdue.length,
+        syncConflict: syncStatus === 'conflict',
+        overloadedDays: findAlertDays(revisions, settings, todayIso).length,
+      }),
+    [courses, revisions, settings, todayIso, syncStatus]
+  );
+  // Date de la dernière synchro de ce compte sur cet appareil (conservée hors de l'état React)
+  const lastSyncedAt = useMemo(
+    () => (currentUser ? getSyncMeta(currentUser.uid).syncedAt ?? null : null),
+    [currentUser, syncStatus, isSyncing]
+  );
+
   if (!dataLoaded) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
@@ -327,7 +347,7 @@ export default function App() {
   const handleGoToSlot = (date: string, revisionId: string) => {
     setSelectedDate(date);
     // En vue partagée le planning est déjà à gauche ; sinon on bascule dessus
-    if (!(splitViewMode && isLargeScreen)) setCurrentView('agenda');
+    if (currentView === 'dashboard' || !(splitViewMode && isLargeScreen)) setCurrentView('agenda');
     flashSlot(revisionId);
   };
 
@@ -337,6 +357,7 @@ export default function App() {
       <TopNav
         currentView={currentView}
         onViewChange={setCurrentView}
+        dashboardAlerts={dashboardAlerts}
         onOpenNewCourseModal={() => setIsNewCourseOpen(true)}
         onOpenSettingsModal={handleOpenSettingsModal}
         splitView={splitViewMode}
@@ -387,7 +408,7 @@ export default function App() {
       {/* Main App Content Viewport */}
       <main className="flex-1 w-full px-1.5 sm:px-2 py-4 sm:py-6">
         {/* iPad Multitasking Split View Layout */}
-        {splitViewMode && isLargeScreen && currentView !== 'stats' ? (
+        {splitViewMode && isLargeScreen && currentView !== 'stats' && currentView !== 'dashboard' ? (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
             {/* Left Column (5 cols): Daily Stacked Agenda */}
             <div className="lg:col-span-5 space-y-4">
@@ -500,6 +521,30 @@ export default function App() {
                     }
                   }}
                   onUpdateSubjectFolders={handleUpdateSubjectFolders}
+              />
+            ) : currentView === 'dashboard' ? (
+              <DashboardView
+                courses={courses}
+                revisions={revisions}
+                subjects={subjects}
+                settings={settings}
+                cloudAvailable={isCloudConfigured}
+                userEmail={currentUser?.email ?? (currentUser ? t('Compte anonyme') : null)}
+                syncStatus={syncStatus}
+                isSyncing={isSyncing}
+                lastSyncedAt={lastSyncedAt}
+                safetyBackupCount={safetyBackups.length}
+                onSyncNow={syncNow}
+                onOpenConflict={openConflictDialog}
+                onOpenBackupSettings={() => handleOpenSettingsModal('backup')}
+                onOpenCompleteModal={(rev) => setCompletingRevision(rev)}
+                onOpenQuickShift={(rev) => setShiftingRevision(rev)}
+                onShiftToToday={(rev) => handleConfirmShift(rev.id, todayIso, settings.autoCascadeShift)}
+                onApplyShifts={handleApplyShifts}
+                onStartStudySession={handleStartStudySession}
+                onGoToSlot={handleGoToSlot}
+                onOpenCourseDetail={(c) => setSelectedCourseForDetail(c)}
+                onChangeSettings={(patch) => setSettings((prev) => ({ ...prev, ...patch }))}
               />
             ) : currentView === 'session' ? (
               <StudySessionTimer

@@ -20,7 +20,7 @@ import {
   snapToStep,
 } from '../utils/dayLayout';
 import { stripRichText } from '../utils/richText';
-import { ArrowRightLeft, CheckCircle2, Circle, GripVertical, Lock, LockOpen, Minus, Play, Plus, Square } from 'lucide-react';
+import { ArrowRightLeft, CheckCircle2, Circle, GripVertical, Lock, LockOpen, Minus, Play, Plus, Square, AlertTriangle } from 'lucide-react';
 import { stepHourHeight, normalizeHourHeight } from '../utils/dayLayout';
 import { t } from '../i18n';
 import { formatMinutes } from '../utils/dateUtils';
@@ -593,6 +593,8 @@ export const DayColumn: React.FC<DayColumnProps> = ({
         const subject = getSubject(course.subjectId, subjects);
         const g = getCourseGradientStyle(getCourseEffectiveColor(course, subject), rev.completed);
         const isDragging = drag?.id === rev.id;
+        // Créneau empilé après la fin de la plage de travail (jamais sur un jour forcé : limites levées exprès)
+        const outsideWindow = !forced && !rev.completed && (p.end > win.end || p.start < win.start);
         const height = Math.max(14, rev.durationMinutes * pxPerMin - 3);
         const sessionOpen = activeSessionRevisionId === rev.id && !!onCloseStudySession;
         const startLabel = `${formatTime(p.start)}–${formatTime(p.end)}`;
@@ -705,7 +707,7 @@ export const DayColumn: React.FC<DayColumnProps> = ({
               }
               onOpenSlotDetail(rev);
             }}
-            title={compact ? `${course.title} · ${subject.name} · ${startLabel}` : startLabel}
+            title={`${compact ? `${course.title} · ${subject.name} · ${startLabel}` : startLabel}${outsideWindow ? ` · ${t('Hors de la plage de travail')}` : ''}`}
             className={`absolute left-0 right-0 rounded-xl overflow-hidden cursor-pointer select-none ${
               isDragging && drag?.cross
                 ? 'z-20 opacity-30'
@@ -724,6 +726,14 @@ export const DayColumn: React.FC<DayColumnProps> = ({
             }}
           >
             <RatingFx rev={rev} />
+            {outsideWindow && (
+              <span
+                aria-hidden
+                className="absolute bottom-1 left-1 z-10 w-4 h-4 rounded-full bg-amber-400 text-amber-950 flex items-center justify-center shadow-2xs pointer-events-none"
+              >
+                <AlertTriangle className="w-2.5 h-2.5" />
+              </span>
+            )}
 
             {compact ? (
               <div className="h-full p-1.5 flex flex-col gap-1 min-h-0">

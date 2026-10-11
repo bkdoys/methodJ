@@ -12,6 +12,7 @@ import {
   Target,
   Eye,
 } from 'lucide-react';
+import { Card } from './Card';
 import { plural, t } from '../i18n';
 
 interface StatsProgressViewProps {
@@ -30,20 +31,6 @@ const MASTERY_BAR_COLORS: Record<MasteryLevel, string> = {
   3: 'bg-lime-500',
   4: 'bg-emerald-500',
 };
-
-const Card: React.FC<{ title: string; hint?: string; children: React.ReactNode }> = ({
-  title,
-  hint,
-  children,
-}) => (
-  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-2xs space-y-3 transition-colors">
-    <div>
-      <h3 className="text-sm font-bold text-slate-900 dark:text-white">{title}</h3>
-      {hint && <p className="text-[11px] text-slate-500 dark:text-slate-400">{hint}</p>}
-    </div>
-    {children}
-  </div>
-);
 
 export const StatsProgressView: React.FC<StatsProgressViewProps> = ({
   courses,

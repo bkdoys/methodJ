@@ -97,13 +97,15 @@ export interface AppSettings {
   linkTypes?: LinkType[];
   /** Agenda Google créé par l'application pour les créneaux (envoi direct) ; absent = pas encore créé. */
   googleCalendarId?: string;
+  /** Date (ISO) du dernier envoi réussi vers cet agenda ; affichée dans le tableau de bord. */
+  googleCalendarSyncedAt?: string;
   /** Langue de l'interface ; absent = français. */
   language?: 'fr' | 'en';
   splitView: boolean;
   theme: 'light' | 'dark';
 }
 
-export type ViewMode = 'agenda' | 'week' | 'month' | 'courses' | 'session' | 'stats';
+export type ViewMode = 'agenda' | 'week' | 'month' | 'courses' | 'session' | 'stats' | 'dashboard';
 
 export interface ToastMessage {
   title: string;

@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppSettings, Course, RevisionItem, Subject } from '../types';
 import { formatFrenchDayShort, formatMinutes } from '../utils/dateUtils';
+import { analyzeDay, describeDayAlert } from '../utils/dayLoad';
+import { AlertTriangle } from 'lucide-react';
 import { computeDisplayRange, getBlockDetails, getDayBreaks, getDayWindow, getTimelineConfig, resolveDayLayout } from '../utils/dayLayout';
 import { getCourseEffectiveColor, getCourseGradientStyle, getSubject } from '../utils/colorUtils';
 import { formatTime } from '../utils/dayLayout';
@@ -129,6 +131,7 @@ export const MultiDayTimeline: React.FC<MultiDayTimelineProps> = ({
             {days.map((dayIso) => {
               const dayRevs = byDay.get(dayIso) ?? [];
               const total = dayRevs.reduce((acc, r) => acc + r.durationMinutes, 0);
+              const load = analyzeDay(dayIso, dayRevs, settings);
               const isToday = dayIso === todayIso;
               const isSelected = dayIso === selectedDate;
               return (
@@ -149,7 +152,13 @@ export const MultiDayTimeline: React.FC<MultiDayTimelineProps> = ({
                   <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase block truncate">
                     {formatFrenchDayShort(dayIso)}
                   </span>
-                  <span className="text-[10px] font-mono text-teal-700 dark:text-teal-400">
+                  <span
+                    className={`inline-flex items-center gap-1 text-[10px] font-mono ${
+                      load.alert ? 'font-bold text-amber-700 dark:text-amber-400' : 'text-teal-700 dark:text-teal-400'
+                    }`}
+                    title={load.alert ? describeDayAlert(load, settings.dailyTargetHours) : undefined}
+                  >
+                    {load.alert && <AlertTriangle className="w-3 h-3 shrink-0" />}
                     {dayRevs.length === 0 ? '—' : `${formatMinutes(total)} · ${dayRevs.length}`}
                   </span>
                 </button>

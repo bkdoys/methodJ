@@ -1,7 +1,7 @@
 import React from 'react';
 import { ViewMode } from '../types';
 import { formatMinutes } from '../utils/dateUtils';
-import { Calendar, BookOpen, Clock, BarChart3, Settings, Columns, Plus, Sun, Moon, Cloud, RefreshCw } from 'lucide-react';
+import { Calendar, BookOpen, Clock, BarChart3, Settings, Columns, Plus, Sun, Moon, Cloud, RefreshCw, ListChecks } from 'lucide-react';
 import { t } from '../i18n';
 import { APP_NAME, APP_TAGLINE } from '../appInfo';
 
@@ -23,6 +23,8 @@ interface TopNavProps {
   cloudAvailable?: boolean;
   isSyncing?: boolean;
   syncStatus?: 'synced' | 'pending' | 'offline' | 'conflict';
+  /** Nombre d'éléments à traiter (pastille de l'onglet Dashboard). */
+  dashboardAlerts?: number;
   onResolveSyncConflict?: () => void;
 }
 
@@ -43,6 +45,7 @@ export const TopNav: React.FC<TopNavProps> = ({
   cloudAvailable = true,
   isSyncing,
   syncStatus = 'synced',
+  dashboardAlerts = 0,
   onResolveSyncConflict,
 }) => {
   return (
@@ -72,6 +75,26 @@ export const TopNav: React.FC<TopNavProps> = ({
 
         {/* Zone 2: Navigation items (compact and responsive) */}
         <nav className="hidden md:flex items-center gap-1 shrink">
+          <button
+            onClick={() => onViewChange('dashboard')}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+              currentView === 'dashboard'
+                ? 'bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 font-bold'
+                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            <ListChecks className="w-4 h-4 shrink-0" />
+            <span>{t('Dashboard')}</span>
+            {dashboardAlerts > 0 && (
+              <span
+                className="ml-0.5 min-w-[1.1rem] h-[1.1rem] px-1 inline-flex items-center justify-center rounded-full bg-rose-600 text-white text-[10px] font-bold leading-none"
+                aria-label={t('{n} à traiter', { n: dashboardAlerts })}
+              >
+                {dashboardAlerts > 9 ? '9+' : dashboardAlerts}
+              </span>
+            )}
+          </button>
+
           <button
             onClick={() => onViewChange('agenda')}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
@@ -240,6 +263,22 @@ export const TopNav: React.FC<TopNavProps> = ({
 
       {/* Mobile subnavigation bar */}
       <div className="md:hidden flex items-center justify-around border-t border-slate-200/80 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-900/90 px-2 py-1 text-xs">
+        <button
+          onClick={() => onViewChange('dashboard')}
+          className={`relative flex flex-col items-center py-1 px-3 rounded ${
+            currentView === 'dashboard'
+              ? 'text-teal-700 dark:text-teal-400 font-bold'
+              : 'text-slate-600 dark:text-slate-400'
+          }`}
+        >
+          <ListChecks className="w-4 h-4 mb-0.5" />
+          <span>{t('Dashboard')}</span>
+          {dashboardAlerts > 0 && (
+            <span className="absolute top-0 right-1 min-w-[1rem] h-4 px-1 inline-flex items-center justify-center rounded-full bg-rose-600 text-white text-[10px] font-bold leading-none">
+              {dashboardAlerts > 9 ? '9+' : dashboardAlerts}
+            </span>
+          )}
+        </button>
         <button
           onClick={() => onViewChange('agenda')}
           className={`flex flex-col items-center py-1 px-3 rounded ${

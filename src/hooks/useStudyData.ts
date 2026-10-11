@@ -17,7 +17,7 @@ import {
   deleteCourseFromCloud,
   deleteSubjectsFromCloud,
 } from '../utils/firebase';
-import { t } from '../i18n';
+import { plural, t } from '../i18n';
 
 interface UseStudyDataOptions {
   courses: Course[];
@@ -103,22 +103,23 @@ export function useStudyData({
     }
   };
 
-  // Handler: Cascade shift. `exactStartMinutes` (glisser-déposer entre jours) pose le créneau à cette heure ;
-  // sinon il est replacé là où il y a de la place dans la plage du nouveau jour.
-  const handleConfirmShift = (
+  // Cœur d'un décalage, sur des tableaux passés en argument (et non l'état React) : il sert au décalage d'un créneau
+  // comme à l'application d'un plan complet, où plusieurs décalages s'enchaînent sur un état à jour.
+  // Les créneaux qui changent de jour sont replacés dans la plage autorisée de leur nouveau jour
+  // (en gardant leur heure si elle y est libre).
+  const shiftOnce = (
+    revs: RevisionItem[],
+    crs: Course[],
     revisionId: string,
     newDate: string,
     autoCascade: boolean,
     exactStartMinutes?: number
   ) => {
-    const targetRev = revisions.find((r) => r.id === revisionId);
-    if (!targetRev) return;
+    const targetRev = revs.find((r) => r.id === revisionId);
+    if (!targetRev) return null;
 
-    const shifted = applyCascadeShift(revisions, revisionId, newDate, autoCascade);
-
-    // Les créneaux qui changent de jour sont replacés dans la plage autorisée de leur nouveau jour
-    // (en gardant leur heure si elle y est libre)
-    const originalDate = new Map(revisions.map((r) => [r.id, r.scheduledDate]));
+    const shifted = applyCascadeShift(revs, revisionId, newDate, autoCascade);
+    const originalDate = new Map(revs.map((r) => [r.id, r.scheduledDate]));
     const movedIds = new Set(
       shifted.updatedRevisions.filter((r) => originalDate.get(r.id) !== r.scheduledDate).map((r) => r.id)
     );
@@ -136,6 +137,25 @@ export function useStudyData({
     );
     const finalRevisions = base.map((r) => placed.get(r.id) ?? r);
 
+    // Déplacer un J0 déplace aussi la date de départ du cours
+    const course = crs.find((c) => c.id === targetRev.courseId);
+    const updatedCourse: Course | undefined =
+      targetRev.jIndex === 0 && course ? { ...course, j0Date: newDate } : undefined;
+    return { targetRev, shifted, finalRevisions, course, updatedCourse };
+  };
+
+  // Handler: Cascade shift. `exactStartMinutes` (glisser-déposer entre jours) pose le créneau à cette heure ;
+  // sinon il est replacé là où il y a de la place dans la plage du nouveau jour.
+  const handleConfirmShift = (
+    revisionId: string,
+    newDate: string,
+    autoCascade: boolean,
+    exactStartMinutes?: number
+  ) => {
+    const result = shiftOnce(revisions, courses, revisionId, newDate, autoCascade, exactStartMinutes);
+    if (!result) return;
+    const { targetRev, shifted, finalRevisions, course, updatedCourse } = result;
+
     // Tout ce qui a bougé (jour, heure ou rang), y compris les créneaux repoussés sur le jour d'arrivée
     const before = new Map(revisions.map((r) => [r.id, r]));
     const changed = finalRevisions.filter((r) => {
@@ -145,10 +165,6 @@ export function useStudyData({
     const originals = changed.map((r) => before.get(r.id)).filter((r): r is RevisionItem => !!r);
     setRevisions(finalRevisions);
 
-    // Déplacer un J0 déplace aussi la date de départ du cours
-    const course = courses.find((c) => c.id === targetRev.courseId);
-    const updatedCourse: Course | undefined =
-      targetRev.jIndex === 0 && course ? { ...course, j0Date: newDate } : undefined;
     if (updatedCourse) {
       setCourses((prev) => prev.map((c) => (c.id === updatedCourse.id ? updatedCourse : c)));
       setSelectedCourseForDetail((prev) => (prev && prev.id === updatedCourse.id ? updatedCourse : prev));
@@ -205,6 +221,70 @@ export function useStudyData({
   // Handler: drag a slot to another day on the week timeline (follows the automatic-cascade setting)
   const handleMoveSlotToDay = (revisionId: string, newDate: string, startMinutes: number) =>
     handleConfirmShift(revisionId, newDate, settings.autoCascadeShift, startMinutes);
+
+  // Handler: applique un plan (lissage ou rattrapage) : les décalages s'enchaînent sur un tableau de travail,
+  // puis une seule mise à jour d'état, une seule synchro ciblée et un seul message avec « Annuler ».
+  const handleApplyShifts = (moves: { revisionId: string; toDate: string }[]) => {
+    if (moves.length === 0) return;
+    let workRevs = revisions;
+    let workCourses = courses;
+    let applied = 0;
+    for (const m of moves) {
+      const res = shiftOnce(workRevs, workCourses, m.revisionId, m.toDate, settings.autoCascadeShift);
+      if (!res) continue;
+      workRevs = res.finalRevisions;
+      if (res.updatedCourse) {
+        const updated = res.updatedCourse;
+        workCourses = workCourses.map((c) => (c.id === updated.id ? updated : c));
+      }
+      applied++;
+    }
+    if (applied === 0) return;
+
+    const before = new Map(revisions.map((r) => [r.id, r]));
+    const changed = workRevs.filter((r) => {
+      const o = before.get(r.id);
+      return !o || o.scheduledDate !== r.scheduledDate || o.startTime !== r.startTime || o.slotOrder !== r.slotOrder;
+    });
+    const originals = changed.map((r) => before.get(r.id)).filter((r): r is RevisionItem => !!r);
+    const courseBefore = new Map(courses.map((c) => [c.id, c]));
+    const changedCourses = workCourses.filter((c) => courseBefore.get(c.id) !== c);
+    const originalCourses = changedCourses.map((c) => courseBefore.get(c.id)).filter((c): c is Course => !!c);
+
+    setRevisions(workRevs);
+    if (changedCourses.length > 0) {
+      const byId = new Map(changedCourses.map((c) => [c.id, c]));
+      setCourses((prev) => prev.map((c) => byId.get(c.id) ?? c));
+    }
+    if (cloudUid) {
+      syncRevisionsBatchToCloud(cloudUid, changed).catch((e) => console.warn('Plan sync error:', e));
+      changedCourses.forEach((c) => syncCourseToCloud(cloudUid, c).catch((e) => console.warn('Plan course sync error:', e)));
+    }
+
+    const undo = () => {
+      const revById = new Map(originals.map((r) => [r.id, r]));
+      setRevisions((prev) => prev.map((r) => revById.get(r.id) ?? r));
+      if (originalCourses.length > 0) {
+        const courseById = new Map(originalCourses.map((c) => [c.id, c]));
+        setCourses((prev) => prev.map((c) => courseById.get(c.id) ?? c));
+      }
+      if (cloudUid) {
+        syncRevisionsBatchToCloud(cloudUid, originals).catch((e) => console.warn('Undo plan sync error:', e));
+        originalCourses.forEach((c) => syncCourseToCloud(cloudUid, c).catch((e) => console.warn('Undo plan course sync error:', e)));
+      }
+    };
+    notify({
+      title: t('Plan appliqué'),
+      description: plural(
+        applied,
+        '{n} déplacement appliqué ({total} créneau au total).',
+        '{n} déplacements appliqués ({total} créneaux au total).',
+        { total: changed.length }
+      ),
+      type: 'info',
+      action: { label: t('Annuler'), onClick: undo },
+    });
+  };
 
   // Handler: Complete revision & update knowledge rating
   const handleConfirmComplete = (
@@ -514,6 +594,7 @@ export function useStudyData({
   return {
     handleSaveNewCourse,
     handleConfirmShift,
+    handleApplyShifts,
     handleConfirmComplete,
     handleUndoComplete,
     handleUpdateCourse,

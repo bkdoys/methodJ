@@ -18,6 +18,10 @@ methodJ planifie vos révisions selon la **méthode des J** (répétition espac�
 
 ![Catalogue des cours avec l'arborescence](docs/screenshots/cours-arbre.jpg)
 
+**Dashboard** : tout ce qui demande une action au même endroit (retards, jours au-dessus de votre objectif, créneaux hors de la plage de travail), avec des propositions de lissage et de rattrapage que vous cochez avant de les accepter. Les règles sont décrites dans [docs/PLANNING_RULES.md](docs/PLANNING_RULES.md).
+
+![Dashboard : jours à surveiller, lissage proposé et retards](docs/screenshots/dashboard.jpg)
+
 <details>
 <summary>Thème sombre</summary>
 
@@ -26,6 +30,8 @@ methodJ planifie vos révisions selon la **méthode des J** (répétition espac�
 ![Écran scindé, thème sombre](docs/screenshots/planning-split-sombre.jpg)
 
 ![Catalogue des cours avec l'arborescence, thème sombre](docs/screenshots/cours-arbre-sombre.jpg)
+
+![Dashboard, thème sombre](docs/screenshots/dashboard-sombre.jpg)
 
 </details>
 
@@ -36,6 +42,7 @@ methodJ planifie vos révisions selon la **méthode des J** (répétition espac�
 - **Décalage en cascade** : si vous repoussez un créneau, les suivants non faits suivent.
 - **Chronomètre de révision** avec notes et auto-évaluation de la maîtrise.
 - **Catalogue de cours**, disciplines et couleurs personnalisables (import CSV/JSON), avec une arborescence (discipline › dossier › sous-dossier) pour ranger et filtrer les cours, et des liens (Drive, flashcards…) attachés à chaque cours, et un export `.ics` de vos créneaux (Google Agenda, Apple, Outlook).
+- **Dashboard** : retards, jours surchargés ou avec des créneaux hors plage, lissage de charge et rattrapage proposés (jamais appliqués sans votre accord, annulables), état de la synchronisation.
 - **Statistiques** : série, retards, charge à venir, rétention par J.
 - **Interface en français et en anglais** : la langue du navigateur est suivie au premier lancement, puis réglable dans Préférences > Affichage.
 - **Installable** sur iPad / téléphone / ordinateur (PWA), plein écran.

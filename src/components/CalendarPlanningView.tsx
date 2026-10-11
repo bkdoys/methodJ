@@ -39,7 +39,8 @@ import {
   Send,
 } from 'lucide-react';
 import { CalendarExportModal } from './CalendarExportModal';
-import { t } from '../i18n';
+import { analyzeDay } from '../utils/dayLoad';
+import { plural, t } from '../i18n';
 import { getSlotDurationMinutes } from '../utils/jMethod';
 
 /** Hauteur d'une heure choisie avec − / + : un confort d'affichage propre à l'appareil (iPad ≠ ordinateur). */
@@ -140,6 +141,7 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
 
   const targetMinutes = settings.dailyTargetHours * 60;
   const isOverloaded = dayTotalMinutes > targetMinutes;
+  const dayOverflowCount = analyzeDay(selectedDate, dayRevisions, settings).overflowIds.length;
 
   // Navigation handlers according to current view
   const handlePrev = () => {
@@ -367,15 +369,24 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
           {/* Day Workload Progress Bar */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-2xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-teal-600" />
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+                <Clock className="w-4 h-4 text-teal-600 shrink-0" />
                 <h2 className="text-sm font-bold text-slate-900 dark:text-white">
                   {t('Charge du jour : {d} planifiées ({n} créneaux)', { d: formatMinutes(dayTotalMinutes), n: dayRevisions.length })}
                 </h2>
                 {isOverloaded && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                    <AlertTriangle className="w-3 h-3" />
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold whitespace-nowrap bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                    <AlertTriangle className="w-3 h-3 shrink-0" />
                     {t('Dépasse objectif ({n}h)', { n: settings.dailyTargetHours })}
+                  </span>
+                )}
+                {dayOverflowCount > 0 && (
+                  <span
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold whitespace-nowrap bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+                    title={t('Faute de place, ces créneaux sont empilés après la fin de la plage de travail.')}
+                  >
+                    <AlertTriangle className="w-3 h-3" />
+                    {plural(dayOverflowCount, '{n} créneau hors plage', '{n} créneaux hors plage')}
                   </span>
                 )}
               </div>
@@ -574,7 +585,9 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
           revisions={revisions}
           subjects={subjects}
           settings={settings}
-          onSaveSettings={(next) => onChangeSettings?.({ googleCalendarId: next.googleCalendarId })}
+          onSaveSettings={(next) =>
+            onChangeSettings?.({ googleCalendarId: next.googleCalendarId, googleCalendarSyncedAt: next.googleCalendarSyncedAt })
+          }
           onClose={() => setExportOpen(false)}
         />
       )}

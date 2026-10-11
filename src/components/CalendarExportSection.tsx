@@ -81,7 +81,7 @@ export const CalendarExportSection: React.FC<CalendarExportSectionProps> = ({ co
           reminderMinutes: reminder,
           onProgress: (done, total) => setProgress({ done, total }),
         });
-        if (result.calendarId !== settings.googleCalendarId) onSaveSettings({ ...settings, googleCalendarId: result.calendarId });
+        onSaveSettings({ ...settings, googleCalendarId: result.calendarId, googleCalendarSyncedAt: new Date().toISOString() });
         setMessage({
           type: 'ok',
           text: t('Agenda « {name} » à jour : {created} créé(s), {updated} mis à jour, {unchanged} inchangé(s), {removed} retiré(s).', {

@@ -25,6 +25,7 @@ import {
 import { parseSubjectsImport } from '../utils/subjectsImport';
 import { LinkTypesManager } from './LinkTypesManager';
 import { CalendarExportSection } from './CalendarExportSection';
+import { PlanningRules } from './PlanningRules';
 import { getLinkTypes } from '../utils/courseLinks';
 import {
   Settings,
@@ -48,6 +49,7 @@ import {
   RefreshCw,
   Brain,
   HelpCircle,
+  ChevronDown,
 } from 'lucide-react';
 
 import { MASTERY_CONFIG } from './MasteryBadge';
@@ -87,7 +89,7 @@ interface SettingsModalProps {
   /** Versions mises de côté avant un écrasement local/cloud (la plus récente d'abord). */
   safetyBackups?: { at: string; reason: string; courses: number; revisions: number }[];
   onRestoreSafetyBackup?: (index: number) => void;
-  initialTab?: 'subjects' | 'jPattern' | 'preferences' | 'backup' | 'help';
+  initialTab?: 'subjects' | 'planning' | 'preferences' | 'backup' | 'help';
   authError?: { code?: string; message: string; resolution?: string } | null;
   onClearAuthError?: () => void;
 }
@@ -124,6 +126,29 @@ function customWindowsFromSettings(s: AppSettings): Record<string, { start: stri
   });
   return out;
 }
+
+/** Bloc repliable des réglages : un en-tête cliquable, le contenu apparaît dessous. */
+const SettingsSection: React.FC<{ title: string; defaultOpen?: boolean; children: React.ReactNode }> = ({
+  title,
+  defaultOpen = false,
+  children,
+}) => {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section className="rounded-xl border border-slate-200 dark:border-slate-800">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50"
+      >
+        <span className="text-xs font-bold text-slate-900 dark:text-white">{title}</span>
+        <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && <div className="px-4 pb-4 space-y-4">{children}</div>}
+    </section>
+  );
+};
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
@@ -212,7 +237,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [newSubColor, setNewSubColor] = useState('#0d9488');
 
   // Active tab in settings modal
-  const [activeTab, setActiveTab] = useState<'subjects' | 'jPattern' | 'preferences' | 'backup' | 'help'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'subjects' | 'planning' | 'preferences' | 'backup' | 'help'>(initialTab);
 
   useEffect(() => {
     if (isOpen && initialTab) {
@@ -483,7 +508,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   {t('Préférences & Réglages {app}', { app: APP_NAME })}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {t('Disciplines, couleurs, répétitions J par défaut, thème et sauvegardes')}
+                  {t('Disciplines, planning, affichage et sauvegardes')}
                 </p>
               </div>
             </div>
@@ -501,9 +526,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div className="grid grid-cols-5 gap-1 px-3 sm:px-6 pt-3 border-b border-slate-100 dark:border-slate-800 text-[11px] sm:text-xs font-bold">
             {(
               [
+                { id: 'preferences', icon: Layers, label: t('Affichage'), title: t('Langue, thème, types de liens') },
                 { id: 'subjects', icon: Palette, label: t('Disciplines'), title: t('Disciplines & Couleurs ({n})', { n: localSubjects.length }) },
-                { id: 'jPattern', icon: Layers, label: t('Répétitions'), title: t('Répétitions J par défaut') },
-                { id: 'preferences', icon: Clock, label: t('Affichage'), title: t('Thème & Heures') },
+                { id: 'planning', icon: Clock, label: t('Planning'), title: t('Répétitions, créneaux, journée de travail') },
                 { id: 'backup', icon: Cloud, label: t('Cloud'), title: t('Cloud & Sauvegardes') },
                 { id: 'help', icon: HelpCircle, label: t('Aide'), title: t('Aide') },
               ] as const
@@ -804,10 +829,11 @@ Pneumologie`}</pre>
             )}
 
             {/* ======================================================== */}
-            {/* TAB 2: RÉPÉTITIONS J PAR DÉFAUT */}
+            {/* TAB 2: PLANNING (répétitions, créneaux, journée de travail, affichage du planning) */}
             {/* ======================================================== */}
-            {activeTab === 'jPattern' && (
-              <div className="space-y-4">
+            {activeTab === 'planning' && (
+              <div className="space-y-3">
+                <SettingsSection title={t('Répétitions')} defaultOpen>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                   <div>
                     <h4 className="text-xs font-bold text-slate-900 dark:text-white">
@@ -902,6 +928,9 @@ Pneumologie`}</pre>
                   onAdd={(num) => setJPool((prev) => [...new Set([...prev, num])].sort((x, y) => x - y))}
                 />
 
+                </SettingsSection>
+
+                <SettingsSection title={t('Créneaux')}>
                 {/* Durée des créneaux : valeur par défaut + exceptions par J (rangées en grille) */}
                 <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl space-y-3">
                   <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -1005,93 +1034,9 @@ Pneumologie`}</pre>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+                </SettingsSection>
 
-            {/* ======================================================== */}
-            {/* TAB 3: THÈME & HEURES */}
-            {/* ======================================================== */}
-            {activeTab === 'preferences' && (
-              <div className="space-y-4">
-                {/* Types de liens des cours */}
-                <div>
-                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
-                    {t('Types de liens')}
-                  </label>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2">
-                    {t('Pour classer les liens (Drive, flashcards…) ajoutés aux cours. Les modifications sont enregistrées tout de suite.')}
-                  </p>
-                  <LinkTypesManager linkTypes={getLinkTypes(settings)} courses={courses} onChange={onChangeLinkTypes} />
-                </div>
-
-                {/* Langue de l'interface */}
-                <div>
-                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
-                    {t('Langue / Language')}
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {LANGUAGES.map((l) => (
-                      <button
-                        key={l.id}
-                        type="button"
-                        onClick={() => setLanguage(l.id)}
-                        aria-pressed={language === l.id}
-                        className={`p-3 rounded-xl border text-xs font-bold transition-all ${
-                          language === l.id
-                            ? 'border-teal-600 bg-teal-50/50 text-teal-900 ring-2 ring-teal-500 shadow-xs'
-                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'
-                        }`}
-                      >
-                        {l.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Theme Selector (Clair / Sombre) */}
-                <div>
-                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
-                    {t('Apparence & Thème visuel')}
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setTheme('light')}
-                      className={`p-3 rounded-xl border flex items-center gap-3 transition-all ${
-                        theme === 'light'
-                          ? 'border-teal-600 bg-teal-50/50 text-teal-900 ring-2 ring-teal-500 shadow-xs'
-                          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'
-                      }`}
-                    >
-                      <div className="p-2 rounded-lg bg-amber-100 text-amber-700">
-                        <Sun className="w-5 h-5" />
-                      </div>
-                      <div className="text-left">
-                        <span className="text-xs font-bold block">{t('Thème Clair')}</span>
-                        <span className="text-[10px] text-slate-500">{t('Pour le travail de jour')}</span>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setTheme('dark')}
-                      className={`p-3 rounded-xl border flex items-center gap-3 transition-all ${
-                        theme === 'dark'
-                          ? 'border-teal-600 bg-slate-800 text-teal-300 ring-2 ring-teal-500 shadow-xs'
-                          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'
-                      }`}
-                    >
-                      <div className="p-2 rounded-lg bg-indigo-900/60 text-indigo-300">
-                        <Moon className="w-5 h-5" />
-                      </div>
-                      <div className="text-left">
-                        <span className="text-xs font-bold block">{t('Thème Sombre')}</span>
-                        <span className="text-[10px] text-slate-400">{t('Pour les gardes et révisions tardives')}</span>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-
+                <SettingsSection title={t('Journée de travail')}>
                 {/* Target Hours & Start Time */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                   <div>
@@ -1124,70 +1069,6 @@ Pneumologie`}</pre>
                   </div>
                 </div>
 
-                {/* Échelle de la vue Journée */}
-                <div className="pt-3 mt-1 border-t border-slate-100 dark:border-slate-800 space-y-2">
-                  <div>
-                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                      {t('Échelle de la vue Journée')}
-                    </span>
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                      {t('Plage d\'heures affichée et pas de déplacement des créneaux (glisser-déposer).')}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label htmlFor="tl-start" className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-                        {t('De')}
-                      </label>
-                      <select
-                        id="tl-start"
-                        value={timelineStartHour}
-                        onChange={(e) => setTimelineStartHour(Number(e.target.value))}
-                        className="w-full px-3 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-lg font-mono dark:bg-slate-800 dark:text-white"
-                      >
-                        {Array.from({ length: 24 }, (_, h) => (
-                          <option key={h} value={h}>
-                            {String(h).padStart(2, '0')}:00
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label htmlFor="tl-end" className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-                        {t('À')}
-                      </label>
-                      <select
-                        id="tl-end"
-                        value={timelineEndHour}
-                        onChange={(e) => setTimelineEndHour(Number(e.target.value))}
-                        className="w-full px-3 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-lg font-mono dark:bg-slate-800 dark:text-white"
-                      >
-                        {Array.from({ length: 24 }, (_, i) => i + 1).map((h) => (
-                          <option key={h} value={h}>
-                            {String(h % 24).padStart(2, '0')}:00{h === 24 ? ` ${t('(minuit)')}` : ''}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label htmlFor="tl-step" className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-                        {t('Pas de déplacement')}
-                      </label>
-                      <select
-                        id="tl-step"
-                        value={timelineStepMinutes}
-                        onChange={(e) => setTimelineStepMinutes(Number(e.target.value))}
-                        className="w-full px-3 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-lg font-mono dark:bg-slate-800 dark:text-white"
-                      >
-                        {STEP_OPTIONS.map((m) => (
-                          <option key={m} value={m}>
-                            {m === 60 ? t('1 h') : t('{n} min', { n: m })}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
 
                 {/* Plages horaires autorisées par jour de la semaine */}
                 <div className="pt-3 mt-1 border-t border-slate-100 dark:border-slate-800 space-y-2">
@@ -1263,6 +1144,75 @@ Pneumologie`}</pre>
 
                 <BreaksEditor value={breaks} onChange={setBreaks} weekdayLabels={weekdayLabels()} />
 
+                </SettingsSection>
+
+                <SettingsSection title={t('Affichage du planning')}>
+                {/* Échelle de la vue Journée */}
+                <div className="space-y-2">
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                      {t('Échelle de la vue Journée')}
+                    </span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {t('Plage d\'heures affichée et pas de déplacement des créneaux (glisser-déposer).')}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label htmlFor="tl-start" className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                        {t('De')}
+                      </label>
+                      <select
+                        id="tl-start"
+                        value={timelineStartHour}
+                        onChange={(e) => setTimelineStartHour(Number(e.target.value))}
+                        className="w-full px-3 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-lg font-mono dark:bg-slate-800 dark:text-white"
+                      >
+                        {Array.from({ length: 24 }, (_, h) => (
+                          <option key={h} value={h}>
+                            {String(h).padStart(2, '0')}:00
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="tl-end" className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                        {t('À')}
+                      </label>
+                      <select
+                        id="tl-end"
+                        value={timelineEndHour}
+                        onChange={(e) => setTimelineEndHour(Number(e.target.value))}
+                        className="w-full px-3 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-lg font-mono dark:bg-slate-800 dark:text-white"
+                      >
+                        {Array.from({ length: 24 }, (_, i) => i + 1).map((h) => (
+                          <option key={h} value={h}>
+                            {String(h % 24).padStart(2, '0')}:00{h === 24 ? ` ${t('(minuit)')}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="tl-step" className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                        {t('Pas de déplacement')}
+                      </label>
+                      <select
+                        id="tl-step"
+                        value={timelineStepMinutes}
+                        onChange={(e) => setTimelineStepMinutes(Number(e.target.value))}
+                        className="w-full px-3 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-lg font-mono dark:bg-slate-800 dark:text-white"
+                      >
+                        {STEP_OPTIONS.map((m) => (
+                          <option key={m} value={m}>
+                            {m === 60 ? t('1 h') : t('{n} min', { n: m })}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+
                 {/* Vue sur plusieurs jours + détails affichés dans les créneaux */}
                 <div className="pt-3 mt-1 border-t border-slate-100 dark:border-slate-800 space-y-2">
                   <div>
@@ -1325,6 +1275,96 @@ Pneumologie`}</pre>
                     ))}
                   </div>
                 </div>
+                </SettingsSection>
+              </div>
+            )}
+
+            {/* ======================================================== */}
+            {/* TAB 3: AFFICHAGE (langue, thème, types de liens) */}
+            {/* ======================================================== */}
+            {activeTab === 'preferences' && (
+              <div className="space-y-4">
+                {/* Langue de l'interface */}
+                <div>
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
+                    {t('Langue / Language')}
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {LANGUAGES.map((l) => (
+                      <button
+                        key={l.id}
+                        type="button"
+                        onClick={() => setLanguage(l.id)}
+                        aria-pressed={language === l.id}
+                        className={`p-3 rounded-xl border text-xs font-bold transition-all ${
+                          language === l.id
+                            ? 'border-teal-600 bg-teal-50/50 text-teal-900 ring-2 ring-teal-500 shadow-xs'
+                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        {l.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+
+                {/* Theme Selector (Clair / Sombre) */}
+                <div>
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
+                    {t('Apparence & Thème visuel')}
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setTheme('light')}
+                      className={`p-3 rounded-xl border flex items-center gap-3 transition-all ${
+                        theme === 'light'
+                          ? 'border-teal-600 bg-teal-50/50 text-teal-900 ring-2 ring-teal-500 shadow-xs'
+                          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      <div className="p-2 rounded-lg bg-amber-100 text-amber-700">
+                        <Sun className="w-5 h-5" />
+                      </div>
+                      <div className="text-left">
+                        <span className="text-xs font-bold block">{t('Thème Clair')}</span>
+                        <span className="text-[10px] text-slate-500">{t('Pour le travail de jour')}</span>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setTheme('dark')}
+                      className={`p-3 rounded-xl border flex items-center gap-3 transition-all ${
+                        theme === 'dark'
+                          ? 'border-teal-600 bg-slate-800 text-teal-300 ring-2 ring-teal-500 shadow-xs'
+                          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      <div className="p-2 rounded-lg bg-indigo-900/60 text-indigo-300">
+                        <Moon className="w-5 h-5" />
+                      </div>
+                      <div className="text-left">
+                        <span className="text-xs font-bold block">{t('Thème Sombre')}</span>
+                        <span className="text-[10px] text-slate-400">{t('Pour les gardes et révisions tardives')}</span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+
+                {/* Types de liens des cours */}
+                <div>
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
+                    {t('Types de liens')}
+                  </label>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2">
+                    {t('Pour classer les liens (Drive, flashcards…) ajoutés aux cours. Les modifications sont enregistrées tout de suite.')}
+                  </p>
+                  <LinkTypesManager linkTypes={getLinkTypes(settings)} courses={courses} onChange={onChangeLinkTypes} />
+                </div>
+
               </div>
             )}
 
@@ -1672,6 +1712,25 @@ Pneumologie`}</pre>
                   <RefreshCw className="w-3.5 h-3.5" />
                   <span>{t('Recharger l\'application')}</span>
                 </button>
+              </div>
+              {/* Surcharge, retards et lissage de charge */}
+              <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
+                <h4 className="text-xs font-bold text-slate-900 dark:text-white">{t('Surcharge, retards et lissage')}</h4>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                  {t('Un créneau qui ne trouve plus de place n\'est jamais décalé au jour suivant ni supprimé : il s\'empile après la fin de la plage de travail de son jour. L\'application le signale en ambre sur le planning et dans l\'onglet Dashboard, sans rien déplacer toute seule.')}
+                </p>
+                <div className="space-y-1">
+                  <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200">{t('Lissage d\'un jour chargé')}</span>
+                  <div className="text-[11px] text-slate-600 dark:text-slate-400">
+                    <PlanningRules kind="smooth" />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200">{t('Rattrapage des retards')}</span>
+                  <div className="text-[11px] text-slate-600 dark:text-slate-400">
+                    <PlanningRules kind="catchup" />
+                  </div>
+                </div>
               </div>
               {/* Méthode des J & Ebbinghaus */}
               <div className="bg-gradient-to-br from-teal-50/80 via-white to-slate-50 dark:from-teal-950/40 dark:via-slate-900 dark:to-slate-900 rounded-2xl border border-teal-200 dark:border-teal-800/60 p-5 space-y-3">
