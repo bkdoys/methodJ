@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AppSettings, Course, Subject } from '../types';
+import { AppSettings, Course, LinkType, RevisionItem, Subject } from '../types';
 import { DEFAULT_J_PATTERNS, getJPool, getSlotDurationMinutes } from '../utils/jMethod';
 import { formatMinutes } from '../utils/dateUtils';
 import { LANGUAGES, Lang, getLang, getLocale, plural } from '../i18n';
@@ -23,6 +23,9 @@ import {
   STEP_OPTIONS,
 } from '../utils/dayLayout';
 import { parseSubjectsImport } from '../utils/subjectsImport';
+import { LinkTypesManager } from './LinkTypesManager';
+import { CalendarExportSection } from './CalendarExportSection';
+import { getLinkTypes } from '../utils/courseLinks';
 import {
   Settings,
   Save,
@@ -57,6 +60,8 @@ interface SettingsModalProps {
   onClose: () => void;
   settings: AppSettings;
   onSaveSettings: (newSettings: AppSettings) => void;
+  /** Enregistre aussitôt la liste des types de liens (commune à tous les cours). */
+  onChangeLinkTypes: (types: LinkType[]) => void;
   /** Faux sans configuration Firebase : l'onglet Cloud explique comment la brancher. */
   cloudAvailable?: boolean;
   subjects: Subject[];
@@ -67,6 +72,7 @@ interface SettingsModalProps {
     resolution: { kind: 'reassign'; toSubjectId: string } | { kind: 'delete' }
   ) => void;
   courses: Course[];
+  revisions: RevisionItem[];
   onExportBackup: () => void;
   onImportBackup: (jsonContent: string) => void;
   onResetSeedData: () => void;
@@ -124,11 +130,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   settings,
   onSaveSettings,
+  onChangeLinkTypes,
   cloudAvailable = true,
   subjects,
   onSaveSubjects,
   onResolveSubjectCourses,
   courses,
+  revisions,
   onExportBackup,
   onImportBackup,
   onResetSeedData,
@@ -356,12 +364,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
-        const { added, duplicates, invalid } = parseSubjectsImport(
+        const { added, updated: enriched, foldersAdded, duplicates, invalid } = parseSubjectsImport(
           String(ev.target?.result ?? ''),
           localSubjects
         );
-        if (added.length > 0) {
-          const updated = [...localSubjects, ...added];
+        const changed = added.length > 0 || enriched.length > 0;
+        if (changed) {
+          const enrichedById = new Map(enriched.map((s) => [s.id, s]));
+          const updated = [...localSubjects.map((s) => enrichedById.get(s.id) ?? s), ...added];
           setLocalSubjects(updated);
           onSaveSubjects(updated);
         }
@@ -370,8 +380,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           invalid ? t('{n} ligne(s) invalide(s)', { n: invalid }) : '',
         ].filter(Boolean).join(', ');
         setImportMsg({
-          type: added.length > 0 ? 'ok' : 'error',
-          text: `${t('{n} matière(s) importée(s)', { n: added.length })}${extra ? ` · ${extra}` : ''}.`,
+          type: changed ? 'ok' : 'error',
+          text: `${t('{n} matière(s) importée(s)', { n: added.length })}${foldersAdded ? ` · ${t('{n} dossier(s) créé(s)', { n: foldersAdded })}` : ''}${extra ? ` · ${extra}` : ''}.`,
         });
       } catch (err) {
         setImportMsg({
@@ -776,9 +786,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   )}
                   <p className="text-[10px] text-slate-500 dark:text-slate-400">
                     {t('Formats acceptés :')}{' '}<strong>{t('CSV/TXT')}</strong> {t('(une matière par ligne :')}{' '}
-                    <code className="font-mono">{t('Nom;CODE;#couleur')}</code>{t(', code et couleur optionnels) ou')}{' '}
+                    <code className="font-mono">{t('Nom;CODE;#couleur')}</code>{t(', code et couleur optionnels ; une ligne décalée par des espaces ou une tabulation devient un dossier de la matière au-dessus, un second décalage un sous-dossier) ou')}{' '}
                     <strong>{t('JSON')}</strong>{' '}{t('(liste de matières, ou un fichier de sauvegarde {app}).', { app: APP_NAME })}
                   </p>
+                  <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 pt-1">{t('Exemple de fichier .txt :')}</p>
+                  <pre className="text-[11px] leading-relaxed font-mono p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 overflow-x-auto">{`Cardiologie;CARDIO;#e11d48
+  Rythmologie
+    ECG
+    Fibrillation atriale
+  Insuffisance cardiaque
+ICM;ICM;#2563eb
+  Intro Médicaments
+    Pharmacocinétique
+Pneumologie`}</pre>
                 </div>
               </div>
             )}
@@ -993,6 +1013,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             {/* ======================================================== */}
             {activeTab === 'preferences' && (
               <div className="space-y-4">
+                {/* Types de liens des cours */}
+                <div>
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
+                    {t('Types de liens')}
+                  </label>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2">
+                    {t('Pour classer les liens (Drive, flashcards…) ajoutés aux cours. Les modifications sont enregistrées tout de suite.')}
+                  </p>
+                  <LinkTypesManager linkTypes={getLinkTypes(settings)} courses={courses} onChange={onChangeLinkTypes} />
+                </div>
+
                 {/* Langue de l'interface */}
                 <div>
                   <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
@@ -1581,6 +1612,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     */}
                   </div>
                 </div>
+
+                {/* Export des créneaux vers un agenda externe */}
+                <CalendarExportSection courses={courses} revisions={revisions} subjects={subjects} settings={settings} onSaveSettings={onSaveSettings} />
 
                 {/* Sauvegardes de sécurité créées avant un écrasement local/cloud */}
                 {safetyBackups.length > 0 && onRestoreSafetyBackup && (

@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { AppSettings, MasteryLevel, Subject } from '../types';
+import { AppSettings, CourseLink, LinkType, MasteryLevel, Subject } from '../types';
+import { CourseLinksEditor } from './CourseLinksEditor';
+import { getLinkTypes } from '../utils/courseLinks';
 import { RichTextEditor } from './RichTextEditor';
 import { addDays, formatFrenchDate, formatMinutes, getTodayIso } from '../utils/dateUtils';
 import { JIntervalAdder } from './JIntervalAdder';
 import { DEFAULT_J_PATTERNS, getJPool, getSlotDurationMinutes } from '../utils/jMethod';
+import { FolderTreePicker } from './FolderTreePicker';
 import { BookOpen, Calendar, Plus, X, Check } from 'lucide-react';
 import { PRESET_COURSE_COLORS } from '../utils/colorUtils';
 import { t } from '../i18n';
@@ -13,11 +16,16 @@ interface NewCourseModalProps {
   onClose: () => void;
   subjects: Subject[];
   settings: AppSettings;
+  /** Création de dossiers depuis le sélecteur d'emplacement. */
+  onUpdateSubject?: (subject: Subject) => void;
+  onChangeLinkTypes: (types: LinkType[]) => void;
   onSaveCourse: (
     courseData: {
       title: string;
       itemCode: string;
       subjectId: string;
+      folderId?: string;
+      links?: CourseLink[];
       customColor?: string;
       j0Date: string;
       activeJList: number[];
@@ -33,11 +41,15 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
   onClose,
   subjects,
   settings,
+  onUpdateSubject,
+  onChangeLinkTypes,
   onSaveCourse,
 }) => {
   const [title, setTitle] = useState('');
   const [itemCode, setItemCode] = useState('');
   const [subjectId, setSubjectId] = useState(subjects[0]?.id || 'sub_cardio');
+  const [folderId, setFolderId] = useState<string | undefined>(undefined);
+  const [links, setLinks] = useState<CourseLink[]>([]);
   const [customColor, setCustomColor] = useState<string | undefined>(undefined);
   const [j0Date, setJ0Date] = useState(getTodayIso());
   const [activeJList, setActiveJList] = useState<number[]>(settings.defaultJPattern);
@@ -69,6 +81,8 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
         title: title.trim(),
         itemCode: itemCode.trim() || 'MED',
         subjectId,
+        folderId,
+        links: links.length ? links : undefined,
         customColor: customColor || undefined,
         j0Date,
         activeJList: activeJList.includes(0) ? activeJList : [0, ...activeJList],
@@ -81,6 +95,8 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
     // Reset and close
     setTitle('');
     setItemCode('');
+    setFolderId(undefined);
+    setLinks([]);
     setCustomColor(undefined);
     setShowColorPicker(false);
     setNotes('');
@@ -159,38 +175,35 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
             {/* Subject Picker */}
             <div>
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5">
-                {t('Matière médicale & Code couleur')}
+                {t('Emplacement du cours (discipline et dossier)')}
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {subjects.map((sub) => {
-                  const isSelected = subjectId === sub.id;
-                  return (
-                    <button
-                      key={sub.id}
-                      type="button"
-                      onClick={() => setSubjectId(sub.id)}
-                      className={`px-2.5 py-2 rounded-xl border text-left text-xs font-bold transition-all flex items-center gap-2 ${
-                        isSelected
-                          ? 'ring-2 ring-teal-500 border-transparent shadow-xs'
-                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'
-                      }`}
-                      style={{
-                        backgroundColor: isSelected ? sub.accentBg : undefined,
-                        borderColor: isSelected ? sub.color : undefined,
-                      }}
-                    >
-                      <span
-                        className="w-3 h-3 rounded-full shrink-0"
-                        style={{ backgroundColor: sub.color }}
-                      />
-                      <span className="truncate dark:text-white" style={{ color: isSelected ? sub.color : undefined }}>
-                        {sub.name}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+              <FolderTreePicker
+                subjects={subjects}
+                subjectId={subjectId}
+                folderId={folderId}
+                onChange={(sid, fid) => {
+                  setSubjectId(sid);
+                  setFolderId(fid);
+                }}
+                onUpdateSubject={onUpdateSubject}
+              />
             </div>
+
+            {/* Liens externes (facultatif) */}
+            <details className="group" open={links.length > 0}>
+              <summary className="cursor-pointer select-none text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <span>{t('Liens (Drive, flashcards… facultatif)')}</span>
+                {links.length > 0 && <span className="font-mono text-slate-400">{links.length}</span>}
+              </summary>
+              <div className="mt-2">
+                <CourseLinksEditor
+                  links={links}
+                  linkTypes={getLinkTypes(settings)}
+                  onChangeLinks={setLinks}
+                  onChangeLinkTypes={onChangeLinkTypes}
+                />
+              </div>
+            </details>
 
             {/* J0 Date Picker */}
             <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl">

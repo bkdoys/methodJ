@@ -1,7 +1,7 @@
 import React from 'react';
 import { ViewMode } from '../types';
 import { formatMinutes } from '../utils/dateUtils';
-import { Calendar, BookOpen, Clock, BarChart3, Settings, Columns, Plus, Sun, Moon, Download, Cloud, RefreshCw } from 'lucide-react';
+import { Calendar, BookOpen, Clock, BarChart3, Settings, Columns, Plus, Sun, Moon, Cloud, RefreshCw } from 'lucide-react';
 import { t } from '../i18n';
 import { APP_NAME, APP_TAGLINE } from '../appInfo';
 
@@ -10,7 +10,6 @@ interface TopNavProps {
   onViewChange: (view: ViewMode) => void;
   onOpenNewCourseModal: () => void;
   onOpenSettingsModal: (defaultTab?: string) => void;
-  onExportBackup: () => void;
   splitView: boolean;
   onToggleSplitView: () => void;
   todayWorkloadMinutes: number;
@@ -32,7 +31,6 @@ export const TopNav: React.FC<TopNavProps> = ({
   onViewChange,
   onOpenNewCourseModal,
   onOpenSettingsModal,
-  onExportBackup,
   splitView,
   onToggleSplitView,
   todayWorkloadMinutes,
@@ -174,9 +172,10 @@ export const TopNav: React.FC<TopNavProps> = ({
                     : 'bg-emerald-500'
                 }`}
               />
-              {syncStatus !== 'synced' && (
+              {/* « En attente » = juste la pastille orange qui clignote : un texte ferait bouger la barre à chaque modification */}
+              {(syncStatus === 'conflict' || syncStatus === 'offline') && (
                 <span className="hidden lg:inline text-[10px] font-bold">
-                  {syncStatus === 'conflict' ? t('Conflit') : syncStatus === 'offline' ? t('Hors ligne') : t('En attente')}
+                  {syncStatus === 'conflict' ? t('Conflit') : t('Hors ligne')}
                 </span>
               )}
             </button>
@@ -190,17 +189,6 @@ export const TopNav: React.FC<TopNavProps> = ({
               <span className="hidden sm:inline">{t('Sync Cloud')}</span>
             </button>
           ) : null}
-
-          {/* Direct Export JSON Button in Top Bar */}
-          <button
-            onClick={onExportBackup}
-            title={t('Exporter mon planning en fichier JSON (pour sauvegarder ou transférer sur iPad / PC)')}
-            className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800 hover:bg-teal-50 dark:hover:bg-teal-950/60 border border-slate-200 dark:border-slate-700 rounded-xl transition-colors shrink-0"
-          >
-            <Download className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
-            <span className="hidden sm:inline">{t('Exporter JSON')}</span>
-            <span className="sm:hidden">{t('Export')}</span>
-          </button>
 
           {/* Theme Toggle (Light / Dark) */}
           <button

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AppSettings, Course, MasteryLevel, RevisionItem, Subject } from '../types';
+import { AppSettings, Course, CourseLink, LinkType, MasteryLevel, RevisionItem, Subject } from '../types';
 import { MASTERY_CONFIG } from './MasteryBadge';
 import { MasteryStars } from './MasteryStars';
 import { RetentionTimeline } from './RetentionTimeline';
@@ -26,12 +26,19 @@ import {
   Plus,
 } from 'lucide-react';
 import { PRESET_COURSE_COLORS, getCourseGradientStyle, getSubjectBadgeStyle } from '../utils/colorUtils';
+import { FolderTreePicker } from './FolderTreePicker';
+import { CourseLinksEditor } from './CourseLinksEditor';
+import { getLinkTypes } from '../utils/courseLinks';
+import { formatCoursePath } from '../utils/folders';
 import { t } from '../i18n';
 
 interface CourseDetailModalProps {
   course: Course | null;
   revisions: RevisionItem[];
   subjects: Subject[];
+  /** Création de dossiers depuis le sélecteur d'emplacement. */
+  onUpdateSubject?: (subject: Subject) => void;
+  onChangeLinkTypes: (types: LinkType[]) => void;
   settings: AppSettings;
   isOpen: boolean;
   onClose: () => void;
@@ -41,6 +48,8 @@ interface CourseDetailModalProps {
       title?: string;
       itemCode?: string;
       subjectId?: string;
+      folderId?: string;
+      links?: CourseLink[];
       customColor?: string;
       notes?: string;
       mastery?: MasteryLevel;
@@ -62,6 +71,8 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
   course,
   revisions,
   subjects,
+  onUpdateSubject,
+  onChangeLinkTypes,
   settings,
   isOpen,
   onClose,
@@ -78,6 +89,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
   const [title, setTitle] = useState(course?.title ?? '');
   const [itemCode, setItemCode] = useState(course?.itemCode ?? '');
   const [subjectId, setSubjectId] = useState(course?.subjectId ?? '');
+  const [folderId, setFolderId] = useState<string | undefined>(course?.folderId);
   const [customColor, setCustomColor] = useState<string | undefined>(course?.customColor);
   const [notes, setNotes] = useState(course?.notes || '');
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -87,6 +99,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
       setTitle(course.title);
       setItemCode(course.itemCode);
       setSubjectId(course.subjectId);
+      setFolderId(course.folderId);
       setCustomColor(course.customColor);
       setNotes(course.notes || '');
       setIsEditing(false);
@@ -104,6 +117,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
         title === course.title &&
         itemCode === course.itemCode &&
         subjectId === course.subjectId &&
+        folderId === course.folderId &&
         customColor === course.customColor &&
         notes.trim() === (course.notes ?? '').trim();
       if (unchanged) setIsEditing(false);
@@ -116,6 +130,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
   const todayIso = getTodayIso();
   const currentSubject = subjects.find((s) => s.id === (isEditing ? subjectId : course.subjectId)) || subjects[0];
   const effectiveColor = customColor || currentSubject.color;
+  const pathLabel = formatCoursePath(currentSubject, isEditing ? folderId : course.folderId);
   const courseRevisions = revisions
     .filter((r) => r.courseId === course.id)
     .sort((a, b) => a.jIndex - b.jIndex);
@@ -137,6 +152,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
       title: title.trim(),
       itemCode: itemCode.trim() || 'MED',
       subjectId,
+      folderId,
       customColor: customColor || undefined,
       notes: notes.trim(),
     });
@@ -174,8 +190,9 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
                 <span
                   className="subject-badge px-2.5 py-0.5 rounded-md text-xs font-bold"
                   style={getSubjectBadgeStyle(course, currentSubject)}
+                  title={pathLabel.full}
                 >
-                  {currentSubject?.name}
+                  {pathLabel.text}
                 </span>
                 <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">
                   {course.itemCode}
@@ -207,18 +224,17 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
                       className="px-2.5 py-1 text-xs font-mono border border-slate-300 dark:border-slate-700 rounded-lg dark:bg-slate-800 dark:text-white"
                       placeholder={t('Code (EDN-103)')}
                     />
-                    <select
-                      value={subjectId}
-                      onChange={(e) => setSubjectId(e.target.value)}
-                      className="px-2.5 py-1 text-xs border border-slate-300 dark:border-slate-700 rounded-lg dark:bg-slate-800 dark:text-white font-medium"
-                    >
-                      {subjects.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
                   </div>
+                  <FolderTreePicker
+                    subjects={subjects}
+                    subjectId={subjectId}
+                    folderId={folderId}
+                    onChange={(sid, fid) => {
+                      setSubjectId(sid);
+                      setFolderId(fid);
+                    }}
+                    onUpdateSubject={onUpdateSubject}
+                  />
                 </div>
               )}
             </div>
@@ -230,7 +246,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
                 type="button"
                 onClick={() => setIsEditing(true)}
                 className="p-2 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                title={t('Modifier le titre ou la matière')}
+                title={t('Modifier le titre ou l\'emplacement')}
               >
                 <Edit2 className="w-4 h-4" />
               </button>
@@ -464,6 +480,17 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
                 );
               })}
             </div>
+          </div>
+
+          {/* Liens externes : enregistrés au fil de l'eau, comme la maîtrise et la couleur */}
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{t('Liens')}</span>
+            <CourseLinksEditor
+              links={course.links ?? []}
+              linkTypes={getLinkTypes(settings)}
+              onChangeLinks={(links) => onUpdateCourse(course.id, { links })}
+              onChangeLinkTypes={onChangeLinkTypes}
+            />
           </div>
 
           {/* Couleur du cours dans le calendrier (version discrète) */}

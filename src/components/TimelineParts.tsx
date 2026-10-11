@@ -691,6 +691,7 @@ export const DayColumn: React.FC<DayColumnProps> = ({
         return (
           <div
             key={rev.id}
+            data-rev-id={rev.id}
             onPointerDown={(e) => {
               // Souris / stylet : on peut saisir le bloc lui-même (les boutons gardent leur rôle)
               if ((e.target as HTMLElement).closest('button')) return;

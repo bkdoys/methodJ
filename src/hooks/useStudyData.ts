@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction } from 'react';
-import { AppSettings, Course, MasteryLevel, RevisionItem, Subject, ToastMessage } from '../types';
+import { AppSettings, Course, CourseLink, LinkType, MasteryLevel, RevisionItem, Subject, ToastMessage } from '../types';
 import { applyCascadeShift, generateRevisionsForCourse } from '../utils/jMethod';
 import {
   assignStartTimes,
@@ -58,6 +58,8 @@ export function useStudyData({
       title: string;
       itemCode: string;
       subjectId: string;
+      folderId?: string;
+      links?: CourseLink[];
       j0Date: string;
       activeJList: number[];
       mastery: MasteryLevel;
@@ -71,6 +73,8 @@ export function useStudyData({
       title: courseData.title,
       itemCode: courseData.itemCode,
       subjectId: courseData.subjectId,
+      ...(courseData.folderId ? { folderId: courseData.folderId } : {}),
+      ...(courseData.links?.length ? { links: courseData.links } : {}),
       j0Date: courseData.j0Date,
       activeJList: courseData.activeJList,
       mastery: courseData.mastery,
@@ -97,12 +101,6 @@ export function useStudyData({
         defaultJPattern: courseData.activeJList,
       }));
     }
-
-    notify({
-      title: t('Cours planifié avec succès'),
-      description: t('{n} créneaux de révision créés pour « {title} ».', { n: newRevisions.length, title: courseData.title }),
-      type: 'success',
-    });
   };
 
   // Handler: Cascade shift. `exactStartMinutes` (glisser-déposer entre jours) pose le créneau à cette heure ;
@@ -177,7 +175,6 @@ export function useStudyData({
           syncCourseToCloud(cloudUid, course).catch((e) => console.warn('Undo course sync error:', e));
         }
       }
-      notify({ title: t('Déplacement annulé'), description: t('Les créneaux sont revenus à leur place.'), type: 'info' });
     };
 
     const targetCourseTitle = course?.title || t('le cours');
@@ -267,12 +264,6 @@ export function useStudyData({
         );
       }
     }
-
-    notify({
-      title: t('Créneau validé !'),
-      description: t('Séance J{j} validée avec note de maîtrise ({rating}★).', { j: targetRev.jIndex, rating }),
-      type: 'success',
-    });
   };
 
   // Handler: Undo a completed revision (annuler un "Fait")
@@ -316,12 +307,6 @@ export function useStudyData({
         );
       }
     }
-
-    notify({
-      title: t('Validation annulée'),
-      description: t('Le créneau J{j} est de nouveau à faire.', { j: targetRev.jIndex }),
-      type: 'success',
-    });
     return true;
   };
 
@@ -332,6 +317,9 @@ export function useStudyData({
       title?: string;
       itemCode?: string;
       subjectId?: string;
+      /** Clé présente avec `undefined` = sortir le cours de son dossier. */
+      folderId?: string;
+      links?: CourseLink[];
       notes?: string;
       mastery?: MasteryLevel;
     }
@@ -343,12 +331,11 @@ export function useStudyData({
     setSelectedCourseForDetail((prev) =>
       prev && prev.id === courseId ? { ...prev, ...updates } : prev
     );
+  };
 
-    notify({
-      title: t('Cours mis à jour'),
-      description: t('Les modifications sont synchronisées avec tous les créneaux existants.'),
-      type: 'success',
-    });
+  // Types de liens (liste commune à tous les cours, dans les réglages)
+  const handleChangeLinkTypes = (linkTypes: LinkType[]) => {
+    setSettings((prev) => ({ ...prev, linkTypes }));
   };
 
   // Handler: Update Course Mastery directly from catalog
@@ -378,11 +365,6 @@ export function useStudyData({
         console.warn('Cloud delete error:', err)
       );
     }
-    notify({
-      title: t('Cours supprimé'),
-      description: t('Le cours et ses révisions associées ont été supprimés.'),
-      type: 'info',
-    });
   };
 
   // Handler: Save subjects
@@ -397,11 +379,12 @@ export function useStudyData({
 
     if (resolution.kind === 'reassign') {
       const to = resolution.toSubjectId;
-      setCourses((prev) => prev.map((c) => (ids.has(c.id) ? { ...c, subjectId: to } : c)));
-      setSelectedCourseForDetail((prev) => (prev && ids.has(prev.id) ? { ...prev, subjectId: to } : prev));
+      // Les dossiers appartiennent à l'ancienne discipline : les cours arrivent à la racine de la nouvelle
+      setCourses((prev) => prev.map((c) => (ids.has(c.id) ? { ...c, subjectId: to, folderId: undefined } : c)));
+      setSelectedCourseForDetail((prev) => (prev && ids.has(prev.id) ? { ...prev, subjectId: to, folderId: undefined } : prev));
       if (cloudUid) {
         attached.forEach((c) =>
-          syncCourseToCloud(cloudUid, { ...c, subjectId: to }).catch((err) =>
+          syncCourseToCloud(cloudUid, { ...c, subjectId: to, folderId: undefined }).catch((err) =>
             console.warn('Cloud course update error:', err)
           )
         );
@@ -434,11 +417,28 @@ export function useStudyData({
         console.warn('Cloud subjects delete error:', err)
       );
     }
-    notify({
-      title: t('Disciplines mises à jour'),
-      description: t('{n} matières médicales enregistrées.', { n: newSubjects.length }),
-      type: 'success',
-    });
+  };
+
+  // Handler: arborescence de rangement d'une discipline (ajout / renommage / suppression de dossiers).
+  // `moveCourses` : les cours d'un dossier supprimé passent dans `to` (undefined = racine de la discipline).
+  const handleUpdateSubjectFolders = (
+    updated: Subject,
+    moveCourses?: { from: string; to: string | undefined }
+  ) => {
+    setSubjects((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    if (!moveCourses) return;
+    const moved = courses.filter((c) => c.subjectId === updated.id && c.folderId === moveCourses.from);
+    if (moved.length === 0) return;
+    const ids = new Set(moved.map((c) => c.id));
+    setCourses((prev) => prev.map((c) => (ids.has(c.id) ? { ...c, folderId: moveCourses.to } : c)));
+    setSelectedCourseForDetail((prev) => (prev && ids.has(prev.id) ? { ...prev, folderId: moveCourses.to } : prev));
+    if (cloudUid) {
+      moved.forEach((c) =>
+        syncCourseToCloud(cloudUid, { ...c, folderId: moveCourses.to }).catch((err) =>
+          console.warn('Cloud course update error:', err)
+        )
+      );
+    }
   };
 
   // Handler: move slots on the day timeline (start time + rank for every slot of the day)
@@ -518,10 +518,12 @@ export function useStudyData({
     handleUndoComplete,
     handleUpdateCourse,
     handleUpdateCourseMastery,
+    handleChangeLinkTypes,
     handleUpdateCourseNotes,
     handleDeleteCourse,
     handleSaveSubjects,
     handleResolveSubjectCourses,
+    handleUpdateSubjectFolders,
     handleMoveSlots,
     handleResizeSlot,
     handleUpdateSlotNotes,

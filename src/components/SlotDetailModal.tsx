@@ -9,6 +9,8 @@ import { RichNote } from './RichNote';
 import { formatTime, getDayBreaks, getDayWindow, resolveDayLayout } from '../utils/dayLayout';
 import { formatFrenchDate, formatMinutes, getTodayIso } from '../utils/dateUtils';
 import { getCourseEffectiveColor, getSubjectBadgeStyle } from '../utils/colorUtils';
+import { CourseLinkIcons } from './CourseLinkIcons';
+import { getLinkTypes } from '../utils/courseLinks';
 import { t } from '../i18n';
 
 interface SlotDetailModalProps {
@@ -89,6 +91,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
               <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">{course.itemCode}</span>
             </div>
             <h2 className="text-base font-bold text-slate-900 dark:text-white leading-snug">{course.title}</h2>
+            <CourseLinkIcons links={course.links} linkTypes={getLinkTypes(settings)} className="pt-0.5" />
           </div>
           <button
             onClick={then(onClose)}

@@ -12,10 +12,12 @@ service cloud.firestore {
     }
 
     function validCourse(d, userId) {
-      return d.keys().hasOnly(['id', 'userId', 'title', 'itemCode', 'subjectId', 'customColor', 'j0Date', 'activeJList', 'mastery', 'notes', 'createdAt', 'updatedAt'])
+      return d.keys().hasOnly(['id', 'userId', 'title', 'itemCode', 'subjectId', 'folderId', 'links', 'customColor', 'j0Date', 'activeJList', 'mastery', 'notes', 'createdAt', 'updatedAt'])
         && d.userId == userId
         && d.title is string && d.title.size() <= 200
         && d.subjectId is string && d.subjectId.size() <= 64
+        && (!('folderId' in d) || (d.folderId is string && d.folderId.size() <= 64))
+        && (!('links' in d) || (d.links is list && d.links.size() <= 30))
         && d.mastery is int && d.mastery >= 0 && d.mastery <= 4
         && (!('notes' in d) || (d.notes is string && d.notes.size() <= 5000));
     }
@@ -33,10 +35,11 @@ service cloud.firestore {
     }
 
     function validSubject(d, userId) {
-      return d.keys().hasOnly(['id', 'userId', 'name', 'code', 'color', 'bgColor', 'textColor', 'borderColor', 'accentBg'])
+      return d.keys().hasOnly(['id', 'userId', 'name', 'code', 'color', 'bgColor', 'textColor', 'borderColor', 'accentBg', 'folders'])
         && d.userId == userId
         && d.name is string && d.name.size() <= 100
-        && d.color is string && d.color.size() <= 30;
+        && d.color is string && d.color.size() <= 30
+        && (!('folders' in d) || (d.folders is list && d.folders.size() <= 200));
     }
 
     match /users/{userId} {

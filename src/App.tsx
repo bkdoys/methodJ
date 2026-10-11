@@ -30,6 +30,8 @@ import { ToastBanner } from './components/ToastBanner';
 import { useCloudSync } from './hooks/useCloudSync';
 import { useAuthActions } from './hooks/useAuthActions';
 import { useStudyData } from './hooks/useStudyData';
+import { flashSlot } from './utils/flashSlot';
+import { getLinkTypes } from './utils/courseLinks';
 import { t } from './i18n';
 
 export default function App() {
@@ -127,10 +129,12 @@ export default function App() {
     handleUndoComplete,
     handleUpdateCourse,
     handleUpdateCourseMastery,
+    handleChangeLinkTypes,
     handleUpdateCourseNotes,
     handleDeleteCourse,
     handleSaveSubjects,
     handleResolveSubjectCourses,
+    handleUpdateSubjectFolders,
     handleMoveSlots,
     handleResizeSlot,
     handleUpdateSlotNotes,
@@ -192,10 +196,10 @@ export default function App() {
   // Toast auto-dismiss
   useEffect(() => {
     if (toastMessage) {
-      // 3 s pour un message simple ; un message avec un bouton (ex. « Annuler ») reste 5 s
+      // 3 s pour un message simple ; un bouton (ex. « Annuler ») ou une erreur restent 5 s
       const timer = setTimeout(() => {
         setToastMessage(null);
-      }, toastMessage.action ? 5000 : 3000);
+      }, toastMessage.action || toastMessage.type === 'error' ? 5000 : 3000);
       return () => clearTimeout(timer);
     }
   }, [toastMessage]);
@@ -319,6 +323,14 @@ export default function App() {
     ? courses.find((c) => c.id === completingRevision.courseId)
     : null;
 
+  // Depuis la vue Cours : ouvre le planning sur le jour du créneau et le met en évidence
+  const handleGoToSlot = (date: string, revisionId: string) => {
+    setSelectedDate(date);
+    // En vue partagée le planning est déjà à gauche ; sinon on bascule dessus
+    if (!(splitViewMode && isLargeScreen)) setCurrentView('agenda');
+    flashSlot(revisionId);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors">
       {/* Top Navigation */}
@@ -327,7 +339,6 @@ export default function App() {
         onViewChange={setCurrentView}
         onOpenNewCourseModal={() => setIsNewCourseOpen(true)}
         onOpenSettingsModal={handleOpenSettingsModal}
-        onExportBackup={handleExportBackup}
         splitView={splitViewMode}
         onToggleSplitView={handleToggleSplitView}
         todayWorkloadMinutes={todayWorkloadMinutes}
@@ -406,6 +417,7 @@ export default function App() {
                 onOpenSlotDetail={(rev) => setSelectedSlotId(rev.id)}
                 onMoveSlots={handleMoveSlots}
                 onMoveToDay={handleMoveSlotToDay}
+                onChangeSettings={(patch) => setSettings((prev) => ({ ...prev, ...patch }))}
               />
             </div>
 
@@ -413,6 +425,7 @@ export default function App() {
             <div className="lg:col-span-7 space-y-4">
               {currentView === 'session' ? (
                 <StudySessionTimer
+                  linkTypes={getLinkTypes(settings)}
                   revisions={revisions}
                   courses={courses}
                   subjects={subjects}
@@ -433,6 +446,14 @@ export default function App() {
                   onDeleteCourse={handleDeleteCourse}
                   onUpdateCourseNotes={handleUpdateCourseNotes}
                   onOpenCourseDetail={(c) => setSelectedCourseForDetail(c)}
+                  onGoToDate={handleGoToSlot}
+                  onMoveCourse={(id, node) => {
+                    const c = courses.find((x) => x.id === id);
+                    if (c && (c.subjectId !== node.subjectId || c.folderId !== node.folderId)) {
+                      handleUpdateCourse(id, { subjectId: node.subjectId, folderId: node.folderId });
+                    }
+                  }}
+                  onUpdateSubjectFolders={handleUpdateSubjectFolders}
                 />
               )}
             </div>
@@ -470,9 +491,18 @@ export default function App() {
                 onDeleteCourse={handleDeleteCourse}
                 onUpdateCourseNotes={handleUpdateCourseNotes}
                 onOpenCourseDetail={(c) => setSelectedCourseForDetail(c)}
+                onGoToDate={handleGoToSlot}
+                  onMoveCourse={(id, node) => {
+                    const c = courses.find((x) => x.id === id);
+                    if (c && (c.subjectId !== node.subjectId || c.folderId !== node.folderId)) {
+                      handleUpdateCourse(id, { subjectId: node.subjectId, folderId: node.folderId });
+                    }
+                  }}
+                  onUpdateSubjectFolders={handleUpdateSubjectFolders}
               />
             ) : currentView === 'session' ? (
               <StudySessionTimer
+                linkTypes={getLinkTypes(settings)}
                 revisions={revisions}
                 courses={courses}
                 subjects={subjects}
@@ -500,6 +530,8 @@ export default function App() {
         onClose={() => setIsNewCourseOpen(false)}
         subjects={subjects}
         settings={settings}
+        onUpdateSubject={(s) => handleUpdateSubjectFolders(s)}
+        onChangeLinkTypes={handleChangeLinkTypes}
         onSaveCourse={handleSaveNewCourse}
       />
 
@@ -514,9 +546,11 @@ export default function App() {
         }}
         subjects={subjects}
         onSaveSubjects={handleSaveSubjects}
+        onChangeLinkTypes={handleChangeLinkTypes}
         onResolveSubjectCourses={handleResolveSubjectCourses}
         cloudAvailable={isCloudConfigured}
         courses={courses}
+        revisions={revisions}
         onExportBackup={handleExportBackup}
         onImportBackup={handleImportBackup}
         onResetSeedData={handleResetSeedData}
@@ -546,6 +580,8 @@ export default function App() {
           course={selectedCourseForDetail}
           revisions={revisions}
           subjects={subjects}
+          onUpdateSubject={(s) => handleUpdateSubjectFolders(s)}
+          onChangeLinkTypes={handleChangeLinkTypes}
           settings={settings}
           isOpen={true}
           onClose={() => {

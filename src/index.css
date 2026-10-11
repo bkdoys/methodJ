@@ -59,6 +59,29 @@
   .rate-fx, .rate-bar { animation: none !important; }
 }
 
+/* Créneau mis en évidence depuis la vue Cours (voir utils/flashSlot.ts) */
+@keyframes slot-flash {
+  0%, 40%, 80% {
+    outline: 4px solid rgba(250, 204, 21, 0.95);
+    outline-offset: 3px;
+    transform: scale(1.02);
+  }
+  20%, 60%, 100% {
+    outline: 4px solid transparent;
+    outline-offset: 3px;
+    transform: scale(1);
+  }
+}
+
+.slot-flash {
+  animation: slot-flash 2.4s ease-in-out;
+  z-index: 40;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slot-flash { animation: none; outline: 4px solid rgba(250, 204, 21, 0.95); outline-offset: 3px; }
+}
+
 /* Badge matière : pastel en clair, puce pleine aux couleurs du cours en sombre */
 .subject-badge {
   background-color: var(--sb-soft-bg);

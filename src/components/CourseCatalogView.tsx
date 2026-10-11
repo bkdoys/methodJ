@@ -24,12 +24,21 @@ import {
   Palette,
   NotebookPen,
   ArrowUpDown,
+  PanelLeft,
+  GripVertical,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import { getCourseEffectiveColor, getSubject } from '../utils/colorUtils';
+import { CourseLinkIcons } from './CourseLinkIcons';
+import { getLinkTypes } from '../utils/courseLinks';
+import { COURSE_DRAG_MIME, CourseFolderTree, TreeSelection } from './CourseFolderTree';
+import { courseInNode, formatCoursePath } from '../utils/folders';
 import { t } from '../i18n';
 
 
 const SORT_STORAGE_KEY = 'medj_catalog_sort_v1';
+const TREE_OPEN_STORAGE_KEY = 'medj_catalog_tree_v1';
 
 interface CourseCatalogViewProps {
   courses: Course[];
@@ -43,6 +52,10 @@ interface CourseCatalogViewProps {
   onDeleteCourse: (courseId: string) => void;
   onUpdateCourseNotes: (courseId: string, notes: string) => void;
   onOpenCourseDetail: (course: Course) => void;
+  /** Ouvre le planning sur le jour de ce créneau. */
+  onGoToDate: (date: string, revisionId: string) => void;
+  onMoveCourse: (courseId: string, node: TreeSelection) => void;
+  onUpdateSubjectFolders: (subject: Subject, moveCourses?: { from: string; to: string | undefined }) => void;
 }
 
 export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
@@ -57,10 +70,31 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
   onDeleteCourse,
   onUpdateCourseNotes,
   onOpenCourseDetail,
+  onGoToDate,
+  onMoveCourse,
+  onUpdateSubjectFolders,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('all');
-  const [selectedMasteryFilter, setSelectedMasteryFilter] = useState<string>('all');
+  // Arbre des disciplines et dossiers : replié, tous les cours sont visibles (la sélection est alors ignorée)
+  const [selection, setSelection] = useState<TreeSelection | null>(null);
+  const [treeOpen, setTreeOpen] = useState(() => {
+    try {
+      const saved = localStorage.getItem(TREE_OPEN_STORAGE_KEY);
+      return saved === null ? window.innerWidth >= 1024 : saved === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleTree = () => {
+    setTreeOpen((open) => {
+      try {
+        localStorage.setItem(TREE_OPEN_STORAGE_KEY, open ? '0' : '1');
+      } catch {
+        // stockage indisponible : l'état reste valable pour cette session
+      }
+      return !open;
+    });
+  };
   const [editingNotesCourseId, setEditingNotesCourseId] = useState<string | null>(null);
   const [notesBuffer, setNotesBuffer] = useState('');
   const [synthesisCourseId, setSynthesisCourseId] = useState<string | null>(null);
@@ -95,6 +129,9 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
 
   const todayIso = getTodayIso();
 
+  // Une discipline supprimée entre-temps ne doit pas laisser un filtre fantôme
+  const activeSelection = selection && subjects.some((s) => s.id === selection.subjectId) ? selection : null;
+
   // Filtered courses
   const matchingCourses = courses.filter((course) => {
     const matchesSearch =
@@ -108,14 +145,9 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
           r.notes.toLowerCase().includes(searchQuery.toLowerCase())
       );
 
-    const matchesSubject =
-      selectedSubjectFilter === 'all' || course.subjectId === selectedSubjectFilter;
+    const matchesSubject = !treeOpen || !activeSelection || courseInNode(course, activeSelection, subjects);
 
-    const matchesMastery =
-      selectedMasteryFilter === 'all' ||
-      course.mastery.toString() === selectedMasteryFilter;
-
-    return matchesSearch && matchesSubject && matchesMastery;
+    return matchesSearch && matchesSubject;
   });
   const filteredCourses = sortCourses(matchingCourses, revisions, subjects, sortMode);
 
@@ -145,7 +177,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
         </div>
 
         {/* Search & Filter Bar */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
           {/* Search Input */}
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
@@ -156,38 +188,6 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
-          </div>
-
-          {/* Subject Filter */}
-          <div className="flex items-center gap-1">
-            <select
-              value={selectedSubjectFilter}
-              onChange={(e) => setSelectedSubjectFilter(e.target.value)}
-              className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium"
-            >
-              <option value="all">{t('Toutes les matières ({n})', { n: subjects.length })}</option>
-              {subjects.map((sub) => (
-                <option key={sub.id} value={sub.id}>
-                  {sub.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Mastery Level Filter */}
-          <div className="flex items-center gap-1">
-            <select
-              value={selectedMasteryFilter}
-              onChange={(e) => setSelectedMasteryFilter(e.target.value)}
-              className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium"
-            >
-              <option value="all">{t('Tous les niveaux de maîtrise')}</option>
-              <option value="0">{t('0 ★ Non évalué / Nouveau')}</option>
-              <option value="1">{t('1 ★ À consolider (Faible)')}</option>
-              <option value="2">{t('2 ★ Notions clés (Moyen)')}</option>
-              <option value="3">{t('3 ★ Solide (Bon)')}</option>
-              <option value="4">{t('4 ★ Maîtrisé (Optimal)')}</option>
-            </select>
           </div>
 
           {/* Tri */}
@@ -210,6 +210,43 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
         </div>
       </div>
 
+      <div className="flex flex-col lg:flex-row gap-4 lg:items-stretch">
+      {!treeOpen && (
+        <button
+          type="button"
+          onClick={toggleTree}
+          title={t('Afficher l\'arbre')}
+          aria-label={t('Afficher l\'arbre')}
+          className="self-start lg:sticky lg:top-4 p-2 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+        >
+          <PanelLeftOpen className="w-4 h-4" />
+        </button>
+      )}
+      {treeOpen && (
+        <aside className="lg:w-60 lg:shrink-0 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-2 shadow-2xs max-h-[70vh] lg:max-h-none overflow-y-auto">
+          <div className="flex items-center justify-between px-2 pb-1.5 mb-1 border-b border-slate-100 dark:border-slate-800">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{t('Disciplines')}</span>
+            <button
+              type="button"
+              onClick={toggleTree}
+              title={t('Replier l\'arbre')}
+              aria-label={t('Replier l\'arbre')}
+              className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              <PanelLeftClose className="w-4 h-4" />
+            </button>
+          </div>
+          <CourseFolderTree
+            subjects={subjects}
+            courses={courses}
+            selected={activeSelection}
+            onSelect={setSelection}
+            onDropCourse={onMoveCourse}
+            onUpdateSubject={onUpdateSubjectFolders}
+          />
+        </aside>
+      )}
+      <div className="flex-1 min-w-0">
       {/* Courses List */}
       {filteredCourses.length === 0 ? (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-12 text-center space-y-3">
@@ -226,6 +263,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
           {filteredCourses.map((course) => {
             const subject = getSubject(course.subjectId, subjects);
             const effectiveColor = getCourseEffectiveColor(course, subject);
+            const pathLabel = formatCoursePath(subject, course.folderId);
             const isDark = settings.theme === 'dark';
             // Pastille de matière : teinte légère de la couleur du cours, texte un peu plus foncé (clair) ou clair (sombre)
             const badgeStyle = {
@@ -247,6 +285,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
             return (
               <div
                 key={course.id}
+                id={`course-card-${course.id}`}
                 className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden hover:border-slate-300 dark:hover:border-slate-700 transition-all"
                 // Carte neutre : la couleur du cours est une fine barre à gauche
                 style={{ boxShadow: `inset 4px 0 0 ${effectiveColor}` }}
@@ -256,15 +295,33 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
+                        {/* Poignée : glisser le cours sur un dossier de l'arbre */}
+                        {treeOpen && (
+                          <span
+                            draggable
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData(COURSE_DRAG_MIME, course.id);
+                              e.dataTransfer.effectAllowed = 'move';
+                              const card = document.getElementById(`course-card-${course.id}`);
+                              if (card) e.dataTransfer.setDragImage(card, 24, 24);
+                            }}
+                            title={t('Glisser vers un dossier de l\'arbre pour ranger ce cours')}
+                            aria-label={t('Glisser vers un dossier de l\'arbre pour ranger ce cours')}
+                            className="-ml-2 cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 dark:text-slate-600 dark:hover:text-slate-400"
+                          >
+                            <GripVertical className="w-4 h-4" />
+                          </span>
+                        )}
                         {/* Subject Badge with custom color */}
                         <span
                           className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-bold"
                           style={badgeStyle}
+                          title={pathLabel.full}
                         >
                           <span
                             className="w-2 h-2 rounded-full bg-current"
                           />
-                          {subject.name}
+                          {pathLabel.text}
                         </span>
 
                         {course.customColor && (
@@ -288,6 +345,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                         <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
                           {t('J0 commencé le {date}', { date: formatFrenchDate(course.j0Date) })}
                         </span>
+                        <CourseLinkIcons links={course.links} linkTypes={getLinkTypes(settings)} className="ml-1" />
                       </div>
 
                       <button
@@ -420,7 +478,14 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                             }`}
                           >
                             <div className="flex items-center justify-between gap-1 mb-1">
-                              <span className="font-bold">J{rev.jIndex}</span>
+                              <button
+                                type="button"
+                                onClick={() => onGoToDate(rev.scheduledDate, rev.id)}
+                                title={t('Voir ce jour dans le planning')}
+                                className="font-bold hover:underline hover:text-teal-600 dark:hover:text-teal-400 cursor-pointer"
+                              >
+                                J{rev.jIndex}
+                              </button>
                               <span className="text-[10px] font-mono opacity-75">
                                 {isJ0orJ1 ? '1h30' : '1h00'}
                               </span>
@@ -496,6 +561,9 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
           })}
         </div>
       )}
+
+      </div>
+      </div>
 
       {synthesisCourseId && (() => {
         const c = courses.find((x) => x.id === synthesisCourseId);

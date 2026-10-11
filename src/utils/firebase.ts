@@ -36,6 +36,8 @@ interface FirebaseWebConfig {
   messagingSenderId?: string;
   measurementId?: string;
   firestoreDatabaseId?: string;
+  /** ID client OAuth (Web) pour l'envoi vers Google Agenda ; facultatif, public comme le reste de ce fichier. */
+  googleClientId?: string;
 }
 
 // La config Firebase est un fichier facultatif (firebase-applet-config.json, voir docs/CLOUD_SETUP.md) :
@@ -45,6 +47,9 @@ const configModules = import.meta.glob('../../firebase-applet-config.json', {
   import: 'default',
 }) as Record<string, FirebaseWebConfig>;
 const loadedConfig: FirebaseWebConfig | undefined = Object.values(configModules)[0];
+
+/** Vide = l'envoi direct vers Google Agenda n'est pas proposé (l'export .ics reste disponible). */
+export const googleClientId = loadedConfig?.googleClientId?.trim() || '';
 
 export const isCloudConfigured = !!loadedConfig?.apiKey && !!loadedConfig?.projectId;
 

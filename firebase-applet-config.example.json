@@ -6,5 +6,6 @@
   "firestoreDatabaseId": "(default)",
   "storageBucket": "votre-projet-firebase.firebasestorage.app",
   "messagingSenderId": "000000000000",
-  "measurementId": ""
+  "measurementId": "",
+  "googleClientId": ""
 }

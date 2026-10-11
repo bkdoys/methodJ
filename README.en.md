@@ -29,7 +29,7 @@ methodJ schedules your revisions with the **"J method"** (spaced repetition): fo
 - **Day, N-day, Week and Month views** with a time scale, slots you can drag by finger or mouse (also from one day to another), allowed hours and breaks (e.g. lunch) per weekday, which you can override for a single day.
 - **Cascading reschedule**: if you push a slot back, the following unfinished ones follow.
 - **Revision timer** with notes and a mastery self-assessment.
-- **Course catalogue**, customisable subjects and colours (CSV/JSON import).
+- **Course catalogue**, customisable subjects and colours (CSV/JSON import), with a folder tree (subject › folder › sub-folder) to file and filter courses, and links (Drive, flashcards…) attached to each course, plus an `.ics` export of your slots (Google Calendar, Apple, Outlook).
 - **Statistics**: streak, overdue, upcoming load, retention per J.
 - **Installable** on iPad / phone / computer (PWA), full screen.
 - **Your data stays yours**: everything is stored in your browser, with JSON export / import. Syncing between devices is **optional** (your own Firebase project, see below).

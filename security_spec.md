@@ -21,3 +21,11 @@
 10. **Orphaned Revision Write**: Writing a revision under a non-existent or other user's path -> DENIED.
 11. **Negative Duration**: Creating a revision slot with `durationMinutes: -30` -> DENIED.
 12. **Blanket Collection Query**: Unauthenticated client querying all users or courses globally -> DENIED.
+
+## Folders
+
+`Subject.folders` (list, at most 200 entries) and `Course.folderId` (string, at most 64 characters) are optional; both are listed in the allowed-keys validators of `firestore.rules`.
+
+## Course links
+
+`Course.links` is optional (list, at most 30 entries) and listed in the allowed keys of `validCourse`. The app only accepts `http(s)` addresses and opens them in a new tab with `rel="noopener noreferrer"`. The link types are stored in the settings document (`linkTypes`).

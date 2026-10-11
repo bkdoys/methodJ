@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Course, MasteryLevel, RevisionItem, Subject } from '../types';
+import { Course, LinkType, MasteryLevel, RevisionItem, Subject } from '../types';
+import { CourseLinkIcons } from './CourseLinkIcons';
 import { MasteryStars } from './MasteryStars';
 import { RevisionNotesJournal } from './RevisionNotesJournal';
 import { RichTextEditor } from './RichTextEditor';
@@ -24,6 +25,7 @@ interface StudySessionTimerProps {
   revisions: RevisionItem[];
   courses: Course[];
   subjects: Subject[];
+  linkTypes: LinkType[];
   activeRevisionId?: string;
   onSelectRevision: (revisionId: string) => void;
   onCompleteRevision: (
@@ -38,6 +40,7 @@ export const StudySessionTimer: React.FC<StudySessionTimerProps> = ({
   revisions,
   courses,
   subjects,
+  linkTypes,
   activeRevisionId,
   onSelectRevision,
   onCompleteRevision,
@@ -368,6 +371,11 @@ export const StudySessionTimer: React.FC<StudySessionTimerProps> = ({
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight max-w-xl mx-auto">
             {currentCourse?.title || t('Session de travail libre')}
           </h2>
+          {currentCourse?.links && currentCourse.links.length > 0 && (
+            <div className="flex justify-center pt-2">
+              <CourseLinkIcons links={currentCourse.links} linkTypes={linkTypes} labels className="justify-center gap-2" />
+            </div>
+          )}
           {currentCourse && (
             <div className="flex items-center justify-center gap-2 pt-1">
               <span className="text-xs text-slate-500 dark:text-slate-400">{t('Niveau de maîtrise actuel :')}</span>

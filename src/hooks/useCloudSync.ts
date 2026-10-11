@@ -148,11 +148,14 @@ export function useCloudSync({ dataLoaded, data, stateRef, applyData, notify }: 
           const stamp = await mirrorLocalToCloud(user.uid, local);
           markSynced(user.uid, local, stamp);
           setHasUnsynced(hasUnsyncedChanges(user.uid, stateRef.current));
-          notify({
-            title: t('Modifications envoyées'),
-            description: t('Les changements faits sur cet appareil ont été synchronisés avec le Cloud.'),
-            type: 'success',
-          });
+          // Synchro automatique : la pastille Cloud suffit, pas de toast (sauf demande explicite de l'utilisateur)
+          if (announce) {
+            notify({
+              title: t('Modifications envoyées'),
+              description: t('Les changements faits sur cet appareil ont été synchronisés avec le Cloud.'),
+              type: 'success',
+            });
+          }
         } else {
           if (local !== stateRef.current) applyData(local);
           setConflict({ cloud: cloudData, cloudStamp: cloud.stamp, localSyncedAt: meta.syncedAt });

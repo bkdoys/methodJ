@@ -36,7 +36,9 @@ import {
   CheckCircle2,
   AlertTriangle,
   Plus,
+  Send,
 } from 'lucide-react';
+import { CalendarExportModal } from './CalendarExportModal';
 import { t } from '../i18n';
 import { getSlotDurationMinutes } from '../utils/jMethod';
 
@@ -87,6 +89,7 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
   isSplitView = false,
 }) => {
   // Requirement: Vue semaine par défaut en plein écran, ou agenda journalier en Split View
+  const [exportOpen, setExportOpen] = useState(false);
   const [chosenView, setSubView] = useState<'day' | 'days' | 'week' | 'month'>(isSplitView ? 'day' : 'week');
   // En vue scindée, la colonne est étroite : on reste sur la journée (semaine/mois : mode plein écran)
   const subView = isSplitView ? 'day' : chosenView;
@@ -240,6 +243,16 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
               onChange={(e) => e.target.value && onSelectDate(e.target.value)}
               className="text-xs font-mono font-bold px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-white bg-slate-50 dark:bg-slate-800 focus:ring-1 focus:ring-teal-500"
             />
+
+            <button
+              type="button"
+              onClick={() => setExportOpen(true)}
+              title={t('Exporter vers un agenda (Google Agenda, .ics)')}
+              aria-label={t('Exporter vers un agenda (Google Agenda, .ics)')}
+              className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-teal-700 dark:hover:text-teal-300 transition-colors"
+            >
+              <Send className="w-4 h-4" />
+            </button>
 
             <span className="text-sm font-bold text-slate-900 dark:text-white capitalize hidden @3xl:inline">
               {subView === 'days'
@@ -553,6 +566,17 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
             })}
           </div>
         </div>
+      )}
+
+      {exportOpen && (
+        <CalendarExportModal
+          courses={courses}
+          revisions={revisions}
+          subjects={subjects}
+          settings={settings}
+          onSaveSettings={(next) => onChangeSettings?.({ googleCalendarId: next.googleCalendarId })}
+          onClose={() => setExportOpen(false)}
+        />
       )}
     </div>
   );

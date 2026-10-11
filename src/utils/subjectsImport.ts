@@ -1,9 +1,14 @@
-import { Subject } from '../types';
+import { Subject, SubjectFolder } from '../types';
+import { MAX_FOLDERS_PER_SUBJECT, MAX_FOLDER_DEPTH } from './folders';
 import { PRESET_COURSE_COLORS } from './colorUtils';
 import { t } from '../i18n';
 
 export interface SubjectsImportResult {
   added: Subject[];
+  /** Disciplines déjà présentes qui reçoivent de nouveaux dossiers (version complète, à substituer à l'ancienne). */
+  updated: Subject[];
+  /** Nombre de dossiers créés (dans les disciplines ajoutées ou mises à jour). */
+  foldersAdded: number;
   duplicates: number;
   invalid: number;
 }
@@ -35,6 +40,45 @@ interface RawSubject {
   name?: unknown;
   code?: unknown;
   color?: unknown;
+  /** Dossiers : noms (niveau 1) avec leurs sous-dossiers, ou liste à plat { id, name, parentId } d'une sauvegarde. */
+  folders?: unknown;
+  children?: unknown;
+}
+
+interface FolderNode {
+  name: string;
+  children: string[];
+}
+
+/** Nombre d'espaces de tête d'une ligne (une tabulation compte pour 4). */
+function indentOf(line: string): number {
+  const lead = line.match(/^[ \t]*/)![0];
+  return lead.replace(/\t/g, '    ').length;
+}
+
+const nameOf = (x: unknown): string =>
+  typeof x === 'string' ? x.trim().slice(0, 100) : typeof (x as RawSubject)?.name === 'string' ? String((x as RawSubject).name).trim().slice(0, 100) : '';
+
+/** Dossiers d'un JSON : liste imbriquée (noms / { name, children }) ou à plat (id + parentId, comme une sauvegarde). */
+function foldersFromJson(raw: unknown): FolderNode[] {
+  if (!Array.isArray(raw)) return [];
+  const isFlat = raw.some((x) => x && typeof x === 'object' && 'id' in (x as object));
+  if (isFlat) {
+    const items = raw.filter((x) => x && typeof x === 'object') as { id?: unknown; name?: unknown; parentId?: unknown }[];
+    const roots = items.filter((x) => !x.parentId && nameOf(x));
+    return roots.map((r) => ({
+      name: nameOf(r),
+      children: items.filter((x) => x.parentId && x.parentId === r.id).map(nameOf).filter(Boolean),
+    }));
+  }
+  return raw
+    .map((x) => ({
+      name: nameOf(x),
+      children: Array.isArray((x as RawSubject)?.children)
+        ? ((x as RawSubject).children as unknown[]).map(nameOf).filter(Boolean)
+        : [],
+    }))
+    .filter((n) => n.name);
 }
 
 function parseRaw(text: string): RawSubject[] {
@@ -49,16 +93,67 @@ function parseRaw(text: string): RawSubject[] {
     return list.map((x) => (typeof x === 'string' ? { name: x } : (x as RawSubject)));
   }
 
-  // CSV / TXT : nom;code;couleur (séparateurs ; , ou tabulation)
-  const lines = trimmed.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  const rows = lines.map((line) => {
-    const sep = line.includes(';') ? ';' : line.includes('\t') ? '\t' : ',';
-    const [name, code, color] = line.split(sep).map((c) => c.trim().replace(/^"|"$/g, ''));
-    return { name, code, color } as RawSubject;
-  });
+  // CSV / TXT : nom;code;couleur (séparateurs ; , ou tabulation). Une ligne indentée est un dossier de la discipline au-dessus
+  // (une seconde indentation, un sous-dossier).
+  const lines = trimmed.split(/\r?\n/).filter((l) => l.trim());
+  const rows: RawSubject[] = [];
+  let indents: number[] = []; // indentations des niveaux de dossiers ouverts sous la dernière discipline
+  let lastFolder: FolderNode | null = null;
+  for (const line of lines) {
+    const indent = indentOf(line);
+    const body = line.trim().replace(/^[-*•]\s+/, '');
+    if (indent === 0 && !/^[-*•]\s/.test(line)) {
+      const sep = body.includes(';') ? ';' : body.includes('\t') ? '\t' : ',';
+      const [name, code, color] = body.split(sep).map((c) => c.trim().replace(/^"|"$/g, ''));
+      rows.push({ name, code, color });
+      indents = [];
+      lastFolder = null;
+      continue;
+    }
+    const root = rows[rows.length - 1];
+    const name = body.replace(/^"|"$/g, '').slice(0, 100);
+    if (!root || !root.name) {
+      rows.push({}); // dossier sans discipline : compté comme invalide
+      continue;
+    }
+    const folders = (root.folders ??= []) as FolderNode[];
+    while (indents.length && indent < indents[indents.length - 1]) indents.pop();
+    if (indents.length === 0 || indent === indents[0] || !lastFolder) {
+      indents = [indent];
+      lastFolder = { name, children: [] };
+      folders.push(lastFolder);
+    } else {
+      if (indent > indents[indents.length - 1] && indents.length < MAX_FOLDER_DEPTH) indents.push(indent);
+      lastFolder.children.push(name);
+    }
+  }
   const first = String(rows[0]?.name ?? '').toLowerCase();
   if (['nom', 'name', 'matière', 'matiere', 'discipline'].includes(first)) rows.shift();
   return rows;
+}
+
+/** Fusionne des dossiers (noms) dans une discipline sans créer de doublon (même nom, même niveau). Renvoie le nombre de créations. */
+function mergeFolders(subject: Subject, nodes: FolderNode[], nextId: () => string): { subject: Subject; created: number } {
+  const folders: SubjectFolder[] = [...(subject.folders ?? [])];
+  let created = 0;
+  const find = (name: string, parentId?: string) =>
+    folders.find((f) => (f.parentId ?? undefined) === parentId && f.name.toLowerCase() === name.toLowerCase());
+  for (const node of nodes) {
+    let parent = find(node.name);
+    if (!parent) {
+      if (folders.length >= MAX_FOLDERS_PER_SUBJECT) break;
+      parent = { id: nextId(), name: node.name };
+      folders.push(parent);
+      created++;
+    }
+    for (const childName of node.children) {
+      if (find(childName, parent.id)) continue;
+      if (folders.length >= MAX_FOLDERS_PER_SUBJECT) break;
+      folders.push({ id: nextId(), name: childName, parentId: parent.id });
+      created++;
+    }
+  }
+  return { subject: created ? { ...subject, folders } : subject, created };
 }
 
 export function parseSubjectsImport(text: string, existing: Subject[]): SubjectsImportResult {
@@ -66,8 +161,13 @@ export function parseSubjectsImport(text: string, existing: Subject[]): Subjects
   const usedNames = new Set(existing.map((s) => s.name.trim().toLowerCase()));
   const usedIds = new Set(existing.map((s) => s.id));
   const added: Subject[] = [];
+  const updatedById = new Map<string, Subject>();
+  let foldersAdded = 0;
   let duplicates = 0;
   let invalid = 0;
+  let folderSeq = 0;
+  const stamp = Date.now().toString(36);
+  const nextFolderId = () => `f_${stamp}${(folderSeq++).toString(36)}`;
 
   raw.forEach((item, i) => {
     const name = typeof item?.name === 'string' ? item.name.trim().slice(0, 100) : '';
@@ -76,8 +176,23 @@ export function parseSubjectsImport(text: string, existing: Subject[]): Subjects
       return;
     }
     const key = name.toLowerCase();
+    const nodes: FolderNode[] = Array.isArray(item.folders) && item.folders.every((f) => f && typeof (f as FolderNode).name === 'string' && Array.isArray((f as FolderNode).children))
+      ? (item.folders as FolderNode[])
+      : foldersFromJson(item.folders);
+
     if (usedNames.has(key)) {
-      duplicates++;
+      // Discipline déjà là : on ne la recrée pas, mais ses nouveaux dossiers sont ajoutés
+      const current = existing.find((s) => s.name.trim().toLowerCase() === key) ?? added.find((s) => s.name.toLowerCase() === key);
+      const base = current && (updatedById.get(current.id) ?? current);
+      const merged = base ? mergeFolders(base, nodes, nextFolderId) : null;
+      if (merged && current && merged.created > 0) {
+        foldersAdded += merged.created;
+        const idx = added.findIndex((s) => s.id === current.id);
+        if (idx >= 0) added[idx] = merged.subject;
+        else updatedById.set(current.id, merged.subject);
+      } else {
+        duplicates++;
+      }
       return;
     }
 
@@ -97,7 +212,7 @@ export function parseSubjectsImport(text: string, existing: Subject[]): Subjects
 
     usedNames.add(key);
     usedIds.add(id);
-    added.push({
+    const subject: Subject = {
       id,
       name,
       code,
@@ -106,8 +221,11 @@ export function parseSubjectsImport(text: string, existing: Subject[]): Subjects
       textColor: 'text-slate-800',
       borderColor: 'border-slate-200',
       accentBg: `${color}15`,
-    });
+    };
+    const merged = mergeFolders(subject, nodes, nextFolderId);
+    foldersAdded += merged.created;
+    added.push(merged.subject);
   });
 
-  return { added, duplicates, invalid };
+  return { added, updated: [...updatedById.values()], foldersAdded, duplicates, invalid };
 }

@@ -1,5 +1,28 @@
 export type MasteryLevel = 0 | 1 | 2 | 3 | 4;
 
+/** Sous-dossier de rangement d'une discipline (2 niveaux max : `parentId` absent = niveau 1). Sans propriété propre. */
+export interface SubjectFolder {
+  id: string;
+  name: string;
+  parentId?: string;
+}
+
+/** Lien externe d'un cours (Drive, flashcards…). Le type pointe vers `AppSettings.linkTypes` ; un type supprimé s'affiche comme « Autre ». */
+export interface CourseLink {
+  id: string;
+  url: string;           // http(s) uniquement
+  label?: string;        // absent = nom du site
+  typeId: string;
+}
+
+/** Type de lien défini par l'utilisateur (liste commune à tous les cours). */
+export interface LinkType {
+  id: string;
+  name: string;
+  icon: string;          // clé de LINK_ICONS (utils/courseLinks)
+  color: string;         // hex
+}
+
 export interface Subject {
   id: string;
   name: string;
@@ -9,6 +32,7 @@ export interface Subject {
   textColor: string;   // Tailwind text class
   borderColor: string; // Tailwind border class
   accentBg: string;    // Light tint
+  folders?: SubjectFolder[]; // Arborescence de rangement des cours dans la discipline
 }
 
 export interface RevisionItem {
@@ -30,6 +54,8 @@ export interface Course {
   title: string;
   itemCode: string;        // e.g. "EDN-228"
   subjectId: string;
+  folderId?: string;       // Sous-dossier de la discipline où le cours est rangé ; absent = à la racine de la discipline
+  links?: CourseLink[];    // Liens externes (cours, notes, flashcards…) affichés dans les fiches du cours et des J
   customColor?: string;    // Custom color override for this course (defaults to subject.color)
   j0Date: string;          // YYYY-MM-DD
   activeJList: number[];   // e.g. [0, 1, 3, 7, 15, 30, 60]
@@ -67,6 +93,10 @@ export interface AppSettings {
   multiDayCount?: number;
   /** What the full-size timeline blocks show; a missing flag uses its default. */
   blockDetails?: { subject?: boolean | 'none' | 'code' | 'name'; code?: boolean; notes?: boolean; rating?: boolean };
+  /** Types de liens des cours ; absent = liste d'origine (voir DEFAULT_LINK_TYPES). */
+  linkTypes?: LinkType[];
+  /** Agenda Google créé par l'application pour les créneaux (envoi direct) ; absent = pas encore créé. */
+  googleCalendarId?: string;
   /** Langue de l'interface ; absent = français. */
   language?: 'fr' | 'en';
   splitView: boolean;
