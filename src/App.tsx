@@ -446,6 +446,7 @@ export default function App() {
                   onDeleteCourse={handleDeleteCourse}
                   onUpdateCourseNotes={handleUpdateCourseNotes}
                   onOpenCourseDetail={(c) => setSelectedCourseForDetail(c)}
+                  compact
                   onGoToDate={handleGoToSlot}
                   onMoveCourse={(id, node) => {
                     const c = courses.find((x) => x.id === id);

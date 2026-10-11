@@ -14,12 +14,18 @@ methodJ planifie vos révisions selon la **méthode des J** (répétition espac�
 
 ![Écran scindé : planning du jour et catalogue des cours](docs/screenshots/planning-split.jpg)
 
+**Catalogue et arborescence** : rangez vos cours par discipline › dossier › sous-dossier, filtrez en un clic, et attachez des liens (Drive, flashcards…) à chaque cours.
+
+![Catalogue des cours avec l'arborescence](docs/screenshots/cours-arbre.jpg)
+
 <details>
 <summary>Thème sombre</summary>
 
 ![Planning de la semaine, thème sombre](docs/screenshots/planning-sombre.png)
 
 ![Écran scindé, thème sombre](docs/screenshots/planning-split-sombre.jpg)
+
+![Catalogue des cours avec l'arborescence, thème sombre](docs/screenshots/cours-arbre-sombre.jpg)
 
 </details>
 

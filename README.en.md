@@ -14,12 +14,18 @@ methodJ schedules your revisions with the **"J method"** (spaced repetition): fo
 
 ![Split screen: today's schedule and course catalogue](docs/screenshots/planning-split.jpg)
 
+**Course catalogue and folder tree**: file courses by subject › folder › sub-folder, filter in one click, and attach links (Drive, flashcards…) to each course.
+
+![Course catalogue with the folder tree](docs/screenshots/cours-arbre.jpg)
+
 <details>
 <summary>Dark theme</summary>
 
 ![Weekly planner, dark theme](docs/screenshots/planning-sombre.png)
 
 ![Split screen, dark theme](docs/screenshots/planning-split-sombre.jpg)
+
+![Course catalogue with the folder tree, dark theme](docs/screenshots/cours-arbre-sombre.jpg)
 
 </details>
 

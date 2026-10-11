@@ -53,6 +53,8 @@ interface CourseCatalogViewProps {
   onUpdateCourseNotes: (courseId: string, notes: string) => void;
   onOpenCourseDetail: (course: Course) => void;
   /** Ouvre le planning sur le jour de ce créneau. */
+  /** Colonne étroite (écran scindé) : l'arbre démarre replié, il écraserait la liste. */
+  compact?: boolean;
   onGoToDate: (date: string, revisionId: string) => void;
   onMoveCourse: (courseId: string, node: TreeSelection) => void;
   onUpdateSubjectFolders: (subject: Subject, moveCourses?: { from: string; to: string | undefined }) => void;
@@ -70,6 +72,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
   onDeleteCourse,
   onUpdateCourseNotes,
   onOpenCourseDetail,
+  compact = false,
   onGoToDate,
   onMoveCourse,
   onUpdateSubjectFolders,
@@ -80,7 +83,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
   const [treeOpen, setTreeOpen] = useState(() => {
     try {
       const saved = localStorage.getItem(TREE_OPEN_STORAGE_KEY);
-      return saved === null ? window.innerWidth >= 1024 : saved === '1';
+      return saved === null ? !compact && window.innerWidth >= 1024 : saved === '1';
     } catch {
       return false;
     }
