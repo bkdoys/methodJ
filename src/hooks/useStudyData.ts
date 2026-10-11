@@ -1,7 +1,14 @@
 import { Dispatch, SetStateAction } from 'react';
 import { AppSettings, Course, MasteryLevel, RevisionItem, Subject, ToastMessage } from '../types';
 import { applyCascadeShift, generateRevisionsForCourse } from '../utils/jMethod';
-import { assignStartTimes, placeRevisionAtTime } from '../utils/dayLayout';
+import {
+  assignStartTimes,
+  getDayBreaks,
+  getDayWindow,
+  placeRevisionAtTime,
+  placementsToUpdates,
+  resizeSlotInLayout,
+} from '../utils/dayLayout';
 import { getTodayIso, formatFrenchDate } from '../utils/dateUtils';
 import {
   syncRevisionToCloud,
@@ -454,6 +461,56 @@ export function useStudyData({
     }
   };
 
+  // Handler: edit the preparation note of a slot that is not done yet (empty text removes it)
+  const handleUpdateSlotNotes = (id: string, notes: string) => {
+    const target = revisions.find((r) => r.id === id);
+    const text = notes.trim();
+    if (!target || target.completed || (target.notes ?? '') === text) return;
+    const updated: RevisionItem = { ...target, notes: text };
+    if (!text) delete updated.notes;
+    setRevisions((prev) => prev.map((r) => (r.id === id ? updated : r)));
+    if (cloudUid) {
+      syncRevisionToCloud(cloudUid, updated).catch((e) => console.warn('Slot note sync error:', e));
+    }
+  };
+
+  // Handler: change the duration of one slot; the slots it now overlaps are pushed later (same day)
+  const handleResizeSlot = (id: string, durationMinutes: number) => {
+    const target = revisions.find((r) => r.id === id);
+    if (!target || target.completed || target.durationMinutes === durationMinutes) return;
+    const dayRevs = revisions.filter((r) => r.scheduledDate === target.scheduledDate);
+    const layout = resizeSlotInLayout(
+      dayRevs,
+      getDayWindow(settings, target.scheduledDate).start,
+      id,
+      durationMinutes,
+      getDayBreaks(settings, target.scheduledDate)
+    );
+    if (!layout) {
+      notify({
+        title: t('Durée non modifiée'),
+        description: t('Ce créneau déborderait après minuit.'),
+        type: 'error',
+      });
+      return;
+    }
+    const updates = new Map(placementsToUpdates(layout).map((u) => [u.id, u]));
+    const changed: RevisionItem[] = [];
+    revisions.forEach((r) => {
+      const u = updates.get(r.id);
+      if (!u) return;
+      const next = { ...r, startTime: u.startTime, slotOrder: u.slotOrder, durationMinutes: r.id === id ? durationMinutes : r.durationMinutes };
+      if (next.startTime !== r.startTime || next.slotOrder !== r.slotOrder || next.durationMinutes !== r.durationMinutes) {
+        changed.push(next);
+      }
+    });
+    const changedById = new Map(changed.map((r) => [r.id, r]));
+    setRevisions((prev) => prev.map((r) => changedById.get(r.id) ?? r));
+    if (cloudUid) {
+      syncRevisionsBatchToCloud(cloudUid, changed).catch((e) => console.warn('Slot resize sync error:', e));
+    }
+  };
+
   return {
     handleSaveNewCourse,
     handleConfirmShift,
@@ -466,6 +523,8 @@ export function useStudyData({
     handleSaveSubjects,
     handleResolveSubjectCourses,
     handleMoveSlots,
+    handleResizeSlot,
+    handleUpdateSlotNotes,
     handleMoveSlotToDay,
   };
 }

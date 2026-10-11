@@ -63,7 +63,7 @@ interface CalendarPlanningViewProps {
   /** Glisser d'un créneau vers un autre jour (vue Semaine). */
   onMoveToDay: (revisionId: string, targetDate: string, startMinutes: number) => void;
   onOpenNewCourseModal: () => void;
-  onOpenCourseDetail: (course: Course) => void;
+  onOpenSlotDetail: (revision: RevisionItem) => void;
   isSplitView?: boolean;
 }
 
@@ -83,7 +83,7 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
   onMoveToDay,
   onChangeSettings,
   onOpenNewCourseModal,
-  onOpenCourseDetail,
+  onOpenSlotDetail,
   isSplitView = false,
 }) => {
   // Requirement: Vue semaine par défaut en plein écran, ou agenda journalier en Split View
@@ -103,6 +103,14 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
       return DEFAULT_HOUR_HEIGHT;
     }
   });
+  // Jours forcés : on oublie ceux de plus de 60 jours pour que la liste ne grossisse pas
+  const toggleForcedDay = (date: string) => {
+    const limit = addDays(todayIso, -60);
+    const current = (settings.forcedDates ?? []).filter((d) => d >= limit);
+    onChangeSettings?.({
+      forcedDates: current.includes(date) ? current.filter((d) => d !== date) : [...current, date].sort(),
+    });
+  };
   const changeHourHeight = (direction: -1 | 1) => {
     const next = stepHourHeight(hourHeight, direction);
     setHourHeight(next);
@@ -328,12 +336,13 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
             onSelectDate(dayIso);
             setSubView('day');
           }}
-          onOpenCourseDetail={onOpenCourseDetail}
+          onOpenSlotDetail={onOpenSlotDetail}
           onOpenCompleteModal={onOpenCompleteModal}
           onOpenQuickShift={onOpenQuickShift}
           onStartStudySession={onStartStudySession}
           onMoveSlots={onMoveSlots}
           onMoveToDay={onMoveToDay}
+          onToggleForcedDay={toggleForcedDay}
         />
       )}
 
@@ -428,11 +437,12 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
           onChangeHourHeight={changeHourHeight}
               activeSessionRevisionId={activeSessionRevisionId}
               onCloseStudySession={onCloseStudySession}
-              onOpenCourseDetail={onOpenCourseDetail}
+              onOpenSlotDetail={onOpenSlotDetail}
               onOpenCompleteModal={onOpenCompleteModal}
               onOpenQuickShift={onOpenQuickShift}
               onStartStudySession={onStartStudySession}
               onMoveSlots={onMoveSlots}
+              onToggleForcedDay={toggleForcedDay}
             />
           )}
         </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AppSettings, MasteryLevel, Subject } from '../types';
-import { AutoGrowTextarea } from './AutoGrowTextarea';
+import { RichTextEditor } from './RichTextEditor';
 import { addDays, formatFrenchDate, formatMinutes, getTodayIso } from '../utils/dateUtils';
 import { JIntervalAdder } from './JIntervalAdder';
 import { DEFAULT_J_PATTERNS, getJPool, getSlotDurationMinutes } from '../utils/jMethod';
@@ -418,9 +418,9 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
                 {t('Objectifs clés / Mots-clés EDN (optionnel)')}
               </label>
-              <AutoGrowTextarea
+              <RichTextEditor
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                onChange={setNotes}
                 placeholder={t('Ex: Critères diagnostiques, scores de gravité, contre-indications absolues...')}
                 minRows={3}
                 maxHeight="40vh"

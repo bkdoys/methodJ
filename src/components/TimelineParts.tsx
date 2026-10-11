@@ -7,6 +7,11 @@ import {
   DEFAULT_BLOCK_DETAILS,
   Placement,
   formatTime,
+  dayHasLimits,
+  getDayBounds,
+  getConfiguredBreaks,
+  getDayBreaks,
+  isForcedDay,
   getDayWindow,
   getTimelineConfig,
   moveSlotInLayout,
@@ -14,7 +19,8 @@ import {
   resolveDayLayout,
   snapToStep,
 } from '../utils/dayLayout';
-import { ArrowRightLeft, CheckCircle2, Circle, GripVertical, Minus, Play, Plus, Square } from 'lucide-react';
+import { stripRichText } from '../utils/richText';
+import { ArrowRightLeft, CheckCircle2, Circle, GripVertical, Lock, LockOpen, Minus, Play, Plus, Square } from 'lucide-react';
 import { stepHourHeight, normalizeHourHeight } from '../utils/dayLayout';
 import { t } from '../i18n';
 import { formatMinutes } from '../utils/dateUtils';
@@ -36,6 +42,42 @@ const clamp = (n: number, min: number, max: number) => Math.min(Math.max(n, min)
 // ---------------------------------------------------------------------------------------------
 // Réglage discret de la hauteur d'une heure (− / +), à placer au-dessus des libellés d'heures
 // ---------------------------------------------------------------------------------------------
+
+/**
+ * Case discrète « Forcer ce jour » : lève pour ce jour les pauses et les limites de la plage autorisée, pour pouvoir
+ * y poser un créneau à la main. N'apparaît que sur un jour qui a de telles zones (ou déjà forcé).
+ */
+export const ForceDayToggle: React.FC<{
+  date: string;
+  settings: AppSettings;
+  onToggle?: (date: string) => void;
+  /** Texte à côté de l'icône (vue Jour) ; sans lui, icône seule (en-têtes étroits). */
+  showLabel?: boolean;
+}> = ({ date, settings, onToggle, showLabel = false }) => {
+  const forced = isForcedDay(settings, date);
+  if (!onToggle || (!forced && !dayHasLimits(settings, date))) return null;
+  const title = forced
+    ? t('Pauses et horaires ignorés ce jour : cliquer pour les rétablir')
+    : t('Forcer ce jour : ignorer les pauses et les horaires limites pour y placer un créneau');
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={forced}
+      onClick={() => onToggle(date)}
+      title={title}
+      aria-label={t('Forcer ce jour')}
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium transition-colors ${
+        forced
+          ? 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40'
+          : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+      }`}
+    >
+      {forced ? <LockOpen className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+      {showLabel && t('Forcer ce jour')}
+    </button>
+  );
+};
 
 export const HourZoomControl: React.FC<{ hourHeight: number; onChange: (direction: -1 | 1) => void }> = ({
   hourHeight,
@@ -128,7 +170,7 @@ export interface DayColumnProps {
   details?: BlockDetails;
   activeSessionRevisionId?: string;
   onCloseStudySession?: () => void;
-  onOpenCourseDetail: (course: Course) => void;
+  onOpenSlotDetail: (revision: RevisionItem) => void;
   onOpenCompleteModal: (revision: RevisionItem) => void;
   onOpenQuickShift: (revision: RevisionItem) => void;
   onStartStudySession: (revision: RevisionItem) => void;
@@ -200,7 +242,7 @@ export const DayColumn: React.FC<DayColumnProps> = ({
   details = DEFAULT_BLOCK_DETAILS,
   activeSessionRevisionId,
   onCloseStudySession,
-  onOpenCourseDetail,
+  onOpenSlotDetail,
   onOpenCompleteModal,
   onOpenQuickShift,
   onStartStudySession,
@@ -216,6 +258,14 @@ export const DayColumn: React.FC<DayColumnProps> = ({
   // depuis son début et on ne peut pas y déplacer un créneau hors de ses limites
   const win = getDayWindow(settings, date);
   const dayStartMinutes = win.start;
+  const bounds = getDayBounds(settings, date);
+  // Jour forcé : les zones de non-travail restent dessinées, en ambre, pour rappeler qu'on les a levées
+  const forced = isForcedDay(settings, date);
+  const zoneStyle = forced
+    ? 'bg-[repeating-linear-gradient(135deg,transparent_0_6px,rgba(217,119,6,0.16)_6px_7px)] bg-amber-500/[0.04] border-dashed border-amber-400/50 dark:border-amber-500/40'
+    : 'bg-slate-900/[0.04] dark:bg-white/[0.05] border-slate-300/80 dark:border-slate-600/60';
+  const breaks = useMemo(() => getDayBreaks(settings, date), [settings, date]);
+  const shownBreaks = forced ? getConfiguredBreaks(settings, date) : breaks;
   const yOf = (minutes: number) => (minutes - displayStart) * pxPerMin;
 
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -243,13 +293,13 @@ export const DayColumn: React.FC<DayColumnProps> = ({
     []
   );
 
-  const basePlacements = useMemo(() => resolveDayLayout(revisions, dayStartMinutes), [revisions, dayStartMinutes]);
+  const basePlacements = useMemo(() => resolveDayLayout(revisions, dayStartMinutes, breaks), [revisions, dayStartMinutes, breaks]);
   const placements: Placement[] = useMemo(
     () =>
       drag && !drag.cross
-        ? moveSlotInLayout(revisions, dayStartMinutes, drag.id, drag.start) ?? basePlacements
+        ? moveSlotInLayout(revisions, dayStartMinutes, drag.id, drag.start, breaks) ?? basePlacements
         : basePlacements,
-    [drag, revisions, dayStartMinutes, basePlacements]
+    [drag, revisions, dayStartMinutes, breaks, basePlacements]
   );
 
   // Prévient le parent pour qu'il élargisse l'échelle si le glisser pousse des blocs plus bas.
@@ -285,7 +335,7 @@ export const DayColumn: React.FC<DayColumnProps> = ({
   const computeStart = (d: DragInfo) => {
     const pageY = d.lastClientY + window.scrollY;
     const raw = d.origStart + (pageY - d.startPageY) / pxPerMin;
-    return clamp(snapToStep(raw, step), win.start, Math.max(win.start, win.end - d.duration));
+    return clamp(snapToStep(raw, step), bounds.start, Math.max(bounds.start, bounds.end - d.duration));
   };
 
   const updateDrag = () => {
@@ -295,7 +345,7 @@ export const DayColumn: React.FC<DayColumnProps> = ({
     // Vue Semaine : pointeur au-dessus d'un autre jour ?
     const hoverDate = d.crossAllowed && resolveTargetDay ? resolveTargetDay(d.lastClientX) : null;
     if (hoverDate && hoverDate !== date) {
-      const targetWin = getDayWindow(settings, hoverDate);
+      const targetWin = getDayBounds(settings, hoverDate);
       const pageY = d.lastClientY + window.scrollY;
       const raw = d.origStart + (pageY - d.startPageY) / pxPerMin;
       const start = clamp(
@@ -321,7 +371,7 @@ export const DayColumn: React.FC<DayColumnProps> = ({
     const start = computeStart(d);
     if (start === d.current) return;
     // Un dépôt qui ferait déborder la journée au-delà de minuit est ignoré : on garde la dernière position valide
-    if (moveSlotInLayout(revisions, dayStartMinutes, d.id, start) === null) return;
+    if (moveSlotInLayout(revisions, dayStartMinutes, d.id, start, breaks) === null) return;
     d.current = start;
     setDrag({ id: d.id, start });
   };
@@ -371,7 +421,7 @@ export const DayColumn: React.FC<DayColumnProps> = ({
       return;
     }
     if (!commit || !wasActive || d.current === d.origStart) return;
-    const result = moveSlotInLayout(revisions, dayStartMinutes, d.id, d.current);
+    const result = moveSlotInLayout(revisions, dayStartMinutes, d.id, d.current, breaks);
     if (result) onMoveSlots(placementsToUpdates(result));
   };
 
@@ -486,9 +536,9 @@ export const DayColumn: React.FC<DayColumnProps> = ({
 
   // ---------- Clavier : flèches haut/bas = un pas ----------
   const nudge = (p: Placement, rev: RevisionItem, direction: -1 | 1) => {
-    const target = clamp(snapToStep(p.start + direction * step, step), win.start, Math.max(win.start, win.end - rev.durationMinutes));
+    const target = clamp(snapToStep(p.start + direction * step, step), bounds.start, Math.max(bounds.start, bounds.end - rev.durationMinutes));
     if (target === p.start) return;
-    const result = moveSlotInLayout(revisions, dayStartMinutes, rev.id, target);
+    const result = moveSlotInLayout(revisions, dayStartMinutes, rev.id, target, breaks);
     if (result) onMoveSlots(placementsToUpdates(result));
   };
 
@@ -505,10 +555,23 @@ export const DayColumn: React.FC<DayColumnProps> = ({
             key={z.from}
             aria-hidden="true"
             data-outside-window
-            className={`absolute left-0 right-0 pointer-events-none bg-slate-900/[0.04] dark:bg-white/[0.05] ${z.edge} border-slate-300/80 dark:border-slate-600/60`}
+            className={`absolute left-0 right-0 pointer-events-none ${zoneStyle} ${z.edge}`}
             style={{ top: yOf(z.from), height: (z.to - z.from) * pxPerMin }}
           />
         ))}
+
+      {/* Pauses (temps de non-travail) : même teinte légère, avec un motif rayé discret */}
+      {shownBreaks.map((b) => (
+        <div
+          key={`${b.start}-${b.end}`}
+          aria-hidden="true"
+          data-break
+          className={`absolute left-0 right-0 pointer-events-none border-y border-dashed ${
+            forced ? zoneStyle : `${zoneStyle} bg-[repeating-linear-gradient(135deg,transparent_0_6px,rgba(100,116,139,0.10)_6px_7px)]`
+          }`}
+          style={{ top: yOf(Math.max(b.start, displayStart)), height: Math.max(0, Math.min(b.end, displayEnd) - Math.max(b.start, displayStart)) * pxPerMin }}
+        />
+      ))}
 
       {/* Heure courante */}
       {isToday && (
@@ -639,7 +702,7 @@ export const DayColumn: React.FC<DayColumnProps> = ({
                 suppressClick.current = false;
                 return;
               }
-              onOpenCourseDetail(course);
+              onOpenSlotDetail(rev);
             }}
             title={compact ? `${course.title} · ${subject.name} · ${startLabel}` : startLabel}
             className={`absolute left-0 right-0 rounded-xl overflow-hidden cursor-pointer select-none ${
@@ -771,9 +834,9 @@ export const DayColumn: React.FC<DayColumnProps> = ({
                       <p
                         className="text-xs line-clamp-2 italic opacity-90 min-w-0 whitespace-pre-line"
                         style={{ color: g.color }}
-                        title={rev.notes}
+                        title={stripRichText(rev.notes ?? '')}
                       >
-                        "{rev.notes?.trim()}"
+                        "{stripRichText(rev.notes ?? '').trim()}"
                       </p>
                     )}
                   </div>

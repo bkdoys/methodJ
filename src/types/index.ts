@@ -56,6 +56,13 @@ export interface AppSettings {
   timelineStepMinutes: number; // drag snapping step: 5, 10, 15, 30 or 60
   /** Allowed hours per weekday ("0" = Monday … "6" = Sunday); a missing day uses the default window. */
   dayWindows?: Record<string, { start: string; end: string }>;
+  /**
+   * Non-work breaks (e.g. lunch). Key "all" = every day; a weekday key ("0" = Monday … "6") replaces "all" for that
+   * day (an empty list = no break that day). Absent = no break.
+   */
+  breaks?: Record<string, { start: string; end: string }[]>;
+  /** Days (YYYY-MM-DD) where the user chose to ignore breaks and the allowed-hours window (manual placement allowed anywhere on the scale). */
+  forcedDates?: string[];
   /** Number of days of the multi-day view (2-6). */
   multiDayCount?: number;
   /** What the full-size timeline blocks show; a missing flag uses its default. */

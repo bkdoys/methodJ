@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Course, MasteryLevel, RevisionItem, Subject } from '../types';
-import { MasteryBadge } from './MasteryBadge';
+import { MasteryStars } from './MasteryStars';
 import { RevisionNotesJournal } from './RevisionNotesJournal';
-import { AutoGrowTextarea } from './AutoGrowTextarea';
+import { RichTextEditor } from './RichTextEditor';
 import { getSlotDurationMinutes } from '../utils/jMethod';
 import { formatMinutes, getTodayIso } from '../utils/dateUtils';
 import { getSubjectBadgeStyle } from '../utils/colorUtils';
@@ -371,7 +371,7 @@ export const StudySessionTimer: React.FC<StudySessionTimerProps> = ({
           {currentCourse && (
             <div className="flex items-center justify-center gap-2 pt-1">
               <span className="text-xs text-slate-500 dark:text-slate-400">{t('Niveau de maîtrise actuel :')}</span>
-              <MasteryBadge level={currentCourse.mastery} size="sm" />
+              <MasteryStars level={currentCourse.mastery} size={16} />
             </div>
           )}
         </div>
@@ -436,15 +436,11 @@ export const StudySessionTimer: React.FC<StudySessionTimerProps> = ({
 
         {/* Completion & Self-assessment section */}
         <div className="pt-6 border-t border-slate-100 dark:border-slate-800 max-w-lg mx-auto space-y-4 text-left">
-          <div>
-            <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
+          <div className="flex items-center gap-x-3 gap-y-1 flex-wrap">
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
               {t('Évaluer votre niveau de mémorisation après ce créneau :')}
-            </label>
-            <MasteryBadge
-              level={rating}
-              interactive={true}
-              onChange={(newRating) => setRating(newRating)}
-            />
+            </span>
+            <MasteryStars level={rating} onChange={setRating} size={20} />
           </div>
 
           {currentCourse && currentRevision && (
@@ -461,9 +457,9 @@ export const StudySessionTimer: React.FC<StudySessionTimerProps> = ({
             <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
               {t('Notes de séance ou points difficiles :')}
             </label>
-            <AutoGrowTextarea
+            <RichTextEditor
               value={studyNotes}
-              onChange={(e) => setStudyNotes(e.target.value)}
+              onChange={setStudyNotes}
               placeholder={t('Ex: Bien revu les posologies, refaire les QCM de physiopath...')}
               minRows={3}
               maxHeight="50vh"

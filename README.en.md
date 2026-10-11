@@ -26,7 +26,7 @@ methodJ schedules your revisions with the **"J method"** (spaced repetition): fo
 ## Features
 
 - **Customisable J method**: pick your intervals, save your defaults, set a default slot length plus exceptions per J.
-- **Day, N-day, Week and Month views** with a time scale, slots you can drag by finger or mouse (also from one day to another), allowed hours per weekday.
+- **Day, N-day, Week and Month views** with a time scale, slots you can drag by finger or mouse (also from one day to another), allowed hours and breaks (e.g. lunch) per weekday, which you can override for a single day.
 - **Cascading reschedule**: if you push a slot back, the following unfinished ones follow.
 - **Revision timer** with notes and a mastery self-assessment.
 - **Course catalogue**, customisable subjects and colours (CSV/JSON import).

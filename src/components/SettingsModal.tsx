@@ -5,6 +5,8 @@ import { formatMinutes } from '../utils/dateUtils';
 import { LANGUAGES, Lang, getLang, getLocale, plural } from '../i18n';
 import { PRESET_COURSE_COLORS } from '../utils/colorUtils';
 import { TimeSelect } from './TimeSelect';
+import { BreaksEditor, BreaksValue } from './BreaksEditor';
+import { DurationSelect } from './DurationSelect';
 import { JIntervalAdder } from './JIntervalAdder';
 import {
   BlockDetails,
@@ -91,6 +93,20 @@ const referenceDay = (index: number) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
+/** Pauses valides seulement (fin après début) ; la liste commune vide est omise, un jour vide reste (= aucune pause ce jour-là). */
+function cleanBreaks(breaks: BreaksValue): BreaksValue {
+  const out: BreaksValue = {};
+  Object.entries(breaks).forEach(([key, list]) => {
+    const valid = list.filter((b) => {
+      const s = parseTime(b.start);
+      const e = b.end === '23:59' ? 24 * 60 : parseTime(b.end);
+      return s !== null && e !== null && e > s;
+    });
+    if (key !== 'all' || valid.length) out[key] = valid;
+  });
+  return out;
+}
+
 /** Plages personnalisées déjà enregistrées (seuls les jours modifiés y figurent). */
 function customWindowsFromSettings(s: AppSettings): Record<string, { start: string; end: string }> {
   const out: Record<string, { start: string; end: string }> = {};
@@ -102,43 +118,6 @@ function customWindowsFromSettings(s: AppSettings): Record<string, { start: stri
   });
   return out;
 }
-
-const SLOT_DURATION_OPTIONS = [15, 30, 45, 60, 75, 90, 105, 120];
-const durationLabel = (m: number) => (m < 60 ? t('{n} min', { n: m }) : formatMinutes(m));
-
-/**
- * Sélecteur de durée par cran de 15 min jusqu'à 2h ; une valeur existante hors cran reste choisissable.
- * Avec `defaultLabel`, la valeur 0 signifie « suit la durée par défaut ».
- */
-const DurationSelect: React.FC<{
-  id?: string;
-  value: number;
-  onChange: (minutes: number) => void;
-  label?: string;
-  defaultLabel?: string;
-  className?: string;
-}> = ({ id, value, onChange, label, defaultLabel, className = '' }) => {
-  const options =
-    SLOT_DURATION_OPTIONS.includes(value) || value === 0
-      ? SLOT_DURATION_OPTIONS
-      : [...SLOT_DURATION_OPTIONS, value].sort((a, b) => a - b);
-  return (
-    <select
-      id={id}
-      aria-label={label}
-      value={value}
-      onChange={(e) => onChange(Number(e.target.value))}
-      className={`px-2 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-lg dark:bg-slate-800 dark:text-white ${className}`}
-    >
-      {defaultLabel && <option value={0}>{defaultLabel}</option>}
-      {options.map((m) => (
-        <option key={m} value={m}>
-          {durationLabel(m)}
-        </option>
-      ))}
-    </select>
-  );
-};
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
@@ -193,6 +172,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [timelineEndHour, setTimelineEndHour] = useState<number>(getTimelineConfig(settings).endHour);
   const [timelineStepMinutes, setTimelineStepMinutes] = useState<number>(getTimelineConfig(settings).stepMinutes);
   const [customWindows, setCustomWindows] = useState(() => customWindowsFromSettings(settings));
+  const [breaks, setBreaks] = useState<BreaksValue>(() => settings.breaks ?? {});
   const [multiDayCount, setMultiDayCount] = useState<number>(getMultiDayCount(settings));
   const [blockDetails, setBlockDetails] = useState<BlockDetails>(getBlockDetails(settings));
   const [theme, setTheme] = useState<'light' | 'dark'>(settings.theme || 'light');
@@ -246,6 +226,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setTimelineEndHour(tl.endHour);
       setTimelineStepMinutes(tl.stepMinutes);
       setCustomWindows(customWindowsFromSettings(settings));
+      setBreaks(settings.breaks ?? {});
       setMultiDayCount(getMultiDayCount(settings));
       setBlockDetails(getBlockDetails(settings));
       setTheme(settings.theme || 'light');
@@ -440,6 +421,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     onSaveSettings({
       ...settings,
       dayWindows,
+      breaks: cleanBreaks(breaks),
       multiDayCount: getMultiDayCount({ multiDayCount: Number(multiDayCount) }),
       blockDetails,
       defaultJPattern: defaultPattern.includes(0) ? defaultPattern : [0, ...defaultPattern],
@@ -1247,6 +1229,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </button>
                   </div>
                 </div>
+
+                <BreaksEditor value={breaks} onChange={setBreaks} weekdayLabels={weekdayLabels()} />
 
                 {/* Vue sur plusieurs jours + détails affichés dans les créneaux */}
                 <div className="pt-3 mt-1 border-t border-slate-100 dark:border-slate-800 space-y-2">

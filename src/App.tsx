@@ -23,6 +23,7 @@ import { QuickShiftModal } from './components/QuickShiftModal';
 import { CompleteRevisionModal } from './components/CompleteRevisionModal';
 import { SettingsModal } from './components/SettingsModal';
 import { CourseDetailModal } from './components/CourseDetailModal';
+import { SlotDetailModal } from './components/SlotDetailModal';
 import { SyncConflictModal } from './components/SyncConflictModal';
 import { SyncData } from './utils/cloudSync';
 import { ToastBanner } from './components/ToastBanner';
@@ -63,6 +64,8 @@ export default function App() {
   const [shiftingRevision, setShiftingRevision] = useState<RevisionItem | null>(null);
   const [completingRevision, setCompletingRevision] = useState<RevisionItem | null>(null);
   const [selectedCourseForDetail, setSelectedCourseForDetail] = useState<Course | null>(null);
+  // Fiche d'un créneau J (clic sur le planning) ; on garde l'id pour afficher toujours la version à jour
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
 
   // Toast Notification for cascade shifts or actions
   const [toastMessage, setToastMessage] = useState<ToastMessage | null>(null);
@@ -129,6 +132,8 @@ export default function App() {
     handleSaveSubjects,
     handleResolveSubjectCourses,
     handleMoveSlots,
+    handleResizeSlot,
+    handleUpdateSlotNotes,
     handleMoveSlotToDay,
   } = useStudyData({
     courses,
@@ -305,6 +310,8 @@ export default function App() {
   }
 
   // Selected revision course object
+  const selectedSlot = selectedSlotId ? revisions.find((r) => r.id === selectedSlotId) : undefined;
+  const selectedSlotCourse = selectedSlot ? courses.find((c) => c.id === selectedSlot.courseId) : undefined;
   const shiftingCourse = shiftingRevision
     ? courses.find((c) => c.id === shiftingRevision.courseId)
     : null;
@@ -396,7 +403,7 @@ export default function App() {
                 onOpenCompleteModal={(rev) => setCompletingRevision(rev)}
                 onStartStudySession={handleStartStudySession}
                 onOpenNewCourseModal={() => setIsNewCourseOpen(true)}
-                onOpenCourseDetail={(c) => setSelectedCourseForDetail(c)}
+                onOpenSlotDetail={(rev) => setSelectedSlotId(rev.id)}
                 onMoveSlots={handleMoveSlots}
                 onMoveToDay={handleMoveSlotToDay}
               />
@@ -445,7 +452,7 @@ export default function App() {
                 onOpenCompleteModal={(rev) => setCompletingRevision(rev)}
                 onStartStudySession={handleStartStudySession}
                 onOpenNewCourseModal={() => setIsNewCourseOpen(true)}
-                onOpenCourseDetail={(c) => setSelectedCourseForDetail(c)}
+                onOpenSlotDetail={(rev) => setSelectedSlotId(rev.id)}
                 onMoveSlots={handleMoveSlots}
                 onMoveToDay={handleMoveSlotToDay}
                 onChangeSettings={(patch) => setSettings((prev) => ({ ...prev, ...patch }))}
@@ -541,12 +548,39 @@ export default function App() {
           subjects={subjects}
           settings={settings}
           isOpen={true}
-          onClose={() => setSelectedCourseForDetail(null)}
+          onClose={() => {
+            setSelectedCourseForDetail(null);
+            setSelectedSlotId(null);
+          }}
+          onBackToSlot={selectedSlotId ? () => setSelectedCourseForDetail(null) : undefined}
+          onOpenSlot={(rev) => {
+            setSelectedSlotId(rev.id);
+            setSelectedCourseForDetail(null);
+          }}
           onUpdateCourse={handleUpdateCourse}
           onOpenQuickShift={(rev) => setShiftingRevision(rev)}
           onOpenCompleteModal={(rev) => setCompletingRevision(rev)}
           onStartStudySession={handleStartStudySession}
           onDeleteCourse={handleDeleteCourse}
+          onResizeSlot={handleResizeSlot}
+        />
+      )}
+
+      {/* Fiche d'un créneau J : bascule vers la fiche du cours et retour */}
+      {selectedSlot && selectedSlotCourse && !selectedCourseForDetail && (
+        <SlotDetailModal
+          revision={selectedSlot}
+          course={selectedSlotCourse}
+          subject={subjects.find((s) => s.id === selectedSlotCourse.subjectId)}
+          revisions={revisions}
+          settings={settings}
+          onClose={() => setSelectedSlotId(null)}
+          onOpenCourse={() => setSelectedCourseForDetail(selectedSlotCourse)}
+          onResizeSlot={handleResizeSlot}
+          onUpdateNotes={handleUpdateSlotNotes}
+          onOpenCompleteModal={(rev) => setCompletingRevision(rev)}
+          onOpenQuickShift={(rev) => setShiftingRevision(rev)}
+          onStartStudySession={handleStartStudySession}
         />
       )}
 

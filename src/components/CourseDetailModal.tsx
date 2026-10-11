@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { AppSettings, Course, MasteryLevel, RevisionItem, Subject } from '../types';
-import { MasteryBadge } from './MasteryBadge';
+import { MASTERY_CONFIG } from './MasteryBadge';
+import { MasteryStars } from './MasteryStars';
 import { RetentionTimeline } from './RetentionTimeline';
 import { RevisionNotesJournal } from './RevisionNotesJournal';
-import { AutoGrowTextarea } from './AutoGrowTextarea';
+import { RichNote } from './RichNote';
+import { RichTextEditor } from './RichTextEditor';
 import { useOutsideClick } from '../hooks/useOutsideClick';
-import { formatTime, getDayWindow, resolveDayLayout } from '../utils/dayLayout';
+import { DurationSelect } from './DurationSelect';
+import { formatTime, getDayBreaks, getDayWindow, resolveDayLayout } from '../utils/dayLayout';
 import { formatFrenchDate, formatMinutes, getTodayIso } from '../utils/dateUtils';
 import {
   X,
@@ -13,6 +16,7 @@ import {
   Save,
   Calendar,
   Clock,
+  ArrowLeft,
   ArrowRightLeft,
   CheckCircle2,
   Play,
@@ -46,6 +50,12 @@ interface CourseDetailModalProps {
   onOpenCompleteModal: (revision: RevisionItem) => void;
   onStartStudySession: (revision: RevisionItem) => void;
   onDeleteCourse: (courseId: string) => void;
+  /** Change la durée d'un créneau (les créneaux suivants sont repoussés si besoin). */
+  onResizeSlot?: (revisionId: string, durationMinutes: number) => void;
+  /** Ouvre la fiche d'un seul créneau J. */
+  onOpenSlot?: (revision: RevisionItem) => void;
+  /** Présent quand on vient d'une fiche créneau : revient dessus sans fermer. */
+  onBackToSlot?: () => void;
 }
 
 export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
@@ -60,6 +70,9 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
   onOpenCompleteModal,
   onStartStudySession,
   onDeleteCourse,
+  onResizeSlot,
+  onOpenSlot,
+  onBackToSlot,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(course?.title ?? '');
@@ -113,7 +126,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
   const timeOf = new Map<string, string>();
   new Set(courseRevisions.map((r) => r.scheduledDate)).forEach((date) => {
     const dayRevs = revisions.filter((r) => r.scheduledDate === date);
-    resolveDayLayout(dayRevs, getDayWindow(settings, date).start).forEach((p) => {
+    resolveDayLayout(dayRevs, getDayWindow(settings, date).start, getDayBreaks(settings, date)).forEach((p) => {
       timeOf.set(p.id, `${formatTime(p.start)}–${formatTime(p.end)}`);
     });
   });
@@ -132,9 +145,19 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 dark:bg-black/70 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl my-6 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-fit min-w-[min(28rem,100%)] max-w-[min(92vw,48rem)] my-6 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Top Subject / Course Color Bar */}
         <div className="h-2 w-full" style={{ backgroundColor: effectiveColor }} />
+        {onBackToSlot && (
+          <button
+            type="button"
+            onClick={onBackToSlot}
+            className="mx-6 mt-3 flex items-center gap-1 text-xs font-semibold text-teal-700 dark:text-teal-400 hover:underline"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t('Retour au créneau')}
+          </button>
+        )}
 
         {/* Header */}
         <div data-edit-zone className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-4">
@@ -236,21 +259,14 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
         {/* Content Body */}
         <div className="p-6 space-y-5 max-h-[72vh] overflow-y-auto">
           {/* Mastery Rating Bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-800">
-            <div>
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                {t('Niveau d\'assimilation et de rétention')}
-              </span>
-              <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                {t('Auto-évaluation directe de la mémoire à long terme')}
-              </span>
-            </div>
-
-            <MasteryBadge
+          <div className="flex items-center gap-2" title={t('Auto-évaluation directe de la mémoire à long terme')}>
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{t('Niveau de maîtrise')}</span>
+            <MasteryStars
               level={course.mastery}
-              interactive={true}
               onChange={(newLevel) => onUpdateCourse(course.id, { mastery: newLevel })}
+              size={18}
             />
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 min-w-[4.5rem]">{MASTERY_CONFIG[course.mastery]?.shortLabel}</span>
           </div>
 
           {/* Progression dans le temps (largeur proportionnelle aux jours) */}
@@ -269,9 +285,9 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
               )}
             </div>
             {isEditing ? (
-              <AutoGrowTextarea
+              <RichTextEditor
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                onChange={setNotes}
                 minRows={6}
                 placeholder={t('Ex: Critères de Framingham, posologies clés, arbres diagnostiques...')}
                 className="w-full p-3 text-sm leading-relaxed border border-slate-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
@@ -282,7 +298,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
                 className="cursor-pointer group p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800/70 border border-slate-200 dark:border-slate-800 text-sm text-slate-700 dark:text-slate-300"
               >
                 {course.notes ? (
-                  <p className="whitespace-pre-wrap leading-relaxed">{course.notes}</p>
+                  <RichNote text={course.notes} />
                 ) : (
                   <span className="text-slate-400 dark:text-slate-500 italic">
                     {t('Aucune note pour le moment. Cliquez ici ou sur le crayon pour en ajouter...')}
@@ -350,15 +366,19 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
 
                       <div>
                         <div className="flex items-center gap-2">
-                          <span
-                            className={`font-bold text-xs px-2 py-0.5 rounded ${
+                          <button
+                            type="button"
+                            disabled={!onOpenSlot}
+                            onClick={() => onOpenSlot?.(rev)}
+                            title={t('Ouvrir ce créneau')}
+                            className={`font-bold text-xs px-2 py-0.5 rounded ${onOpenSlot ? 'hover:brightness-95 cursor-pointer' : 'cursor-default'} ${
                               isJ0orJ1
                                 ? 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-300'
                                 : 'bg-teal-100 text-teal-900 dark:bg-teal-900/40 dark:text-teal-300'
                             }`}
                           >
                             J{rev.jIndex}
-                          </span>
+                          </button>
                           <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200">
                             {formatFrenchDate(rev.scheduledDate)}
                           </span>
@@ -381,9 +401,19 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
 
                         <span className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
                           <Clock className="w-3 h-3" />
-                          <span>
-                            {t('Créneau de {d}', { d: formatMinutes(rev.durationMinutes) })}
-                          </span>
+                          {onResizeSlot && !rev.completed ? (
+                            <>
+                              <span>{t('Créneau de')}</span>
+                              <DurationSelect
+                                value={rev.durationMinutes}
+                                onChange={(m) => onResizeSlot(rev.id, m)}
+                                label={t('Durée du créneau J{n}', { n: rev.jIndex })}
+                                className="!py-0.5 !px-1 !text-[11px]"
+                              />
+                            </>
+                          ) : (
+                            <span>{t('Créneau de {d}', { d: formatMinutes(rev.durationMinutes) })}</span>
+                          )}
                         </span>
                       </div>
                     </div>

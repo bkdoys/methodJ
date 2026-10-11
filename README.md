@@ -26,7 +26,7 @@ methodJ planifie vos révisions selon la **méthode des J** (répétition espac�
 ## Fonctionnalités
 
 - **Méthode des J personnalisable** : choisissez vos intervalles, enregistrez vos réglages par défaut, durée de créneau par défaut et exceptions par J.
-- **Vues Jour, N jours, Semaine et Mois**, avec échelle horaire, créneaux déplaçables au doigt ou à la souris (aussi d'un jour à l'autre), plages horaires par jour de la semaine.
+- **Vues Jour, N jours, Semaine et Mois**, avec échelle horaire, créneaux déplaçables au doigt ou à la souris (aussi d'un jour à l'autre), plages horaires et pauses (déjeuner…) par jour de la semaine, que l'on peut lever pour un jour précis.
 - **Décalage en cascade** : si vous repoussez un créneau, les suivants non faits suivent.
 - **Chronomètre de révision** avec notes et auto-évaluation de la maîtrise.
 - **Catalogue de cours**, disciplines et couleurs personnalisables (import CSV/JSON).

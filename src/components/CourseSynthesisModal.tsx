@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { RichNote } from './RichNote';
 import { Course, RevisionItem, Subject } from '../types';
-import { MasteryBadge } from './MasteryBadge';
+import { MasteryStars } from './MasteryStars';
 import { RevisionNotesJournal } from './RevisionNotesJournal';
 import { Check, CopyPlus, NotebookPen, X } from 'lucide-react';
 import { appendNoteEntry, formatSlotNoteEntry, hasNoteEntry, MAX_NOTES_LENGTH } from '../utils/notes';
-import { getCourseEffectiveColor, getCourseSoftBackground, getSubjectBadgeStyle } from '../utils/colorUtils';
+import { getCourseEffectiveColor } from '../utils/colorUtils';
 import { t } from '../i18n';
 
 interface CourseSynthesisModalProps {
@@ -28,7 +29,11 @@ export const CourseSynthesisModal: React.FC<CourseSynthesisModalProps> = ({
 }) => {
   const [error, setError] = useState<string | null>(null);
   const color = getCourseEffectiveColor(course, subject);
-  const softBg = getCourseSoftBackground(color, isDark);
+  // Même parti pris que la vue Cours : fenêtre neutre, couleur du cours en barre fine à gauche et pastille teintée
+  const badgeStyle = {
+    backgroundColor: `color-mix(in srgb, ${color} 14%, transparent)`,
+    color: `color-mix(in srgb, ${color} 78%, ${isDark ? '#f1f5f9' : '#0f172a'})`,
+  };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -62,19 +67,15 @@ export const CourseSynthesisModal: React.FC<CourseSynthesisModalProps> = ({
         aria-modal="true"
         aria-label={t('Synthèse des notes : {title}', { title: course.title })}
         onClick={(e) => e.stopPropagation()}
-        style={{ ...softBg, borderColor: color }}
-        className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border-2 w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+        style={{ boxShadow: `inset 4px 0 0 ${color}` }}
+        className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
       >
-        <div className="h-2 w-full shrink-0" style={{ backgroundColor: color }} />
-        <div
-          className="px-5 py-4 border-b flex items-start justify-between gap-3"
-          style={{ borderColor: `${color}40` }}
-        >
+        <div className="px-5 py-4 pl-6 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-1">
             <div className="flex items-center gap-2 flex-wrap text-xs">
               <span
-                className="subject-badge inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded font-bold"
-                style={getSubjectBadgeStyle(course, subject)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded font-bold"
+                style={badgeStyle}
               >
                 <span className="w-2 h-2 rounded-full bg-current" />
                 {subject.name}
@@ -82,7 +83,7 @@ export const CourseSynthesisModal: React.FC<CourseSynthesisModalProps> = ({
               <span className="font-mono font-bold text-slate-500 dark:text-slate-400">
                 {course.itemCode}
               </span>
-              <MasteryBadge level={course.mastery} size="sm" />
+              <MasteryStars level={course.mastery} size={14} />
             </div>
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2.5">
               <NotebookPen className="w-6 h-6 shrink-0" style={{ color }} />
@@ -109,7 +110,7 @@ export const CourseSynthesisModal: React.FC<CourseSynthesisModalProps> = ({
               className="p-3 rounded-xl bg-white/70 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 text-sm text-slate-700 dark:text-slate-300"
             >
               {course.notes?.trim() ? (
-                <p className="whitespace-pre-wrap leading-relaxed">{course.notes}</p>
+                <RichNote text={course.notes} />
               ) : (
                 <span className="text-slate-400 dark:text-slate-500 italic text-xs">
                   {t('Aucune note de cours.')}

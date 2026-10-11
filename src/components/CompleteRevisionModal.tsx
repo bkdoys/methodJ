@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Course, MasteryLevel, RevisionItem, Subject } from '../types';
-import { MASTERY_CONFIG } from './MasteryBadge';
+import { MasteryStars } from './MasteryStars';
 import { CheckCircle2, RotateCcw, Sparkles, X } from 'lucide-react';
 import { RevisionNotesJournal } from './RevisionNotesJournal';
-import { AutoGrowTextarea } from './AutoGrowTextarea';
+import { RichTextEditor } from './RichTextEditor';
 import confetti from 'canvas-confetti';
 import { t } from '../i18n';
 import { formatMinutes } from '../utils/dateUtils';
@@ -70,7 +70,7 @@ export const CompleteRevisionModal: React.FC<CompleteRevisionModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/70 backdrop-blur-xs">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 w-fit min-w-[min(28rem,100%)] max-w-[min(92vw,48rem)] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         <form onSubmit={handleSubmit} className="flex flex-col max-h-[92vh]">
           {/* Header */}
           <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
@@ -105,44 +105,12 @@ export const CompleteRevisionModal: React.FC<CompleteRevisionModalProps> = ({
               </span>
             </div>
 
-            {/* Knowledge / Mastery Evaluation */}
-            <div>
-              <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
-                {t('Comment évaluez-vous votre niveau de maîtrise sur ce cours ?')}
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {([1, 2, 3, 4] as MasteryLevel[]).map((lvl) => {
-                  const cfg = MASTERY_CONFIG[lvl];
-                  const isSelected = selectedRating === lvl;
-                  return (
-                    <button
-                      key={lvl}
-                      type="button"
-                      onClick={() => setSelectedRating(lvl)}
-                      className={`p-2.5 rounded-xl border text-left transition-all flex items-start gap-2.5 ${
-                        isSelected
-                          ? `${cfg.bg} ${cfg.border} ring-2 ring-teal-500 shadow-xs dark:bg-slate-800`
-                          : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
-                      }`}
-                    >
-                      <div className="mt-0.5 font-bold text-amber-500 text-sm">
-                        {'★'.repeat(lvl)}
-                      </div>
-                      <div>
-                        <span className={`text-xs font-bold block ${cfg.text}`}>
-                          {cfg.shortLabel}
-                        </span>
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400 block leading-tight">
-                          {lvl === 1 && t('Plusieurs notions floues, à revoir vite')}
-                          {lvl === 2 && t('Idées directrices comprises, détails à caler')}
-                          {lvl === 3 && t('Bonne maîtrise, restitution fluide')}
-                          {lvl === 4 && t('Parfait, réflexes EDN acquis')}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+            {/* Knowledge / Mastery Evaluation : une ligne d'étoiles (largeur stable) */}
+            <div className="flex items-center gap-x-3 gap-y-1 flex-wrap">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                {t('Votre niveau de maîtrise sur ce cours')}
+              </span>
+              <MasteryStars level={selectedRating} onChange={setSelectedRating} allowClear={false} size={20} />
             </div>
 
             {/* Checkbox to sync course general status */}
@@ -173,9 +141,9 @@ export const CompleteRevisionModal: React.FC<CompleteRevisionModalProps> = ({
               <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1.5">
                 {t('Notes ou pièges retenus pendant ce créneau (optionnel) :')}
               </label>
-              <AutoGrowTextarea
+              <RichTextEditor
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                onChange={setNotes}
                 placeholder={t('Ex: Ne pas oublier le dosage de la troponine à H0 et H3, contre-indication des bétabloquants en phase aiguë si OAP...')}
                 minRows={3}
                 maxHeight="45vh"

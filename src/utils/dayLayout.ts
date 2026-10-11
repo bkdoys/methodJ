@@ -50,12 +50,22 @@ export interface Placement {
 
 const byOrder = (a: RevisionItem, b: RevisionItem) => a.slotOrder - b.slotOrder || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
+/** Premier début ≥ `start` pour lequel `[début, début + durée[` ne chevauche aucune pause (pauses triées). */
+export function skipBreaks(start: number, duration: number, breaks: DayWindow[]): number {
+  let s = start;
+  for (const b of breaks) {
+    if (s < b.end && s + duration > b.start) s = b.end;
+  }
+  return s;
+}
+
 /**
  * Place les créneaux d'une journée. Un créneau avec `startTime` valide garde cette heure ;
  * les autres s'empilent à la suite depuis `dayStartMinutes` (dans l'ordre `slotOrder`, sans pause).
- * Aucun chevauchement n'est jamais renvoyé : un créneau en collision est repoussé après le précédent.
+ * Aucun chevauchement n'est jamais renvoyé : un créneau en collision est repoussé après le précédent,
+ * et un créneau qui tomberait sur une pause (`breaks`) est repoussé à la fin de celle-ci.
  */
-export function resolveDayLayout(revs: RevisionItem[], dayStartMinutes: number): Placement[] {
+export function resolveDayLayout(revs: RevisionItem[], dayStartMinutes: number, breaks: DayWindow[] = []): Placement[] {
   let cumulative = dayStartMinutes;
   const provisional = [...revs].sort(byOrder).map((r) => {
     const explicit = parseTime(r.startTime);
@@ -72,7 +82,7 @@ export function resolveDayLayout(revs: RevisionItem[], dayStartMinutes: number):
 
   let cursor = 0;
   return provisional.map(({ r, start }) => {
-    const s = Math.max(start, cursor);
+    const s = skipBreaks(Math.max(start, cursor), r.durationMinutes, breaks);
     cursor = s + r.durationMinutes;
     return { id: r.id, start: s, end: cursor };
   });
@@ -86,12 +96,13 @@ export function moveSlotInLayout(
   revs: RevisionItem[],
   dayStartMinutes: number,
   id: string,
-  targetStart: number
+  targetStart: number,
+  breaks: DayWindow[] = []
 ): Placement[] | null {
-  const base = resolveDayLayout(revs, dayStartMinutes);
+  const base = resolveDayLayout(revs, dayStartMinutes, breaks);
   const moved = revs.find((r) => r.id === id);
   if (!moved) return base;
-  const T = Math.max(0, targetStart);
+  const T = skipBreaks(Math.max(0, targetStart), moved.durationMinutes, breaks);
   const result: Placement[] = [{ id, start: T, end: T + moved.durationMinutes }];
   let cursor = T + moved.durationMinutes;
 
@@ -101,13 +112,33 @@ export function moveSlotInLayout(
       result.push(p); // entièrement avant le point de dépôt : inchangé
       continue;
     }
-    const start = Math.max(p.start, cursor);
+    const start = skipBreaks(Math.max(p.start, cursor), p.end - p.start, breaks);
     cursor = start + (p.end - p.start);
     result.push({ id: p.id, start, end: cursor });
   }
 
   if (result.some((p) => p.end > DAY_MINUTES)) return null;
   return result.sort((a, b) => a.start - b.start);
+}
+
+/**
+ * Change la durée d'un créneau sans toucher à son heure de début ; les créneaux qu'il finit par chevaucher (ou qui
+ * tomberaient sur une pause) sont repoussés plus tard. Renvoie null si la journée déborderait après minuit.
+ */
+export function resizeSlotInLayout(
+  revs: RevisionItem[],
+  dayStartMinutes: number,
+  id: string,
+  durationMinutes: number,
+  breaks: DayWindow[] = []
+): Placement[] | null {
+  const base = resolveDayLayout(revs, dayStartMinutes, breaks);
+  const fixed = revs.map((r) => {
+    const p = base.find((x) => x.id === r.id);
+    return { ...r, startTime: p ? formatTime(p.start) : r.startTime, durationMinutes: r.id === id ? durationMinutes : r.durationMinutes };
+  });
+  const result = resolveDayLayout(fixed, dayStartMinutes, breaks);
+  return result.some((p) => p.end > DAY_MINUTES) ? null : result;
 }
 
 /** Données à enregistrer : heure de début explicite et rang, pour toute la journée. */
@@ -190,12 +221,61 @@ export function getDayWindow(
   return start !== null && end !== null && end > start ? { start, end } : fallback;
 }
 
+/**
+ * Limites où l'on peut poser un créneau à la main : la plage du jour, ou toute l'échelle affichée si le jour est forcé.
+ */
+export function getDayBounds(
+  settings: Partial<Pick<AppSettings, 'dayStartTime' | 'dayWindows' | 'forcedDates' | 'timelineStartHour' | 'timelineEndHour' | 'timelineStepMinutes'>>,
+  dateIso: string
+): DayWindow {
+  const win = getDayWindow(settings, dateIso);
+  if (!isForcedDay(settings, dateIso)) return win;
+  const cfg = getTimelineConfig(settings);
+  return { start: Math.min(win.start, cfg.startHour * 60), end: Math.max(win.end, cfg.endHour * 60) };
+}
+
+/** Le jour a-t-il une zone de non-travail (pause ou hors plage) que l'on pourrait forcer ? Indépendant du forçage. */
+export function dayHasLimits(
+  settings: Partial<Pick<AppSettings, 'breaks' | 'dayStartTime' | 'dayWindows' | 'timelineStartHour' | 'timelineEndHour' | 'timelineStepMinutes'>>,
+  dateIso: string
+): boolean {
+  const cfg = getTimelineConfig(settings);
+  const win = getDayWindow(settings, dateIso);
+  return configuredDayBreaks(settings, dateIso).length > 0 || win.start > cfg.startHour * 60 || win.end < cfg.endHour * 60;
+}
+
 /** Plage par défaut, pour les préférences (jour sans plage personnalisée). */
 export function defaultDayWindowStrings(
   settings: Partial<Pick<AppSettings, 'dayStartTime' | 'timelineStartHour' | 'timelineEndHour' | 'timelineStepMinutes'>>
 ): { start: string; end: string } {
   const w = getDayWindow({ ...settings, dayWindows: {} }, '2026-01-05'); // un lundi : seule la valeur par défaut compte
   return { start: formatTime(w.start), end: w.end >= DAY_MINUTES ? '23:59' : formatTime(w.end) };
+}
+
+/**
+ * Pauses (temps de non-travail) d'un jour : celles de son jour de la semaine si elles existent (une liste vide
+ * = aucune pause ce jour-là), sinon les pauses communes `all`. Triées, bornées au jour, sans plage invalide.
+ */
+export function getDayBreaks(settings: Partial<Pick<AppSettings, 'breaks' | 'forcedDates'>>, dateIso: string): DayWindow[] {
+  return isForcedDay(settings, dateIso) ? [] : configuredDayBreaks(settings, dateIso);
+}
+
+/** Jour « forcé » : pauses et limites de la plage ignorées pour ce jour (choix volontaire, case dans la vue planning). */
+export function isForcedDay(settings: Partial<Pick<AppSettings, 'forcedDates'>>, dateIso: string): boolean {
+  return !!settings.forcedDates?.includes(dateIso);
+}
+
+/** Pauses réglées pour ce jour, même s'il est forcé (pour les dessiner en filigrane). */
+export function getConfiguredBreaks(settings: Partial<Pick<AppSettings, 'breaks'>>, dateIso: string): DayWindow[] {
+  return configuredDayBreaks(settings, dateIso);
+}
+
+function configuredDayBreaks(settings: Partial<Pick<AppSettings, 'breaks'>>, dateIso: string): DayWindow[] {
+  const list = settings.breaks?.[String(weekdayIndex(dateIso))] ?? settings.breaks?.all ?? [];
+  return list
+    .map((b) => ({ start: parseTime(b?.start), end: b?.end === '23:59' ? DAY_MINUTES : parseTime(b?.end) }))
+    .filter((b): b is DayWindow => b.start !== null && b.end !== null && b.end > b.start)
+    .sort((a, b) => a.start - b.start);
 }
 
 type Span = { start: number; end: number };
@@ -205,13 +285,19 @@ const overlaps = (a: Span, b: Span) => a.start < b.end && b.start < a.end;
  * Première place libre dans la plage, en avançant par pas. Si la plage est pleine, le créneau est posé
  * juste après le dernier créneau (au mieux, avant minuit) : il déborde de la plage plutôt que d'être perdu.
  */
-export function findFreeStart(occupied: Span[], duration: number, win: DayWindow, step: number): number {
+export function findFreeStart(
+  occupied: Span[],
+  duration: number,
+  win: DayWindow,
+  step: number,
+  breaks: DayWindow[] = []
+): number {
   for (let s = win.start; s + duration <= win.end; s += step) {
     const candidate = { start: s, end: s + duration };
-    if (!occupied.some((o) => overlaps(candidate, o))) return s;
+    if (!occupied.some((o) => overlaps(candidate, o)) && !breaks.some((b) => overlaps(candidate, b))) return s;
   }
   const lastEnd = occupied.length ? Math.max(...occupied.map((o) => o.end)) : win.start;
-  const aligned = Math.ceil(lastEnd / step) * step;
+  const aligned = skipBreaks(Math.ceil(lastEnd / step) * step, duration, breaks);
   return Math.max(0, Math.min(aligned, DAY_MINUTES - duration));
 }
 
@@ -237,8 +323,10 @@ export function assignStartTimes(
 
   for (const date of dates) {
     const win = getDayWindow(settings, date);
+    const breaks = getDayBreaks(settings, date);
+    const bounds = getDayBounds(settings, date);
     const dayExisting = existing.filter((r) => r.scheduledDate === date && !incomingIds.has(r.id));
-    const occupied: Span[] = resolveDayLayout(dayExisting, win.start).map((p) => ({ start: p.start, end: p.end }));
+    const occupied: Span[] = resolveDayLayout(dayExisting, win.start, breaks).map((p) => ({ start: p.start, end: p.end }));
     const news = incoming
       .filter((r) => r.scheduledDate === date)
       .sort((a, b) => a.jIndex - b.jIndex || a.slotOrder - b.slotOrder);
@@ -248,7 +336,7 @@ export function assignStartTimes(
       if (keepStartTime) {
         const preferred = parseTime(r.startTime);
         const span = preferred === null ? null : { start: preferred, end: preferred + r.durationMinutes };
-        if (span && span.start >= win.start && span.end <= win.end && !occupied.some((o) => overlaps(span, o))) {
+        if (span && span.start >= bounds.start && span.end <= bounds.end && !occupied.some((o) => overlaps(span, o)) && !breaks.some((b) => overlaps(span, b))) {
           start = span.start;
         }
       }
@@ -257,7 +345,7 @@ export function assignStartTimes(
           now && r.jIndex === 0 && date === now.date
             ? { ...win, start: Math.min(Math.max(win.start, Math.ceil(now.minutes / step) * step), win.end) }
             : win;
-        start = findFreeStart(occupied, r.durationMinutes, searchWin, step);
+        start = findFreeStart(occupied, r.durationMinutes, searchWin, step, breaks);
       }
       occupied.push({ start, end: start + r.durationMinutes });
       placed.set(r.id, formatTime(start));
@@ -280,7 +368,7 @@ export function placeRevisionAtTime(
 ): RevisionItem[] {
   const target = revisions.find((r) => r.id === targetId);
   if (!target) return revisions;
-  const win = getDayWindow(settings, target.scheduledDate);
+  const win = getDayBounds(settings, target.scheduledDate);
   const step = getTimelineConfig(settings).stepMinutes;
   const start = Math.min(
     Math.max(snapToStep(startMinutes, step), win.start),
@@ -288,7 +376,7 @@ export function placeRevisionAtTime(
   );
 
   const dayRevs = revisions.filter((r) => r.scheduledDate === target.scheduledDate);
-  const layout = moveSlotInLayout(dayRevs, win.start, targetId, start);
+  const layout = moveSlotInLayout(dayRevs, win.start, targetId, start, getDayBreaks(settings, target.scheduledDate));
   if (!layout) {
     // Déborderait après minuit : on retombe sur la première place libre du jour
     const others = revisions.filter((r) => r.id !== targetId);

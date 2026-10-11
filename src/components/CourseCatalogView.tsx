@@ -1,9 +1,10 @@
 import React, { useRef, useState } from 'react';
 import { AppSettings, Course, MasteryLevel, RevisionItem, Subject } from '../types';
-import { MasteryBadge } from './MasteryBadge';
+import { MasteryStars } from './MasteryStars';
 import { RetentionTimeline } from './RetentionTimeline';
 import { CourseSynthesisModal } from './CourseSynthesisModal';
-import { AutoGrowTextarea } from './AutoGrowTextarea';
+import { RichNote } from './RichNote';
+import { RichTextEditor } from './RichTextEditor';
 import { useOutsideClick } from '../hooks/useOutsideClick';
 import { COURSE_SORT_OPTIONS, CourseSortMode, DEFAULT_COURSE_SORT, isCourseSortMode, sortCourses } from '../utils/courseSort';
 import { formatFrenchDate, getTodayIso } from '../utils/dateUtils';
@@ -24,7 +25,7 @@ import {
   NotebookPen,
   ArrowUpDown,
 } from 'lucide-react';
-import { getCourseEffectiveColor, getCourseSoftBackground, getSubject, getSubjectBadgeStyle } from '../utils/colorUtils';
+import { getCourseEffectiveColor, getSubject } from '../utils/colorUtils';
 import { t } from '../i18n';
 
 
@@ -150,7 +151,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
             <input
               type="text"
-              placeholder={t('Rechercher (ex: AVC, Item 228, Troponine)...')}
+              placeholder={t('Rechercher un cours ou une note...')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
@@ -226,7 +227,15 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
             const subject = getSubject(course.subjectId, subjects);
             const effectiveColor = getCourseEffectiveColor(course, subject);
             const isDark = settings.theme === 'dark';
-            const softBg = getCourseSoftBackground(effectiveColor, isDark);
+            // Pastille de matière : teinte légère de la couleur du cours, texte un peu plus foncé (clair) ou clair (sombre)
+            const badgeStyle = {
+              backgroundColor: `color-mix(in srgb, ${effectiveColor} 14%, transparent)`,
+              color: `color-mix(in srgb, ${effectiveColor} 78%, ${isDark ? '#f1f5f9' : '#0f172a'})`,
+            };
+            // Prochain créneau à faire : le premier non validé qui n'est pas en retard
+            const nextRevId = revisions
+              .filter((r) => r.courseId === course.id && !r.completed && r.scheduledDate >= todayIso)
+              .sort((a, b) => a.jIndex - b.jIndex)[0]?.id;
             const courseRevisions = revisions
               .filter((r) => r.courseId === course.id)
               .sort((a, b) => a.jIndex - b.jIndex);
@@ -238,24 +247,19 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
             return (
               <div
                 key={course.id}
-                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden hover:border-slate-300 dark:hover:border-slate-700 transition-all"
-                style={softBg}
+                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden hover:border-slate-300 dark:hover:border-slate-700 transition-all"
+                // Carte neutre : la couleur du cours est une fine barre à gauche
+                style={{ boxShadow: `inset 4px 0 0 ${effectiveColor}` }}
               >
-                {/* Course Effective Color Header Stripe */}
-                <div
-                  className="h-2 w-full"
-                  style={{ backgroundColor: effectiveColor }}
-                />
-
-                <div className="p-4 space-y-3">
+                <div className="p-4 pl-5 space-y-3">
                   {/* Top Bar: Subject Badge, Item Code, Title, Mastery Rating */}
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         {/* Subject Badge with custom color */}
                         <span
-                          className="subject-badge inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-bold"
-                          style={getSubjectBadgeStyle(course, subject)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-bold"
+                          style={badgeStyle}
                         >
                           <span
                             className="w-2 h-2 rounded-full bg-current"
@@ -315,16 +319,11 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                     </button>
 
                     {/* Mastery Level Interactive Selector */}
-                    <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 p-2 rounded-xl border border-slate-200 dark:border-slate-700">
-                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
-                        {t('Maîtrise :')}
-                      </span>
-                      <MasteryBadge
-                        level={course.mastery}
-                        interactive={true}
-                        onChange={(newLevel) => onUpdateCourseMastery(course.id, newLevel)}
-                      />
-                    </div>
+                    <MasteryStars
+                      level={course.mastery}
+                      onChange={(newLevel) => onUpdateCourseMastery(course.id, newLevel)}
+                      size={16}
+                    />
                     </div>
                   </div>
 
@@ -334,9 +333,9 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                   {/* Notes / Clinical Pearls */}
                   {editingNotesCourseId === course.id ? (
                     <div ref={notesEditorRef} className="space-y-2 pt-1">
-                      <AutoGrowTextarea
+                      <RichTextEditor
                         value={notesBuffer}
-                        onChange={(e) => setNotesBuffer(e.target.value)}
+                        onChange={setNotesBuffer}
                         placeholder={t('Points clés, mnémotechniques, pièges d\'annales...')}
                         minRows={5}
                         focusAtEnd
@@ -369,9 +368,10 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                       title={t('Cliquer pour modifier les notes')}
                     >
                       {course.notes ? (
-                        <span className="whitespace-pre-line leading-relaxed line-clamp-3 text-slate-700 dark:text-slate-200">
-                          {course.notes}
-                        </span>
+                        <RichNote
+                          text={course.notes}
+                          className="max-h-[4.5rem] overflow-hidden text-slate-700 dark:text-slate-200"
+                        />
                       ) : (
                         <span className="italic">{t('Ajouter des notes, réflexes EDN ou pièges à retenir...')}</span>
                       )}
@@ -414,6 +414,8 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                                 ? 'bg-teal-50 dark:bg-teal-950/30 border-teal-400 dark:border-teal-700 text-teal-900 dark:text-teal-300 ring-2 ring-teal-500/20'
                                 : isPastDue
                                 ? 'bg-rose-50/80 dark:bg-rose-950/20 border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-300'
+                                : rev.id === nextRevId
+                                ? 'bg-slate-50 dark:bg-slate-800/60 border-teal-500/70 dark:border-teal-500/60 text-slate-700 dark:text-slate-300'
                                 : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
                             }`}
                           >

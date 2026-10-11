@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppSettings, Course, RevisionItem, Subject } from '../types';
 import { formatFrenchDayShort, formatMinutes } from '../utils/dateUtils';
-import { computeDisplayRange, getBlockDetails, getDayWindow, getTimelineConfig, resolveDayLayout } from '../utils/dayLayout';
+import { computeDisplayRange, getBlockDetails, getDayBreaks, getDayWindow, getTimelineConfig, resolveDayLayout } from '../utils/dayLayout';
 import { getCourseEffectiveColor, getCourseGradientStyle, getSubject } from '../utils/colorUtils';
 import { formatTime } from '../utils/dayLayout';
-import { CrossDayHover, DayColumn, HourZoomControl, SCALE_WIDTH_CLASS, TimelineScale } from './TimelineParts';
+import { CrossDayHover, DayColumn, ForceDayToggle, HourZoomControl, SCALE_WIDTH_CLASS, TimelineScale } from './TimelineParts';
 import { t } from '../i18n';
 
 const NO_REVISIONS: RevisionItem[] = [];
@@ -25,13 +25,14 @@ interface MultiDayTimelineProps {
   onCloseStudySession?: () => void;
   /** Ouvre ce jour dans la vue Jour. */
   onOpenDay: (dateIso: string) => void;
-  onOpenCourseDetail: (course: Course) => void;
+  onOpenSlotDetail: (revision: RevisionItem) => void;
   onOpenCompleteModal: (revision: RevisionItem) => void;
   onOpenQuickShift: (revision: RevisionItem) => void;
   onStartStudySession: (revision: RevisionItem) => void;
   onMoveSlots: (updates: { id: string; startTime: string; slotOrder: number }[]) => void;
   /** Dépôt d'un créneau dans un autre jour (glisser entre colonnes). */
   onMoveToDay: (revisionId: string, targetDate: string, startMinutes: number) => void;
+  onToggleForcedDay?: (date: string) => void;
 }
 
 /** En dessous de cette largeur de colonne, les blocs passent en version compacte. */
@@ -53,6 +54,7 @@ export const MultiDayTimeline: React.FC<MultiDayTimelineProps> = ({
   onChangeHourHeight,
   onOpenDay,
   onMoveToDay,
+  onToggleForcedDay,
   ...rest
 }) => {
   const pxPerMin = hourHeight / 60;
@@ -103,8 +105,8 @@ export const MultiDayTimeline: React.FC<MultiDayTimelineProps> = ({
   // Une seule plage pour toute la semaine : les colonnes restent alignées sur la même échelle
   const windows = useMemo(() => days.map((d) => getDayWindow(settings, d)), [days, settings]);
   const allPlacements = useMemo(
-    () => days.flatMap((d, i) => resolveDayLayout(byDay.get(d) ?? NO_REVISIONS, windows[i].start)),
-    [days, byDay, windows]
+    () => days.flatMap((d, i) => resolveDayLayout(byDay.get(d) ?? NO_REVISIONS, windows[i].start, getDayBreaks(settings, d))),
+    [days, byDay, windows, settings]
   );
   const { displayStart, displayEnd } = computeDisplayRange(
     allPlacements,
@@ -130,13 +132,13 @@ export const MultiDayTimeline: React.FC<MultiDayTimelineProps> = ({
               const isToday = dayIso === todayIso;
               const isSelected = dayIso === selectedDate;
               return (
+                <div key={dayIso} className="relative">
                 <button
-                  key={dayIso}
                   type="button"
                   onClick={() => onOpenDay(dayIso)}
                   title={t('Ouvrir ce jour')}
                   aria-label={t('Ouvrir le {day}', { day: formatFrenchDayShort(dayIso) })}
-                  className={`px-2 py-1.5 rounded-xl border text-left transition-colors ${
+                  className={`block w-full px-2 py-1.5 rounded-xl border text-left transition-colors ${
                     isToday
                       ? 'border-teal-400 bg-teal-50 dark:bg-teal-950/40 dark:border-teal-700'
                       : isSelected
@@ -151,6 +153,10 @@ export const MultiDayTimeline: React.FC<MultiDayTimelineProps> = ({
                     {dayRevs.length === 0 ? '—' : `${formatMinutes(total)} · ${dayRevs.length}`}
                   </span>
                 </button>
+                <div className="absolute top-1 right-1">
+                  <ForceDayToggle date={dayIso} settings={settings} onToggle={onToggleForcedDay} />
+                </div>
+                </div>
               );
             })}
           </div>

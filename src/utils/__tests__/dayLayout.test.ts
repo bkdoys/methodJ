@@ -7,6 +7,10 @@ import {
   consecutiveDays,
   DEFAULT_BLOCK_DETAILS,
   getBlockDetails,
+  getDayBreaks,
+  resizeSlotInLayout,
+  getDayBounds,
+  dayHasLimits,
   getMultiDayCount,
   nextMultiDayCount,
   defaultDayWindowStrings,
@@ -474,5 +478,79 @@ describe('nextMultiDayCount', () => {
   it('starts from the default when the value is invalid', () => {
     expect(nextMultiDayCount(99)).toBe(4); // 99 -> défaut 3 -> 4
     expect(nextMultiDayCount(NaN)).toBe(4);
+  });
+});
+
+describe('pauses (breaks)', () => {
+  const lunch = [{ start: 12 * 60, end: 13 * 60 }];
+  const rev = (id: string, order: number, duration: number, startTime?: string) =>
+    ({ id, slotOrder: order, durationMinutes: duration, startTime } as RevisionItem);
+
+  it('getDayBreaks : le jour remplace le commun, liste vide = aucune pause', () => {
+    const settings = { breaks: { all: [{ start: '12:00', end: '13:00' }], '2': [] } };
+    expect(getDayBreaks(settings, '2026-01-05')).toEqual(lunch); // lundi
+    expect(getDayBreaks(settings, '2026-01-07')).toEqual([]); // mercredi
+    expect(getDayBreaks({}, '2026-01-05')).toEqual([]);
+    expect(getDayBreaks({ breaks: { '0': [{ start: '12:00', end: '13:00' }] } }, '2026-01-06')).toEqual([]); // mardi, pas de commun
+  });
+
+  it('resolveDayLayout repousse un créneau qui tomberait sur la pause', () => {
+    const p = resolveDayLayout([rev('a', 0, 120), rev('b', 1, 60)], 10 * 60, lunch);
+    expect(p).toEqual([
+      { id: 'a', start: 10 * 60, end: 12 * 60 },
+      { id: 'b', start: 13 * 60, end: 14 * 60 },
+    ]);
+  });
+
+  it('findFreeStart saute la pause', () => {
+    expect(findFreeStart([], 60, { start: 11 * 60 + 30, end: 18 * 60 }, 30, lunch)).toBe(13 * 60);
+  });
+
+  it('moveSlotInLayout : un dépôt dans la pause glisse à sa fin', () => {
+    const res = moveSlotInLayout([rev('a', 0, 60)], 8 * 60, 'a', 12 * 60 + 30, lunch)!;
+    expect(res[0].start).toBe(13 * 60);
+  });
+});
+
+describe('jour forcé', () => {
+  const base = { dayStartTime: '08:00', breaks: { all: [{ start: '12:00', end: '13:00' }] }, forcedDates: ['2026-01-05'] };
+
+  it('ignore les pauses et élargit les limites à l\'échelle', () => {
+    expect(getDayBreaks(base, '2026-01-05')).toEqual([]);
+    expect(getDayBreaks(base, '2026-01-06')).toHaveLength(1);
+    expect(getDayBounds(base, '2026-01-06')).toEqual({ start: 8 * 60, end: 23 * 60 });
+    expect(getDayBounds(base, '2026-01-05')).toEqual({ start: 7 * 60, end: 23 * 60 });
+  });
+
+  it('dayHasLimits reste vrai quand le jour est forcé', () => {
+    expect(dayHasLimits(base, '2026-01-05')).toBe(true);
+    expect(dayHasLimits({ dayStartTime: '07:00' }, '2026-01-05')).toBe(false);
+  });
+});
+
+describe('resizeSlotInLayout', () => {
+  const r = (id: string, order: number, duration: number, startTime: string) =>
+    ({ id, slotOrder: order, durationMinutes: duration, startTime } as RevisionItem);
+
+  it('garde l\'heure de début et repousse le suivant', () => {
+    const res = resizeSlotInLayout([r('a', 0, 60, '09:00'), r('b', 1, 60, '10:00')], 8 * 60, 'a', 90)!;
+    expect(res).toEqual([
+      { id: 'a', start: 9 * 60, end: 10 * 60 + 30 },
+      { id: 'b', start: 10 * 60 + 30, end: 11 * 60 + 30 },
+    ]);
+  });
+
+  it('un créneau plus court ne fait pas remonter le suivant', () => {
+    const res = resizeSlotInLayout([r('a', 0, 60, '09:00'), r('b', 1, 60, '10:00')], 8 * 60, 'a', 30)!;
+    expect(res[1].start).toBe(10 * 60);
+  });
+
+  it('refuse un débordement après minuit', () => {
+    expect(resizeSlotInLayout([r('a', 0, 60, '23:00')], 8 * 60, 'a', 120)).toBeNull();
+  });
+
+  it('saute une pause', () => {
+    const res = resizeSlotInLayout([r('a', 0, 60, '11:00')], 8 * 60, 'a', 120, [{ start: 12 * 60, end: 13 * 60 }])!;
+    expect(res[0].start).toBe(13 * 60);
   });
 });

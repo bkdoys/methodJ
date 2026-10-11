@@ -1,4 +1,5 @@
 import React, { ReactNode } from 'react';
+import { RichNote } from './RichNote';
 import { RevisionItem } from '../types';
 import { formatFrenchDate } from '../utils/dateUtils';
 import { NotebookPen } from 'lucide-react';
@@ -74,9 +75,10 @@ export const RevisionNotesJournal: React.FC<RevisionNotesJournalProps> = ({
               J{r.jIndex}
             </span>
             <div className="min-w-0 flex-1">
-              <p className={`whitespace-pre-wrap leading-relaxed text-slate-700 dark:text-slate-300 ${expanded ? 'text-sm' : ''}`}>
-                {r.notes}
-              </p>
+              <RichNote
+                text={r.notes ?? ''}
+                className={`text-slate-700 dark:text-slate-300 ${expanded ? 'text-sm' : ''}`}
+              />
               <span className="text-[10px] text-slate-400 dark:text-slate-500">
                 {formatFrenchDate(r.completedDate || r.scheduledDate)}
               </span>
