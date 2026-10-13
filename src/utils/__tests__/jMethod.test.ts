@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { Course, RevisionItem } from '../../types';
 import {
   applyCascadeShift,
+  clearOriginalDates,
   COMMON_J_POOL,
+  freezeOriginalDates,
   generateRevisionsForCourse,
   getJPool,
   getSlotDurationMinutes,
@@ -161,5 +163,31 @@ describe('getSlotDurationMinutes with per-J settings', () => {
 
   it('ignores invalid overrides', () => {
     expect(getSlotDurationMinutes(7, { slotDurationDefault: 50, slotDurationByJ: { '7': 0 } })).toBe(50);
+  });
+});
+
+describe('original dates', () => {
+  const course = { id: 'a', j0Date: '2026-10-01' } as Course;
+
+  it('freezes the planned date of every J but J0, once, for that course only', () => {
+    const all = [rev('a', 0, '2026-10-01', true), rev('a', 1, '2026-10-03'), { ...rev('a', 3, '2026-10-04'), originalDate: '2026-10-02' }, rev('b', 1, '2026-10-05')];
+    const frozen = freezeOriginalDates(all, 'a');
+    expect(frozen.map((r) => [r.jIndex, r.originalDate])).toEqual([[1, '2026-10-03']]); // J0, déjà figé et autre cours : intacts
+    expect(frozen[0].scheduledDate).toBe('2026-10-03');
+  });
+
+  it('clears them when the J0 is undone', () => {
+    const all = [{ ...rev('a', 1, '2026-10-03'), originalDate: '2026-10-02' }, rev('a', 3, '2026-10-04'), { ...rev('b', 1, '2026-10-05'), originalDate: '2026-10-05' }];
+    const cleared = clearOriginalDates(all, 'a');
+    expect(cleared).toHaveLength(1);
+    expect('originalDate' in cleared[0]).toBe(false);
+  });
+
+  it('a J added after the J0 is done is tracked from its creation, otherwise not', () => {
+    const withJ0Done = syncCourseRevisions(course, [rev('a', 0, '2026-10-01', true)], [0, 7]);
+    expect(withJ0Done.find((r) => r.jIndex === 7)?.originalDate).toBe('2026-10-08');
+    expect(withJ0Done.find((r) => r.jIndex === 0)?.originalDate).toBeUndefined();
+    const before = syncCourseRevisions(course, [rev('a', 0, '2026-10-01')], [0, 7]);
+    expect(before.find((r) => r.jIndex === 7)?.originalDate).toBeUndefined();
   });
 });

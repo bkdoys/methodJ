@@ -9,6 +9,7 @@ import { DEFAULT_J_PATTERNS, getJPool, getSlotDurationMinutes } from '../utils/j
 import { FolderTreePicker } from './FolderTreePicker';
 import { BookOpen, Calendar, Plus, X, Check } from 'lucide-react';
 import { PRESET_COURSE_COLORS } from '../utils/colorUtils';
+import { getFolderColor } from '../utils/folderColors';
 import { t } from '../i18n';
 
 interface NewCourseModalProps {
@@ -104,7 +105,7 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
   };
 
   const selectedSubject = subjects.find((s) => s.id === subjectId) || subjects[0];
-  const effectiveColor = customColor || selectedSubject.color;
+  const effectiveColor = customColor || getFolderColor(selectedSubject, folderId) || selectedSubject.color;
   const sortedJ = [...activeJList].sort((a, b) => a - b);
   const totalMinutes = sortedJ.reduce((acc, j) => acc + getSlotDurationMinutes(j, settings), 0);
 
@@ -349,7 +350,7 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
                   <span className="text-xs text-slate-600 dark:text-slate-400">
                     {t('Couleur dans le calendrier')}
                     <span className="text-slate-400 dark:text-slate-500">
-                      {' '}· {customColor ? t('personnalisée') : t('matière ({code})', { code: selectedSubject.code })}
+                      {' '}· {customColor ? t('personnalisée') : folderId ? t('dossier') : t('matière ({code})', { code: selectedSubject.code })}
                     </span>
                   </span>
                 </div>

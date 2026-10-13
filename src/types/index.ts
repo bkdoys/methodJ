@@ -1,10 +1,15 @@
 export type MasteryLevel = 0 | 1 | 2 | 3 | 4;
 
-/** Sous-dossier de rangement d'une discipline (2 niveaux max : `parentId` absent = niveau 1). Sans propriété propre. */
+/**
+ * Sous-dossier de rangement d'une discipline (2 niveaux max : `parentId` absent = niveau 1). Sa couleur est celle qu'on lui
+ * donne (`color`), sinon une nuance automatique de la couleur de la discipline (voir `utils/folderColors.ts`).
+ */
 export interface SubjectFolder {
   id: string;
   name: string;
   parentId?: string;
+  /** `#rrggbb` choisi pour ce dossier ; absent = nuance automatique. */
+  color?: string;
 }
 
 /** Lien externe d'un cours (Drive, flashcards…). Le type pointe vers `AppSettings.linkTypes` ; un type supprimé s'affiche comme « Autre ». */
@@ -47,6 +52,8 @@ export interface RevisionItem {
   notes?: string;
   slotOrder: number;       // Order in the day stack
   startTime?: string;      // HH:MM chosen on the day timeline; absent = stacked from the day start
+  /** Date prévue figée quand le J0 du cours est validé (jamais pour le J0) : `scheduledDate` bouge, elle non. Sert à mesurer la dérive. */
+  originalDate?: string;
 }
 
 export interface Course {
@@ -70,6 +77,8 @@ export interface AppSettings {
   jPool?: number[];
   autoCascadeShift: boolean;
   dailyTargetHours: number;
+  /** Date de l'examen (AAAA-MM-JJ, facultative) : sans elle, la vue Statistiques n'affiche aucune projection. */
+  examDate?: string;
   slotDurationJ0J1: number;    // default 90 minutes
   slotDurationOthers: number;  // default 60 minutes
   /** Durée par défaut d'un créneau (minutes) ; absent = `slotDurationOthers`. */
@@ -99,13 +108,77 @@ export interface AppSettings {
   googleCalendarId?: string;
   /** Date (ISO) du dernier envoi réussi vers cet agenda ; affichée dans le tableau de bord. */
   googleCalendarSyncedAt?: string;
+  /** Nouvelles cartes (flashcards) proposées par jour dans « Cartes du jour » ; absent = 20. */
+  cardsNewPerDay?: number;
   /** Langue de l'interface ; absent = français. */
   language?: 'fr' | 'en';
   splitView: boolean;
   theme: 'light' | 'dark';
 }
 
-export type ViewMode = 'agenda' | 'week' | 'month' | 'courses' | 'session' | 'stats' | 'dashboard';
+/**
+ * Recto/verso, texte à trous (`{{c1::réponse}}`, `{{c2::réponse::indice}}` : une sous-carte par numéro) ou masques
+ * sur une image (une sous-carte par groupe de masques).
+ */
+export type FlashcardKind = 'basic' | 'cloze' | 'occlusion';
+
+/** Masque d'une carte `occlusion` : rectangle en coordonnées relatives à l'image (0 à 1), `group` ≥ 1. */
+/** Forme d'un masque : absente = rectangle. `x, y, w, h` est toujours la boîte englobante. */
+export type OcclusionShape = 'rect' | 'ellipse' | 'polygon';
+
+export interface OcclusionMask {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  group: number;
+  shape?: OcclusionShape;
+  /** Sommets d'un polygone, relatifs à l'image (0 à 1) ; la boîte englobante en est déduite. */
+  points?: { x: number; y: number }[];
+}
+
+/** `hide-all` : tous les masques couvrent l'image, on en devine un ; `hide-one` : seul le masque deviné couvre. */
+export type OcclusionMode = 'hide-all' | 'hide-one';
+
+export interface Flashcard {
+  id: string;
+  kind: FlashcardKind;
+  front: string;           // recto, ou texte à trous
+  back?: string;           // verso (recto/verso) ou remarque affichée avec la réponse (texte à trous, masques)
+  /** Images (id de média = empreinte SHA-256 du fichier, voir utils/media) ; `occlusion` : l'image masquée. */
+  frontImage?: string;
+  backImage?: string;
+  masks?: OcclusionMask[];
+  occlusionMode?: OcclusionMode;
+  createdAt: string;       // ISO
+  updatedAt: string;       // ISO : la version la plus récente gagne à la fusion entre appareils
+  /** Pierre tombale : la suppression se propage aux autres appareils, puis la carte est purgée (voir utils/flashcards). */
+  deleted?: true;
+}
+
+/** État de programmation (FSRS) d'une sous-carte ; clé = `cardId` (recto/verso) ou `cardId:c2` (texte à trous). */
+export interface CardReview {
+  due: string;             // ISO
+  stability: number;
+  difficulty: number;
+  reps: number;
+  lapses: number;
+  state: 0 | 1 | 2 | 3;    // nouvelle, apprentissage, révision, réapprentissage
+  scheduledDays: number;
+  step: number;            // étape d'apprentissage en cours (1 min, 10 min…)
+  lastReview?: string;     // ISO : l'état le plus récemment noté gagne à la fusion
+  firstReview?: string;    // YYYY-MM-DD de la première note : limite des nouvelles cartes par jour
+}
+
+/** Paquet de cartes d'un cours : un seul document local et cloud par cours (`id` = id du cours). */
+export interface Deck {
+  id: string;
+  cards: Flashcard[];
+  review: Record<string, CardReview>;
+}
+
+export type ViewMode = 'agenda' | 'week' | 'month' | 'courses' | 'session' | 'stats' | 'dashboard' | 'cards';
 
 export interface ToastMessage {
   title: string;

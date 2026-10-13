@@ -7,6 +7,7 @@ import {
   Cloud,
   CloudOff,
   Flame,
+  Layers,
   Play,
   RefreshCw,
   Sun,
@@ -15,7 +16,7 @@ import { AppSettings, Course, RevisionItem, Subject } from '../types';
 import { Card } from './Card';
 import { computeDashboard } from '../utils/dashboard';
 import { describeDayAlert, findAlertDays } from '../utils/dayLoad';
-import { CATCH_UP_HORIZON_DAYS, Plan, Proposal, planCatchUp, planSmoothing, selectMoves } from '../utils/smoothing';
+import { CATCH_UP_HORIZON_DAYS, Plan, PlannedMove, Proposal, planCatchUp, planSmoothing, selectMoves } from '../utils/smoothing';
 import { PlanningRules } from './PlanningRules';
 import { CalendarExportModal } from './CalendarExportModal';
 import { googleClientId } from '../utils/firebase';
@@ -49,12 +50,16 @@ interface DashboardViewProps {
   onOpenQuickShift: (revision: RevisionItem) => void;
   onShiftToToday: (revision: RevisionItem) => void;
   /** Applique un plan de déplacements d'un coup (un seul message, annulable). */
-  onApplyShifts: (moves: { revisionId: string; toDate: string }[]) => void;
+  onApplyShifts: (moves: PlannedMove[]) => void;
   onStartStudySession: (revision: RevisionItem) => void;
   onGoToSlot: (date: string, revisionId: string) => void;
   onOpenCourseDetail: (course: Course) => void;
   /** Fusionne des réglages (ex. date du dernier envoi vers Google Agenda). */
   onChangeSettings: (patch: Partial<AppSettings>) => void;
+  /** Cartes du jour (information, hors pastille) ; carte masquée sans aucune carte. */
+  cardsToday?: { due: number; fresh: number; total: number };
+  onPlayCards?: () => void;
+  onOpenCards?: () => void;
 }
 
 const SYNC_LABEL: Record<SyncStatus, () => string> = {
@@ -91,6 +96,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenCourseDetail,
   onChangeSettings,
   settings,
+  cardsToday,
+  onPlayCards,
+  onOpenCards,
 }) => {
   const todayIso = getTodayIso();
   const data = useMemo(() => computeDashboard(courses, revisions, todayIso), [courses, revisions, todayIso]);
@@ -203,8 +211,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span className="font-semibold">{course?.title ?? t('Cours supprimé')}</span>
             {' : '}
             <span className="capitalize">{formatFrenchDayShort(p.fromDate)}</span>
-            {' → '}
-            <span className="capitalize font-bold">{formatFrenchDayShort(p.toDate)}</span>
+            {p.toStart !== undefined ? (
+              // Remontée dans la journée : même jour, une autre heure
+              <>
+                {' · '}
+                {p.fromStart}
+                {' → '}
+                <span className="font-bold">{p.toStart}</span>
+                <span className="text-slate-500 dark:text-slate-400"> · {t('même jour')}</span>
+              </>
+            ) : (
+              <>
+                {' → '}
+                <span className="capitalize font-bold">{formatFrenchDayShort(p.toDate)}</span>
+              </>
+            )}
             {p.cascade.length > 0 && (
               <span className="text-slate-500 dark:text-slate-400"> · +{p.cascade.length}</span>
             )}
@@ -524,6 +545,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   </Card>
   );
 
+  const cardCards = cardsToday && cardsToday.total > 0 ? (
+  <Card title={t('Cartes du jour')} aside={<Layers className="w-4 h-4 text-teal-600 shrink-0" />}>
+    <p className="text-sm text-slate-700 dark:text-slate-300">
+      {cardsToday.due + cardsToday.fresh > 0 ? (
+        <>
+          <span className="font-bold text-slate-900 dark:text-white">{t('{n} à revoir', { n: cardsToday.due })}</span>
+          {' · '}
+          {plural(cardsToday.fresh, '{n} nouvelle', '{n} nouvelles')}
+        </>
+      ) : (
+        t('Rien à réviser aujourd\'hui')
+      )}
+    </p>
+    <div className="flex items-center gap-2 flex-wrap">
+      {cardsToday.due + cardsToday.fresh > 0 && onPlayCards && (
+        <button type="button" onClick={onPlayCards} className={primaryBtn}>
+          <Play className="w-3 h-3 fill-current" />
+          {t('Réviser')}
+        </button>
+      )}
+      {onOpenCards && (
+        <button type="button" onClick={onOpenCards} className={ghostBtn}>
+          {t('Toutes les cartes')}
+        </button>
+      )}
+    </div>
+  </Card>
+  ) : null;
+
   const cardGoogle = googleClientId && settings.googleCalendarId ? (
   <Card
     title={t('Google Agenda')}
@@ -575,6 +625,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
         <div className="space-y-4 min-w-0">
           {cardSync}
+          {cardCards}
           {cardWatched}
           {cardIdle}
           {cardStreak}

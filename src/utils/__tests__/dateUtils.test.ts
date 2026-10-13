@@ -7,6 +7,7 @@ import {
   getIsoWeekNumber,
   getMonthCalendarDays,
   getWeekDays,
+  msUntilNextDay,
 } from '../dateUtils';
 
 describe('addDays / diffInDays', () => {
@@ -98,5 +99,18 @@ describe('addMonths', () => {
     expect(addMonths('2026-01-31', 1)).toBe('2026-02-01');
     expect(addMonths('2026-12-15', 1)).toBe('2027-01-01');
     expect(addMonths('2026-03-31', -1)).toBe('2026-02-01');
+  });
+});
+
+describe('msUntilNextDay', () => {
+  it('counts to the next local midnight plus one second', () => {
+    expect(msUntilNextDay(new Date(2026, 9, 12, 23, 59, 0))).toBe(61_000);
+    expect(msUntilNextDay(new Date(2026, 9, 12, 0, 0, 0))).toBe(24 * 3600_000 + 1000);
+  });
+
+  it('lands on the next day across month and year ends', () => {
+    const at = (d: Date) => new Date(d.getTime() + msUntilNextDay(d));
+    expect(at(new Date(2026, 9, 31, 18, 0)).getDate()).toBe(1);
+    expect(at(new Date(2026, 11, 31, 18, 0)).getFullYear()).toBe(2027);
   });
 });

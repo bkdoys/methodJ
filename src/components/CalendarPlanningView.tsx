@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AppSettings, Course, RevisionItem, Subject } from '../types';
 import {
   addDays,
@@ -14,6 +14,7 @@ import {
   parseIsoDate,
 } from '../utils/dateUtils';
 import { RatingFx } from './RatingFx';
+import { isPhoneScreen } from '../utils/screen';
 import { DayTimeline } from './DayTimeline';
 import { MultiDayTimeline } from './MultiDayTimeline';
 import {
@@ -89,13 +90,27 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
   onOpenSlotDetail,
   isSplitView = false,
 }) => {
-  // Requirement: Vue semaine par défaut en plein écran, ou agenda journalier en Split View
+  // Vue semaine par défaut en plein écran ; journée en Split View et sur téléphone (une semaine n'y tient pas)
   const [exportOpen, setExportOpen] = useState(false);
-  const [chosenView, setSubView] = useState<'day' | 'days' | 'week' | 'month'>(isSplitView ? 'day' : 'week');
+  const [phone] = useState(isPhoneScreen);
+  const [chosenView, setSubView] = useState<'day' | 'days' | 'week' | 'month'>(isSplitView || phone ? 'day' : 'week');
+  const rootRef = useRef<HTMLDivElement>(null);
   // En vue scindée, la colonne est étroite : on reste sur la journée (semaine/mois : mode plein écran)
   const subView = isSplitView ? 'day' : chosenView;
   const multiDayCount = getMultiDayCount(settings);
   const multiDays = consecutiveDays(selectedDate, multiDayCount);
+
+  // Téléphone : à l'ouverture, si le premier créneau du jour est sous le bas de l'écran, on descend jusqu'à lui
+  useEffect(() => {
+    if (!phone || subView !== 'day') return;
+    const id = requestAnimationFrame(() => {
+      const slots = [...(rootRef.current?.querySelectorAll<HTMLElement>('[data-rev-id]') ?? [])];
+      const top = Math.min(...slots.map((el) => el.getBoundingClientRect().top));
+      if (Number.isFinite(top) && top > window.innerHeight - 80) window.scrollBy({ top: top - 96 });
+    });
+    return () => cancelAnimationFrame(id);
+    // une seule fois, à l'ouverture du planning
+  }, []);
 
   const todayIso = getTodayIso();
   const dayWindow = getDayWindow(settings, selectedDate);
@@ -187,15 +202,15 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
 
   return (
     // @container : la mise en page suit la largeur de cette colonne, pas celle de la fenêtre
-    <div className="@container space-y-4">
+    <div ref={rootRef} className="@container space-y-4">
       {/* View Switcher & Date Controls */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-3 @lg:p-4 shadow-2xs flex flex-col @3xl:flex-row items-center justify-between gap-3">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-3 @lg:p-4 phone:p-2 shadow-2xs flex flex-col @3xl:flex-row items-center justify-between gap-3 phone:gap-2">
         {/* Date Stepper */}
-        <div className="flex items-center gap-2 flex-wrap w-full @3xl:w-auto justify-between @3xl:justify-start">
+        <div className="flex items-center gap-2 phone:gap-1 flex-wrap phone:flex-nowrap w-full @3xl:w-auto justify-between @3xl:justify-start">
           <div className="flex items-center gap-1">
             <button
               onClick={handlePrev}
-              className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors"
+              className="p-2 phone:p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors"
               title={
                 subView === 'days'
                   ? t('{n} jours précédents', { n: multiDayCount })
@@ -211,7 +226,7 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
 
             <button
               onClick={handleJumpToday}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors ${
+              className={`px-3 phone:px-2 py-1.5 text-xs font-bold rounded-lg border transition-colors ${
                 selectedDate === todayIso
                   ? 'bg-teal-600 border-teal-600 text-white shadow-xs'
                   : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
@@ -222,7 +237,7 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
 
             <button
               onClick={handleNext}
-              className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors"
+              className="p-2 phone:p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors"
               title={
                 subView === 'days'
                   ? t('{n} jours suivants', { n: multiDayCount })
@@ -238,12 +253,12 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
           </div>
 
           {/* Current date / week / month label */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 phone:gap-1 min-w-0">
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => e.target.value && onSelectDate(e.target.value)}
-              className="text-xs font-mono font-bold px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-white bg-slate-50 dark:bg-slate-800 focus:ring-1 focus:ring-teal-500"
+              className="text-xs phone:text-[11px] font-mono font-bold px-2.5 phone:px-1.5 py-1.5 min-w-0 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-white bg-slate-50 dark:bg-slate-800 focus:ring-1 focus:ring-teal-500"
             />
 
             <button
@@ -251,7 +266,7 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
               onClick={() => setExportOpen(true)}
               title={t('Exporter vers un agenda (Google Agenda, .ics)')}
               aria-label={t('Exporter vers un agenda (Google Agenda, .ics)')}
-              className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-teal-700 dark:hover:text-teal-300 transition-colors"
+              className="p-2 phone:p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-teal-700 dark:hover:text-teal-300 transition-colors"
             >
               <Send className="w-4 h-4" />
             </button>
@@ -271,11 +286,11 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
 
         {/* View Mode Segmented Controls */}
         {!isSplitView && (
-          <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-bold w-full @3xl:w-auto justify-center">
+          <div className="flex items-center gap-1 phone:gap-0.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-bold w-full @3xl:w-auto justify-center">
             {/* Vue Jour de la date sélectionnée */}
             <button
               onClick={() => setSubView('day')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-3 phone:px-2 py-1.5 rounded-lg transition-all ${
                 subView === 'day'
                   ? 'bg-white dark:bg-slate-700 text-teal-800 dark:text-teal-300 font-bold shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -290,7 +305,7 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
                 if (subView !== 'days') setSubView('days');
                 else onChangeSettings?.({ multiDayCount: nextMultiDayCount(multiDayCount) });
               }}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-3 phone:px-2 py-1.5 rounded-lg transition-all ${
                 subView === 'days'
                   ? 'bg-white dark:bg-slate-700 text-teal-800 dark:text-teal-300 font-bold shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -307,7 +322,7 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
             {/* Semaine avec numéro ISO de 1 à 52 */}
             <button
               onClick={() => setSubView('week')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-3 phone:px-2 py-1.5 rounded-lg transition-all ${
                 subView === 'week'
                   ? 'bg-white dark:bg-slate-700 text-teal-800 dark:text-teal-300 font-bold shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -319,7 +334,7 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
             {/* Mois avec nom du mois */}
             <button
               onClick={() => setSubView('month')}
-              className={`px-3 py-1.5 rounded-lg transition-all capitalize ${
+              className={`px-3 phone:px-2 py-1.5 rounded-lg transition-all capitalize ${
                 subView === 'month'
                   ? 'bg-white dark:bg-slate-700 text-teal-800 dark:text-teal-300 font-bold shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -367,8 +382,8 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
       {subView === 'day' && (
         <div className="space-y-4">
           {/* Day Workload Progress Bar */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-2xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 phone:p-3 shadow-2xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 phone:gap-1 mb-2">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
                 <Clock className="w-4 h-4 text-teal-600 shrink-0" />
                 <h2 className="text-sm font-bold text-slate-900 dark:text-white">
@@ -415,7 +430,7 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
               />
             </div>
 
-            <div className="mt-2.5 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <div className="mt-2.5 flex phone:hidden items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
               <span>
                 {t('Créneaux :')}{' '}
                 <strong className="font-semibold text-slate-700 dark:text-slate-300">
@@ -509,7 +524,7 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
                   key={cell.iso}
                   onClick={() => {
                     onSelectDate(cell.iso);
-                    setSubView('week'); // bascule en semaine pour afficher le détail
+                    setSubView(phone ? 'day' : 'week'); // le détail : la semaine, ou la journée sur téléphone
                   }}
                   className={`min-h-[75px] p-2 rounded-xl border text-left cursor-pointer transition-all flex flex-col justify-between ${
                     isSelected
@@ -521,7 +536,7 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
                       : 'border-transparent bg-slate-50/50 dark:bg-slate-800/20 opacity-30'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between phone:flex-col phone:items-start">
                     <span
                       className={`text-xs font-bold ${
                         isToday
@@ -559,7 +574,7 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
                             }}
                             title={`J${r.jIndex} · ${course.title}`}
                           >
-                            <RatingFx rev={r} size="sm" />
+                            <RatingFx rev={r} />
                             <span className="font-extrabold text-[9px] opacity-90">J{r.jIndex}</span>
                             <span className="truncate">{course.title}</span>
                           </div>

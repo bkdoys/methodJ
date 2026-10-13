@@ -3,8 +3,8 @@ import { AppSettings, RevisionItem } from '../../types';
 import { DEFAULT_SETTINGS } from '../seedData';
 import { addDays } from '../dateUtils';
 import { analyzeDays } from '../dayLoad';
-import { applyCascadeShift } from '../jMethod';
-import { isMoveSafe, maxDelayDays, movesOf, planCatchUp, planSmoothing, selectMoves } from '../smoothing';
+import { shiftAndPlace } from '../shiftPlacement';
+import { PlannedMove, applyMove, isMoveSafe, maxDelayDays, movesOf, planCatchUp, planSmoothing, retimeRevision, selectMoves } from '../smoothing';
 
 const today = '2026-10-12';
 let n = 0;
@@ -23,9 +23,15 @@ const settings: AppSettings = {
   forcedDates: [],
 };
 
-/** Exécute un plan sur une copie, comme le fait l'application. */
-function execute(revs: RevisionItem[], moves: { revisionId: string; toDate: string }[], cascade = true) {
-  return moves.reduce((acc, m) => applyCascadeShift(acc, m.revisionId, m.toDate, cascade).updatedRevisions, revs);
+/** Exécute un plan sur une copie, comme le fait l'application (décalage + replacement, ou remontée dans la journée). */
+function execute(revs: RevisionItem[], moves: PlannedMove[], cascade = true) {
+  return moves.reduce(
+    (acc, m) =>
+      m.toStart !== undefined
+        ? retimeRevision(acc, m.revisionId, m.toStart)
+        : shiftAndPlace(acc, m.revisionId, m.toDate, cascade, settings).finalRevisions,
+    revs
+  );
 }
 const alertDates = (revs: RevisionItem[]) => analyzeDays(revs, settings, today).filter((d) => d.alert).map((d) => d.date);
 
@@ -221,5 +227,117 @@ describe('partial acceptance', () => {
     expect(isMoveSafe('smooth', revs, settings, today, revs[0].id, today)).toBe(false);
     const fullDay = [...revs, ...[0, 1, 2].map((i) => rev(`f${i}`, 0, addDays(today, 1), { slotOrder: i }))];
     expect(isMoveSafe('smooth', fullDay, settings, today, revs[4].id, addDays(today, 1))).toBe(false);
+  });
+});
+
+describe('cached analysis', () => {
+  it('follows a settings change on the same revisions array', () => {
+    const revs = [rev('a', 0, today), rev('b', 3, today), rev('c', 7, today)]; // 3 h, exactly the target
+    expect(planSmoothing(revs, settings, today).proposals).toEqual([]);
+    const stricter = { ...settings, dailyTargetHours: 2 };
+    expect(planSmoothing(revs, stricter, today).proposals.length).toBeGreaterThan(0);
+    // and back: the first result is still right
+    expect(planSmoothing(revs, settings, today).proposals).toEqual([]);
+  });
+
+  it('gives the same plan when called twice on the same state', () => {
+    const revs = [rev('a', 0, today), rev('b', 1, today), rev('c', 3, today), rev('d', 7, today), rev('e', 15, today)];
+    expect(planSmoothing(revs, settings, today)).toEqual(planSmoothing(revs, settings, today));
+    expect(planCatchUp(revs, settings, today)).toEqual(planCatchUp(revs, settings, today));
+  });
+});
+
+describe('remonter un créneau dans la journée', () => {
+  // Plage 08:00-12:00 ; A à 08:00 ; B posé à la main à 11:30 déborde (finit à 12:30) alors que 09:00-11:30 est libre
+  const withGap = () => [rev('a', 0, today, { startTime: '08:00' }), rev('b', 3, today, { startTime: '11:30' })];
+  const slot = (revs: RevisionItem[], courseId: string) => revs.find((r) => r.courseId === courseId)!;
+
+  it('proposes the first free place of the same day, before pushing to another day', () => {
+    const revs = withGap();
+    const plan = planSmoothing(revs, settings, today);
+    expect(plan.unresolved).toEqual([]);
+    expect(plan.proposals).toHaveLength(1);
+    const p = plan.proposals[0];
+    expect(p).toMatchObject({ fromDate: today, toDate: today, fromStart: '11:30', toStart: '09:00', cascade: [] });
+    const after = execute(revs, movesOf(plan));
+    expect(slot(after, 'b')).toMatchObject({ scheduledDate: today, startTime: '09:00' });
+    expect(alertDates(after)).toEqual([]);
+  });
+
+  it('does not touch the other days nor the cascade of the course', () => {
+    const revs = [...withGap(), rev('b', 7, addDays(today, 3))];
+    const after = execute(revs, movesOf(planSmoothing(revs, settings, today)));
+    expect(after.find((r) => r.courseId === 'b' && r.jIndex === 7)!.scheduledDate).toBe(addDays(today, 3));
+  });
+
+  it('skips a break when looking for the free place', () => {
+    const withBreak = { ...settings, breaks: { all: [{ start: '09:00', end: '10:00' }] } };
+    const revs = withGap();
+    const plan = planSmoothing(revs, withBreak, today);
+    expect(plan.proposals[0]).toMatchObject({ toStart: '10:00' });
+  });
+
+  it('falls back to pushing a day when nothing is free earlier', () => {
+    const full = [0, 1, 2, 3].map((i) => rev('f' + i, 0, today, { startTime: `${8 + i}:00` })).concat(rev('late', 3, today, { startTime: '11:30' }));
+    const plan = planSmoothing(full, settings, today);
+    expect(plan.proposals[0].toStart).toBeUndefined();
+    expect(plan.proposals[0].toDate).toBe(addDays(today, 1));
+  });
+
+  it('never moves a completed slot', () => {
+    const revs = [rev('a', 0, today, { startTime: '08:00' }), rev('b', 3, today, { startTime: '11:30', completed: true })];
+    expect(planSmoothing(revs, settings, today).proposals).toEqual([]);
+  });
+
+  it('is applied by selectMoves like any other move, and blocked once the gap is gone', () => {
+    const revs = withGap();
+    const plan = planSmoothing(revs, settings, today);
+    const ok = selectMoves('smooth', plan.proposals, () => true, revs, settings, today);
+    expect(ok.moves).toEqual([{ revisionId: plan.proposals[0].revisionId, toDate: today, toStart: '09:00' }]);
+    // the gap is taken meanwhile: the move is no longer safe
+    const taken = [...revs, rev('x', 0, today, { startTime: '09:00', durationMinutes: 150 })];
+    expect(isMoveSafe('smooth', taken, settings, today, plan.proposals[0].revisionId, today, '09:00')).toBe(false);
+  });
+});
+
+describe('arrival placement matches the application', () => {
+  // La simulation doit donner exactement ce que l'application fait : même fonction de replacement
+  const scenario = (cascade: boolean) => {
+    n = 0;
+    const days = [0, 1, 2, 3].map((i) => addDays(today, i));
+    const revs: RevisionItem[] = [];
+    ['a', 'b', 'c', 'd', 'e'].forEach((c, ci) => {
+      [0, 1, 3, 7].forEach((j, k) => {
+        const date = days[(ci + k) % 4];
+        revs.push(rev(c, j, date, ci % 2 === 0 ? { startTime: `${8 + ((ci + k) % 4)}:${k % 2 ? '30' : '00'}` } : {}));
+      });
+    });
+    return { revs, cascade };
+  };
+
+  for (const cascade of [true, false]) {
+    for (const withBreak of [false, true]) {
+      it(`cascade ${cascade}, break ${withBreak}`, () => {
+        const { revs } = scenario(cascade);
+        const s: AppSettings = { ...settings, autoCascadeShift: cascade, breaks: withBreak ? { all: [{ start: '10:00', end: '11:00' }] } : {} };
+        let checked = 0;
+        for (const r of revs) {
+          for (let delta = 1; delta <= 3; delta++) {
+            const toDate = addDays(r.scheduledDate, delta);
+            const sim = applyMove(revs, r.id, toDate, cascade, today, s);
+            const real = shiftAndPlace(revs, r.id, toDate, cascade, s);
+            expect(sim!.after).toEqual(real.finalRevisions);
+            checked++;
+          }
+        }
+        expect(checked).toBe(revs.length * 3);
+      });
+    }
+  }
+
+  it('replaces a late hand-placed slot on arrival instead of keeping an hour that overflows there too', () => {
+    const revs = [0, 1, 2, 3].map((i) => rev('f' + i, 0, today, { startTime: `${8 + i}:00` })).concat(rev('late', 3, today, { startTime: '11:30' }));
+    const ev = applyMove(revs, revs[4].id, addDays(today, 1), true, today, settings)!;
+    expect(ev.after[4]).toMatchObject({ scheduledDate: addDays(today, 1), startTime: '08:00' });
   });
 });

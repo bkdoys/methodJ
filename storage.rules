@@ -1,0 +1,21 @@
+rules_version = '2';
+
+// Images des cartes (voir src/utils/media.ts) : `users/{uid}/media/{id}`, id = empreinte SHA-256 du fichier.
+// Seul le propriétaire lit et écrit ; une image compressée par l'app pèse moins de 1 Mo, en WebP ou en JPEG.
+// Réécrire le même id est permis (même contenu par construction : un renvoi après une coupure).
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /users/{userId}/media/{mediaId} {
+      allow read, delete: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null && request.auth.uid == userId
+        && mediaId.matches('^[0-9a-f]{64}$')
+        && request.resource.size < 1024 * 1024
+        && request.resource.contentType in ['image/webp', 'image/jpeg'];
+    }
+
+    // Tout le reste est fermé
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

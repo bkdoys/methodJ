@@ -70,6 +70,28 @@ export function addFolder(subject: Subject, name: string, parentId?: string, id:
   return { ...subject, folders: [...folders, folder] };
 }
 
+/** Donne une couleur à un dossier (`undefined` : retour à la nuance automatique). Renvoie la discipline inchangée si la couleur est invalide. */
+export function setFolderColor(subject: Subject, folderId: string, color: string | undefined): Subject {
+  if (color !== undefined && !/^#[0-9a-fA-F]{6}$/.test(color)) return subject;
+  if (!getFolders(subject).some((f) => f.id === folderId)) return subject;
+  return {
+    ...subject,
+    folders: getFolders(subject).map((f) => {
+      if (f.id !== folderId) return f;
+      const { color: _old, ...rest } = f;
+      return color ? { ...rest, color: color.toLowerCase() } : rest;
+    }),
+  };
+}
+
+/** Donne cette couleur à tous les sous-dossiers directs d'un dossier (ils ne suivent plus la nuance automatique). */
+export function setChildFoldersColor(subject: Subject, folderId: string, color: string): Subject {
+  if (!/^#[0-9a-fA-F]{6}$/.test(color)) return subject;
+  const folders = getFolders(subject);
+  if (!folders.some((f) => f.parentId === folderId)) return subject;
+  return { ...subject, folders: folders.map((f) => (f.parentId === folderId ? { ...f, color: color.toLowerCase() } : f)) };
+}
+
 export function renameFolder(subject: Subject, folderId: string, name: string): Subject {
   const clean = cleanName(name);
   if (!clean) return subject;

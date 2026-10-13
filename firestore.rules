@@ -23,13 +23,14 @@ service cloud.firestore {
     }
 
     function validRevision(d, userId) {
-      return d.keys().hasOnly(['id', 'userId', 'courseId', 'jIndex', 'scheduledDate', 'durationMinutes', 'completed', 'completedDate', 'rating', 'notes', 'slotOrder', 'startTime', 'updatedAt'])
+      return d.keys().hasOnly(['id', 'userId', 'courseId', 'jIndex', 'scheduledDate', 'durationMinutes', 'completed', 'completedDate', 'rating', 'notes', 'slotOrder', 'startTime', 'originalDate', 'updatedAt'])
         && d.userId == userId
         && d.courseId is string && d.courseId.size() <= 128
         && d.jIndex is int && d.jIndex >= 0
         && d.scheduledDate is string && d.scheduledDate.size() <= 20
         && d.durationMinutes is int && d.durationMinutes >= 0 && d.durationMinutes <= 600
         && d.completed is bool
+        && (!('originalDate' in d) || (d.originalDate is string && d.originalDate.size() <= 20))
         && (!('startTime' in d) || (d.startTime is string && d.startTime.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$')))
         && (!('notes' in d) || (d.notes is string && d.notes.size() <= 5000));
     }
@@ -40,6 +41,42 @@ service cloud.firestore {
         && d.name is string && d.name.size() <= 100
         && d.color is string && d.color.size() <= 30
         && (!('folders' in d) || (d.folders is list && d.folders.size() <= 200));
+    }
+
+    // Paquet de cartes d'un cours (id = id du cours). `syncedAt` est l'horodatage serveur : les autres appareils ne
+    // relisent que les paquets modifiés depuis leur dernière lecture. Les cartes supprimées restent un temps
+    // (pierres tombales), d'où une marge au-dessus des 1 000 cartes permises par l'app ; Firestore borne le document à 1 Mo.
+    function validDeck(d, userId, deckId) {
+      return d.keys().hasOnly(['id', 'userId', 'cards', 'review', 'syncedAt'])
+        && d.id == deckId
+        && d.userId == userId
+        && d.cards is list && d.cards.size() <= 1500
+        && d.review is map
+        && d.syncedAt == request.time;
+    }
+
+    // Journal des notes de cartes : un document par jour local (AAAA-MM-JJ), entrées fusionnées par union côté app.
+    // Une note pèse environ 100 octets : 3 000 notes dans la journée restent très en dessous de 1 Mo.
+    function validCardLog(d, userId, dayId) {
+      return d.keys().hasOnly(['id', 'userId', 'entries', 'syncedAt'])
+        && d.id == dayId
+        && d.userId == userId
+        && dayId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && d.entries is list && d.entries.size() <= 3000
+        && d.syncedAt == request.time;
+    }
+
+    // Appareil abonné au rappel du matin. `lastSentDate` est écrit par la Cloud Function (accès admin) ;
+    // il est seulement toléré ici pour qu'une mise à jour de l'appareil ne soit pas refusée.
+    function validDevice(d, userId) {
+      return d.keys().hasOnly(['userId', 'token', 'time', 'timeZone', 'lang', 'updatedAt', 'lastSentDate'])
+        && d.userId == userId
+        && d.token is string && d.token.size() > 0 && d.token.size() <= 4096
+        && d.time is string && d.time.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$')
+        && d.timeZone is string && d.timeZone.size() > 0 && d.timeZone.size() <= 64
+        && (!('lang' in d) || d.lang in ['fr', 'en'])
+        && (!('updatedAt' in d) || (d.updatedAt is string && d.updatedAt.size() <= 40))
+        && (!('lastSentDate' in d) || (d.lastSentDate is string && d.lastSentDate.size() <= 10));
     }
 
     match /users/{userId} {
@@ -71,6 +108,24 @@ service cloud.firestore {
         allow read, delete: if isOwner(userId);
         allow create, update: if isOwner(userId) && isValidId(subjectId)
           && validSubject(request.resource.data, userId);
+      }
+
+      match /decks/{deckId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidId(deckId)
+          && validDeck(request.resource.data, userId, deckId);
+      }
+
+      match /cardLogs/{dayId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidId(dayId)
+          && validCardLog(request.resource.data, userId, dayId);
+      }
+
+      match /devices/{deviceId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidId(deviceId)
+          && validDevice(request.resource.data, userId);
       }
 
       match /settings/{docId} {

@@ -12,6 +12,7 @@ Type-checks the project, builds it, then deploys to Firebase.
 Options:
   (none)           Deploy Hosting only
   --rules, rules   Deploy Firestore rules only
+  --storage        Deploy Cloud Storage rules only (card images)
   --functions      Deploy the nightly backup Cloud Function only
   --all, all       Deploy Hosting + Firestore rules (not the function)
   -h, --help       Show this help
@@ -33,7 +34,7 @@ case "$1" in
     usage
     exit 0
     ;;
-  ""|--all|all|--rules|rules|--functions|functions)
+  ""|--all|all|--rules|rules|--functions|functions|--storage|storage)
     ;;
   *)
     echo "❌ Unknown option: $1" >&2
@@ -70,6 +71,9 @@ if [ "$1" = "--all" ] || [ "$1" = "all" ]; then
 elif [ "$1" = "--functions" ] || [ "$1" = "functions" ]; then
   echo "🚀 [3/3] Deploying the backup Cloud Function..."
   $FIREBASE_CMD deploy --only functions
+elif [ "$1" = "--storage" ] || [ "$1" = "storage" ]; then
+  echo "🚀 [3/3] Deploying Cloud Storage rules..."
+  $FIREBASE_CMD deploy --only storage
 elif [ "$1" = "--rules" ] || [ "$1" = "rules" ]; then
   echo "🚀 [3/3] Deploying Firestore rules..."
   $FIREBASE_CMD deploy --only firestore:rules

@@ -40,10 +40,9 @@ const FX: Record<
 
 interface RatingFxProps {
   rev: RevisionItem;
-  size?: 'sm' | 'md';
 }
 
-export const RatingFx: React.FC<RatingFxProps> = ({ rev, size = 'md' }) => {
+export const RatingFx: React.FC<RatingFxProps> = ({ rev }) => {
   if (!rev.completed || !rev.rating) return null;
 
   const cfg = FX[rev.rating as Exclude<MasteryLevel, 0>];

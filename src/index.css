@@ -2,10 +2,27 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Petit écran (téléphone) : moins de 640 px de large, ou écran tactile peu haut (téléphone en paysage).
+   Jamais un iPad ni un ordinateur. Même requête que PHONE_QUERY dans src/utils/screen.ts. */
+@custom-variant phone {
+  @media (max-width: 639.98px) {
+    @slot;
+  }
+  @media (max-height: 500px) and (pointer: coarse) {
+    @slot;
+  }
+}
+
 @layer base {
   html, body {
     overflow-x: hidden;
     max-width: 100vw;
+  }
+
+  /* Pincer pour zoomer reste possible ; le zoom par double toucher (accidentel sur iPad) est coupé. Dans la
+     couche de base : un `touch-none` ou un style en ligne (dessin, masques, glisser) l'emporte toujours. */
+  *, ::before, ::after {
+    touch-action: manipulation;
   }
 
   body {

@@ -1,5 +1,6 @@
 import { Course, Subject } from '../types';
 import { t } from '../i18n';
+import { folderColorMap } from './folderColors';
 
 /**
  * Finds a subject by ID with a safe fallback default.
@@ -40,11 +41,16 @@ export const PRESET_COURSE_COLORS = [
 
 /**
  * Returns the effective hex color for a course:
- * Uses course.customColor if specified, otherwise falls back to subject.color.
+ * its own color if it has one, otherwise the color of its folder (chosen, or an automatic shade of the
+ * discipline's color), otherwise the discipline's color.
  */
 export function getCourseEffectiveColor(course?: Course, subject?: Subject): string {
   if (course?.customColor && course.customColor.trim()) {
     return course.customColor.trim();
+  }
+  if (course?.folderId && subject) {
+    const folderColor = folderColorMap(subject).get(course.folderId);
+    if (folderColor) return folderColor;
   }
   if (subject?.color && subject.color.trim()) {
     return subject.color.trim();

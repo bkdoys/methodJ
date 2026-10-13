@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Check, ChevronRight, Folder, FolderPlus } from 'lucide-react';
 import { Subject } from '../types';
 import { addFolder, getChildFolders, newFolderId } from '../utils/folders';
+import { getFolderColor } from '../utils/folderColors';
 import { t } from '../i18n';
 
 interface FolderTreePickerProps {
@@ -82,6 +83,7 @@ export const FolderTreePicker: React.FC<FolderTreePickerProps> = ({
 
   const folderRow = (subject: Subject, id: string, name: string, depth: number) => {
     const selected = subject.id === subjectId && folderId === id;
+    const color = getFolderColor(subject, id) ?? subject.color;
     return (
       <button
         key={id}
@@ -89,16 +91,16 @@ export const FolderTreePicker: React.FC<FolderTreePickerProps> = ({
         onClick={() => onChange(subject.id, id)}
         style={{
           marginLeft: depth * 16,
-          backgroundColor: selected ? subject.accentBg : undefined,
-          borderColor: selected ? subject.color : 'transparent',
+          backgroundColor: selected ? `${color}1f` : undefined,
+          borderColor: selected ? color : 'transparent',
         }}
         className="flex items-center gap-1.5 px-2 py-1 rounded-lg border text-left text-xs font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60"
       >
-        <Folder className="w-3.5 h-3.5 shrink-0" style={{ color: subject.color }} />
-        <span className="truncate dark:text-slate-100" style={{ color: selected ? subject.color : undefined }}>
+        <Folder className="w-3.5 h-3.5 shrink-0" style={{ color }} fill={color} />
+        <span className="truncate dark:text-slate-100" style={{ color: selected ? color : undefined }}>
           {name}
         </span>
-        {selected && <Check className="w-3.5 h-3.5 shrink-0" style={{ color: subject.color }} />}
+        {selected && <Check className="w-3.5 h-3.5 shrink-0" style={{ color }} />}
       </button>
     );
   };

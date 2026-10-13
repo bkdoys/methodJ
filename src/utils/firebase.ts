@@ -6,24 +6,30 @@ import {
   signInWithRedirect,
   getRedirectResult,
   signOut,
-  onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   User,
 } from 'firebase/auth';
 import {
-  getFirestore,
   doc,
   collection,
   setDoc,
+  getDoc,
   getDocs,
-  onSnapshot,
   getDocFromServer,
   writeBatch,
   WriteBatch,
   initializeFirestore,
+  deleteDoc,
+  query,
+  where,
+  runTransaction,
+  serverTimestamp,
+  Timestamp,
 } from 'firebase/firestore';
-import { AppSettings, Course, RevisionItem, Subject } from '../types';
+import { AppSettings, Course, Deck, RevisionItem, Subject } from '../types';
+import { mergeDecks, normalizeDeck } from './flashcards';
+import { mergeLogDays, parseEntries, ReviewLogDay } from './reviewLog';
 import { CloudSnapshot, recordCloudWrite, SyncData } from './cloudSync';
 import { t } from '../i18n';
 
@@ -38,6 +44,10 @@ interface FirebaseWebConfig {
   firestoreDatabaseId?: string;
   /** ID client OAuth (Web) pour l'envoi vers Google Agenda ; facultatif, public comme le reste de ce fichier. */
   googleClientId?: string;
+  /** Vrai une fois la Cloud Function `morningReminder` déployée : le réglage « Rappel du matin » apparaît. */
+  remindersEnabled?: boolean;
+  /** Clé publique Web Push (Console Firebase > Cloud Messaging) ; facultative, la clé par défaut de Firebase sinon. */
+  vapidKey?: string;
 }
 
 // La config Firebase est un fichier facultatif (firebase-applet-config.json, voir docs/CLOUD_SETUP.md) :
@@ -52,6 +62,14 @@ const loadedConfig: FirebaseWebConfig | undefined = Object.values(configModules)
 export const googleClientId = loadedConfig?.googleClientId?.trim() || '';
 
 export const isCloudConfigured = !!loadedConfig?.apiKey && !!loadedConfig?.projectId;
+
+/** Rappel du matin proposé : Cloud configuré, fonction déployée et expéditeur Cloud Messaging connu. */
+export const remindersAvailable =
+  isCloudConfigured && loadedConfig?.remindersEnabled === true && !!loadedConfig?.messagingSenderId;
+export const pushVapidKey = loadedConfig?.vapidKey?.trim() || undefined;
+
+/** Images des cartes dans Firebase Storage : Cloud configuré et bucket connu (sinon elles restent sur l'appareil). */
+export const mediaCloudAvailable = isCloudConfigured && !!loadedConfig?.storageBucket;
 
 // Sans config, un projet factice permet de créer `auth` et `db` (ils ne contactent rien tant qu'on ne les utilise
 // pas, et plus rien ne les utilise : tout passe par `isCloudConfigured`).
@@ -72,7 +90,7 @@ const assertCloudConfigured = () => {
 // (Hosting y sert lui-même /__/auth/handler) ; ailleurs (localhost…), la valeur du fichier de config.
 const isHostingDomain =
   typeof window !== 'undefined' && /\.(web\.app|firebaseapp\.com)$/.test(window.location.hostname);
-const app = initializeApp({
+export const app = initializeApp({
   ...firebaseConfig,
   authDomain: isHostingDomain ? window.location.hostname : firebaseConfig.authDomain,
 });
@@ -246,6 +264,8 @@ export async function syncLocalDataToCloud(
 ): Promise<string> {
   const ops: ((batch: WriteBatch) => void)[] = [];
   const now = new Date().toISOString();
+  // Nouveau jeton à chaque envoi : les autres appareils le comparent au leur pour savoir s'il faut tout relire
+  const token = newSyncToken();
 
   // Settings
   const settingsRef = doc(db, 'users', userId, 'settings', 'config');
@@ -254,6 +274,7 @@ export async function syncLocalDataToCloud(
       ...settings,
       userId,
       updatedAt: now,
+      syncToken: token,
     });
   });
 
@@ -294,7 +315,7 @@ export async function syncLocalDataToCloud(
 
   try {
     await commitBatchOperations(ops, 400);
-    recordCloudWrite(userId, now);
+    recordCloudWrite(userId, now, token);
     return now;
   } catch (error) {
     return handleFirestoreError(error, OperationType.WRITE, `users/${userId}`);
@@ -431,6 +452,130 @@ function isValidSubject(d: unknown): d is Subject {
   return !!o && typeof o.id === 'string' && typeof o.name === 'string' && typeof o.color === 'string';
 }
 
+// ---------------------------------------------------------------------------
+// Paquets de cartes : `users/{uid}/decks/{courseId}`, hors de la synchro principale (lus seulement quand ils ont
+// changé, grâce à l'horodatage serveur `syncedAt`)
+
+function toDeck(id: string, d: Record<string, unknown>): Deck | null {
+  if (!Array.isArray(d.cards) || typeof d.review !== 'object' || d.review === null) return null;
+  return { id, cards: d.cards as Deck['cards'], review: d.review as Deck['review'] };
+}
+
+/** Paquets modifiés après `sinceMillis` (0 = tous), et le plus récent horodatage serveur vu. */
+export async function fetchDecksSince(
+  userId: string,
+  sinceMillis: number
+): Promise<{ decks: Deck[]; latest: number }> {
+  try {
+    const col = collection(db, 'users', userId, 'decks');
+    const snap = await getDocs(sinceMillis > 0 ? query(col, where('syncedAt', '>', Timestamp.fromMillis(sinceMillis))) : col);
+    let latest = sinceMillis;
+    const decks: Deck[] = [];
+    snap.docs.forEach((d) => {
+      const data = d.data();
+      const deck = toDeck(d.id, data);
+      if (deck) decks.push(deck);
+      const at = data.syncedAt;
+      if (at instanceof Timestamp) latest = Math.max(latest, at.toMillis());
+    });
+    return { decks, latest };
+  } catch (error) {
+    return handleFirestoreError(error, OperationType.LIST, `users/${userId}/decks`);
+  }
+}
+
+/**
+ * Envoie un paquet en le fusionnant avec la version du cloud dans une transaction : une modification faite entre-temps
+ * sur un autre appareil n'est jamais écrasée. Renvoie le paquet fusionné, à garder sur l'appareil.
+ */
+export async function pushDeckToCloud(userId: string, deck: Deck): Promise<Deck> {
+  const ref = doc(db, 'users', userId, 'decks', deck.id);
+  try {
+    return await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      const remote = snap.exists() ? toDeck(deck.id, snap.data()) : null;
+      const merged = normalizeDeck(remote ? mergeDecks(deck, remote) : deck, new Date().toISOString());
+      tx.set(ref, { id: deck.id, userId, cards: merged.cards, review: merged.review, syncedAt: serverTimestamp() });
+      return merged;
+    });
+  } catch (error) {
+    return handleFirestoreError(error, OperationType.WRITE, `users/${userId}/decks/${deck.id}`);
+  }
+}
+
+export async function deleteDeckFromCloud(userId: string, courseId: string): Promise<void> {
+  try {
+    await deleteDoc(doc(db, 'users', userId, 'decks', courseId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `users/${userId}/decks/${courseId}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Journal des notes de cartes : `users/{uid}/cardLogs/{jour}`, un document par jour local, lu seulement quand il a
+// changé (horodatage serveur `syncedAt`), fusionné par union à l'envoi
+
+function toLogDay(id: string, d: Record<string, unknown>): ReviewLogDay | null {
+  const entries = parseEntries(d.entries);
+  return entries.length > 0 ? { id, entries } : null;
+}
+
+/** Jours modifiés après `sinceMillis` (0 = tous), et le plus récent horodatage serveur vu. */
+export async function fetchLogDaysSince(
+  userId: string,
+  sinceMillis: number
+): Promise<{ days: ReviewLogDay[]; latest: number }> {
+  try {
+    const col = collection(db, 'users', userId, 'cardLogs');
+    const snap = await getDocs(sinceMillis > 0 ? query(col, where('syncedAt', '>', Timestamp.fromMillis(sinceMillis))) : col);
+    let latest = sinceMillis;
+    const days: ReviewLogDay[] = [];
+    snap.docs.forEach((d) => {
+      const data = d.data();
+      const day = toLogDay(d.id, data);
+      if (day) days.push(day);
+      const at = data.syncedAt;
+      if (at instanceof Timestamp) latest = Math.max(latest, at.toMillis());
+    });
+    return { days, latest };
+  } catch (error) {
+    return handleFirestoreError(error, OperationType.LIST, `users/${userId}/cardLogs`);
+  }
+}
+
+/** Envoie un jour en l'unissant à la version du cloud (transaction) ; renvoie le jour fusionné. */
+export async function pushLogDayToCloud(userId: string, day: ReviewLogDay): Promise<ReviewLogDay> {
+  const ref = doc(db, 'users', userId, 'cardLogs', day.id);
+  try {
+    return await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      const remote = snap.exists() ? toLogDay(day.id, snap.data()) : null;
+      const merged = remote ? mergeLogDays(day, remote) : day;
+      tx.set(ref, { id: day.id, userId, entries: merged.entries, syncedAt: serverTimestamp() });
+      return merged;
+    });
+  } catch (error) {
+    return handleFirestoreError(error, OperationType.WRITE, `users/${userId}/cardLogs/${day.id}`);
+  }
+}
+
+function newSyncToken(): string {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
+/** Jeton de synchro du cloud : une seule lecture (le document des réglages). Null si absent. */
+export async function fetchCloudSyncToken(userId: string): Promise<string | null> {
+  try {
+    const snap = await getDoc(doc(db, 'users', userId, 'settings', 'config'));
+    const token = snap.exists() ? snap.data().syncToken : null;
+    return typeof token === 'string' ? token : null;
+  } catch (error) {
+    return handleFirestoreError(error, OperationType.GET, `users/${userId}/settings/config`);
+  }
+}
+
 export async function fetchCloudData(userId: string): Promise<CloudSnapshot | null> {
   try {
     const [coursesSnap, revisionsSnap, subjectsSnap, settingsSnap] = await Promise.all([
@@ -459,11 +604,15 @@ export async function fetchCloudData(userId: string): Promise<CloudSnapshot | nu
       .map((d) => d.data())
       .filter(isValidSubject);
     let settings: AppSettings | null = null;
+    let token: string | null = null;
     if (!settingsSnap.empty) {
-      settings = settingsSnap.docs[0].data() as AppSettings;
+      // Le jeton de synchro est technique : il ne fait pas partie des réglages de l'application
+      const { syncToken, ...rest } = settingsSnap.docs[0].data();
+      settings = rest as AppSettings;
+      token = typeof syncToken === 'string' ? syncToken : null;
     }
 
-    return { courses, revisions, subjects, settings, stamp };
+    return { courses, revisions, subjects, settings, stamp, token };
   } catch (error) {
     handleFirestoreError(error, OperationType.GET, `users/${userId}`);
   }

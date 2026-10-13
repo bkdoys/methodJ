@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { AppSettings, Course, RevisionItem, Subject, ToastMessage, ViewMode } from './types';
+import { useState, useEffect, useRef, useMemo, useCallback, Suspense, type ComponentProps } from 'react';
+import { AppSettings, CardReview, Course, RevisionItem, Subject, ToastMessage, ViewMode } from './types';
 import {
   loadStoredData,
   getLastUid,
   saveStoredData,
   exportBackupJson,
   parseImportBackupJson,
+  parseImportDecks,
 } from './utils/storage';
 import { getTodayIso, formatMinutes } from './utils/dateUtils';
 import { getInitialSeedCoursesAndRevisions, DEFAULT_SETTINGS } from './utils/seedData';
@@ -16,16 +17,25 @@ import { APP_NAME } from './appInfo';
 import { TopNav } from './components/TopNav';
 import { CalendarPlanningView } from './components/CalendarPlanningView';
 import { CourseCatalogView } from './components/CourseCatalogView';
-import { StudySessionTimer } from './components/StudySessionTimer';
-import { StatsProgressView } from './components/StatsProgressView';
-import { DashboardView } from './components/DashboardView';
-import { NewCourseModal } from './components/NewCourseModal';
-import { QuickShiftModal } from './components/QuickShiftModal';
-import { CompleteRevisionModal } from './components/CompleteRevisionModal';
-import { SettingsModal } from './components/SettingsModal';
-import { CourseDetailModal } from './components/CourseDetailModal';
-import { SlotDetailModal } from './components/SlotDetailModal';
-import { SyncConflictModal } from './components/SyncConflictModal';
+import {
+  StudySessionTimer,
+  StatsProgressView,
+  DashboardView,
+  NewCourseModal,
+  QuickShiftModal,
+  CompleteRevisionModal,
+  SettingsModal,
+  CourseDetailModal,
+  DeckEditor,
+  FlashcardPlayer,
+  FlashcardsView,
+  CardsImportModal,
+  CardCoursePicker,
+  SlotDetailModal,
+  SyncConflictModal,
+  prefetchLazyViews,
+  useMountedOnce,
+} from './lazyViews';
 import { SyncData, getSyncMeta } from './utils/cloudSync';
 import { computeDashboard, countAlerts } from './utils/dashboard';
 import { findAlertDays } from './utils/dayLoad';
@@ -33,11 +43,23 @@ import { ToastBanner } from './components/ToastBanner';
 import { useCloudSync } from './hooks/useCloudSync';
 import { useAuthActions } from './hooks/useAuthActions';
 import { useStudyData } from './hooks/useStudyData';
+import { useDecks } from './hooks/useDecks';
+import { useReviewLog } from './hooks/useReviewLog';
+import { entryFromReview, ReviewEvent } from './utils/reviewLog';
+import { useTodayIso } from './hooks/useTodayIso';
 import { flashSlot } from './utils/flashSlot';
 import { getLinkTypes } from './utils/courseLinks';
-import { t } from './i18n';
+import { addCard, CardInput, courseIdsInScope, DeckScope, deleteCard, describeScope, liveCards, newCardId } from './utils/flashcards';
+import { courseCardCounts, dueToday, getNewCardsPerDay, newCardsRoom, shuffle, SessionItem, subCardItems } from './utils/cardSession';
+import { formatIsoDate } from './utils/dateUtils';
+import type { PlayKind } from './components/FlashcardsView';
+import { getCourseEffectiveColor } from './utils/colorUtils';
+import type { PlayMode } from './components/FlashcardPlayer';
+import { plural, t } from './i18n';
+import { useConfirm } from './components/ConfirmDialog';
 
 export default function App() {
+  const confirm = useConfirm();
   // Main loaded state
   const [dataLoaded, setDataLoaded] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
@@ -71,6 +93,33 @@ export default function App() {
   const [selectedCourseForDetail, setSelectedCourseForDetail] = useState<Course | null>(null);
   // Fiche d'un créneau J (clic sur le planning) ; on garde l'id pour afficher toujours la version à jour
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  // Séance de cartes (lecteur plein écran). Lancée depuis un créneau, elle se termine sur sa validation,
+  // avec le bilan des cartes comme repère pour la note de maîtrise.
+  const [cardPlay, setCardPlay] = useState<{
+    title: string;
+    color: string;
+    items: SessionItem[];
+    mode: PlayMode;
+    revisionId?: string;
+  } | null>(null);
+  const [cardsSummary, setCardsSummary] = useState<{ revisionId: string; cards: number; success: number } | null>(null);
+  // Import CSV de cartes ouvert (cours de destination proposé, s'il vient des cartes d'un cours)
+  const [cardsImport, setCardsImport] = useState<{ defaultCourseId?: string } | null>(null);
+  // Cours dont on rédige les cartes (fenêtre au-dessus de sa fiche)
+  const [deckCourseId, setDeckCourseId] = useState<string | null>(null);
+  // Carte à ouvrir en modification dans l'éditeur (résultat de recherche de la vue Cartes)
+  const [deckCardId, setDeckCardId] = useState<string | null>(null);
+  const openDeck = (courseId: string, cardId?: string) => {
+    setDeckCardId(cardId ?? null);
+    setDeckCourseId(courseId);
+  };
+  // Choix du cours pour « Ajouter une carte » depuis la vue Cartes
+  const [pickingCardCourse, setPickingCardCourse] = useState(false);
+  const [lastCardCourseId, setLastCardCourseId] = useState<string | undefined>();
+
+  // Fenêtres chargées à la demande : montées à la première ouverture, puis gardées (brouillon conservé)
+  const newCourseMounted = useMountedOnce(isNewCourseOpen);
+  const settingsMounted = useMountedOnce(isSettingsOpen);
 
   // Toast Notification for cascade shifts or actions
   const [toastMessage, setToastMessage] = useState<ToastMessage | null>(null);
@@ -124,6 +173,102 @@ export default function App() {
     handleLogout,
   } = useAuthActions({ setIsSyncing, notify: setToastMessage });
 
+  // Paquets de cartes : sur l'appareil et dans le cloud, hors de la synchro du planning (voir hooks/useDecks.ts)
+  const { decks, updateDeck, removeDecks, importDecks, moveCardsBetween, flushDecks } = useDecks({
+    storageUid: currentUser?.uid ?? getLastUid(),
+    cloudUid: currentUser?.uid,
+  });
+  // Journal des notes de cartes (historique des révisions, voir hooks/useReviewLog.ts)
+  const { reviewLog, recordReview, undoReview, flushReviewLog } = useReviewLog({
+    storageUid: currentUser?.uid ?? getLastUid(),
+    cloudUid: currentUser?.uid,
+  });
+
+  // Ajoute les cartes importées, cours par cours, avec un « Annuler » qui les retire
+  const handleImportCards = (byCourse: Record<string, CardInput[]>) => {
+    const now = new Date().toISOString();
+    const added: [string, string[]][] = Object.entries(byCourse).map(([courseId, inputs]) => {
+      const ids = inputs.map(() => newCardId());
+      updateDeck(courseId, (d) => inputs.reduce((acc, input, i) => addCard(acc, input, now, ids[i]), d));
+      return [courseId, ids];
+    });
+    const total = added.reduce((n, [, ids]) => n + ids.length, 0);
+    setCardsImport(null);
+    setToastMessage({
+      title: t('Cartes importées'),
+      description: plural(total, '{n} carte ajoutée.', '{n} cartes ajoutées.'),
+      type: 'success',
+      action: {
+        label: t('Annuler'),
+        onClick: () => {
+          const at = new Date().toISOString();
+          added.forEach(([courseId, ids]) => updateDeck(courseId, (d) => ids.reduce((acc, id) => deleteCard(acc, id, at), d)));
+        },
+      },
+    });
+  };
+
+  // Déplace des cartes vers un autre cours (historique compris), avec un « Annuler » qui les ramène
+  const handleMoveCards = (fromId: string, toId: string, ids: string[]): boolean => {
+    const target = courses.find((c) => c.id === toId);
+    const moved = moveCardsBetween(fromId, toId, ids);
+    if (moved === null) {
+      setToastMessage({
+        title: t('Déplacement impossible'),
+        description: t('Le cours « {title} » n\'a pas la place pour ces cartes.', { title: target?.title ?? '' }),
+        type: 'error',
+      });
+      return false;
+    }
+    if (moved > 0) {
+      setToastMessage({
+        title: plural(moved, '{n} carte déplacée', '{n} cartes déplacées'),
+        description: t('Vers « {title} ».', { title: target?.title ?? '' }),
+        type: 'success',
+        action: { label: t('Annuler'), onClick: () => moveCardsBetween(toId, fromId, ids) },
+      });
+    }
+    return true;
+  };
+
+  // Séance sur un périmètre (vue Cartes, tableau de bord) : cartes du jour, ou toutes les cartes mélangées
+  const playScope = (scope: DeckScope, kind: PlayKind, cram: boolean) => {
+    const ids = courseIdsInScope(scope, courses, subjects);
+    const now = new Date();
+    let items: SessionItem[];
+    if (kind === 'today') {
+      const d = dueToday(decks, ids, now, formatIsoDate(now), getNewCardsPerDay(settings));
+      items = [...d.due, ...shuffle(d.fresh, now.getTime())];
+    } else {
+      items = shuffle(subCardItems(decks, ids), now.getTime());
+    }
+    const { title, color } = describeScope(scope, courses, subjects, kind === 'today' ? t('Cartes du jour') : t('Toutes les cartes'));
+    setCardPlay({ title, color, items, mode: kind === 'all' && cram ? 'cram' : 'schedule' });
+  };
+
+  // Les notes restent sur l'appareil pendant la séance ; elles partent vers le cloud à la fin (flushDecks)
+  const handleCardReview = useCallback(
+    (courseId: string, key: string, review: CardReview | undefined, event: ReviewEvent) => {
+      if ('undone' in event) {
+        if (event.undone.lastReview) undoReview({ t: event.undone.lastReview, c: courseId, k: key });
+      } else if (review) {
+        const entry = entryFromReview(courseId, key, review, event.grade, event.before);
+        if (entry) recordReview(entry);
+      }
+      updateDeck(
+        courseId,
+        (d) => {
+          const next = { ...d.review };
+          if (review) next[key] = review;
+          else delete next[key];
+          return { ...d, review: next };
+        },
+        { defer: true }
+      );
+    },
+    [updateDeck, recordReview, undoReview]
+  );
+
   // Actions sur cours, créneaux et matières (voir hooks/useStudyData.ts)
   const {
     handleSaveNewCourse,
@@ -132,6 +277,7 @@ export default function App() {
     handleConfirmComplete,
     handleUndoComplete,
     handleUpdateCourse,
+    handleResetCourseColors,
     handleUpdateCourseMastery,
     handleChangeLinkTypes,
     handleUpdateCourseNotes,
@@ -155,6 +301,7 @@ export default function App() {
     cloudUid: currentUser?.uid,
     notify: setToastMessage,
     setSelectedCourseForDetail,
+    onCoursesDeleted: removeDecks,
   });
 
   // La page se redessine quand la langue change ; le réglage enregistré (aussi synchronisé) l'emporte
@@ -172,6 +319,7 @@ export default function App() {
     setSettings(loaded.settings);
     setSplitViewMode(loaded.settings.splitView);
     setDataLoaded(true);
+    prefetchLazyViews();
 
     // Apply saved theme to html element
     if (loaded.settings.theme === 'dark') {
@@ -240,35 +388,57 @@ export default function App() {
 
   // Handler: Export / Import JSON
   const handleExportBackup = useCallback(() => {
-    exportBackupJson({ courses, revisions, subjects, settings });
-  }, [courses, revisions, subjects, settings]);
+    exportBackupJson({ courses, revisions, subjects, settings }, Object.values(decks));
+  }, [courses, revisions, subjects, settings, decks]);
 
-  const handleImportBackup = async (jsonContent: string) => {
+  // Renvoie false si le fichier est invalide ou si l'utilisateur annule (la fenêtre des réglages reste ouverte)
+  const handleImportBackup = async (jsonContent: string): Promise<boolean> => {
     const imported = parseImportBackupJson(jsonContent);
     if (imported) {
-      backupBeforeImport();
+      const ok = await confirm({
+        title: t('Remplacer vos données ?'),
+        message:
+          t('Actuellement : {courses} cours et {revisions} révisions. Dans le fichier : {newCourses} cours et {newRevisions} révisions.', {
+            courses: courses.length,
+            revisions: revisions.length,
+            newCourses: imported.courses.length,
+            newRevisions: imported.revisions.length,
+          }) +
+          '\n\n' +
+          (currentUser
+            ? t('Vos données actuelles seront mises de côté et restaurables depuis Réglages > Cloud.')
+            : t('Une copie de vos données actuelles sera d\'abord téléchargée.')),
+        confirmLabel: t('Remplacer'),
+        tone: 'danger',
+      });
+      if (!ok) return false;
+      // Garde-fou : version mise de côté (compte) ou fichier téléchargé (usage local)
+      if (currentUser) backupBeforeImport();
+      else exportBackupJson({ courses, revisions, subjects, settings }, Object.values(decks));
       setCourses(imported.courses);
       setRevisions(imported.revisions);
       setSubjects(imported.subjects);
       setSettings(imported.settings);
+      // Les cartes du fichier s'ajoutent à celles de l'appareil (fusion, rien n'est écrasé)
+      importDecks(parseImportDecks(jsonContent));
       setToastMessage({
         title: t('Données importées'),
         description: t('{courses} cours et {revisions} révisions restaurés.', { courses: imported.courses.length, revisions: imported.revisions.length }),
         type: 'success',
       });
       if (currentUser) {
-        try {
-          await pushImportedData(imported);
-        } catch (err) {
+        pushImportedData(imported).catch((err) => {
           console.warn('Could not sync imported data to Cloud immediately:', err);
-        }
+        });
       }
+      return true;
     } else {
       setToastMessage({
         title: t('Erreur d\'import'),
         description: t('Le fichier JSON de sauvegarde est invalide.'),
         type: 'error',
       });
+      return false;
     }
   };
 
@@ -291,8 +461,32 @@ export default function App() {
     setSettings((prev) => ({ ...prev, splitView: nextVal }));
   };
 
+  // Date du jour, mise à jour à minuit : toute l'app se redessine avec la nouvelle date
+  const todayIso = useTodayIso();
+  // Au changement de jour, le planning resté sur « aujourd'hui » suit la nouvelle date
+  const prevTodayRef = useRef(todayIso);
+  useEffect(() => {
+    const prev = prevTodayRef.current;
+    prevTodayRef.current = todayIso;
+    if (prev !== todayIso) setSelectedDate((d) => (d === prev ? todayIso : d));
+  }, [todayIso]);
+
+  // Cartes du jour, tous cours confondus (pastille de l'onglet Cartes, tableau de bord)
+  const cardsToday = useMemo(() => {
+    const now = new Date();
+    const known = new Set(courses.map((c) => c.id));
+    const counts = Object.entries(courseCardCounts(decks, now)).filter(([id]) => known.has(id)).map(([, c]) => c);
+    const due = counts.reduce((n, c) => n + c.due, 0);
+    const fresh = Math.min(
+      counts.reduce((n, c) => n + c.fresh, 0),
+      newCardsRoom(decks, formatIsoDate(now), getNewCardsPerDay(settings))
+    );
+    return { due, fresh, total: counts.reduce((n, c) => n + c.total, 0) };
+    // todayIso : recalcul au changement de jour
+  }, [decks, courses, settings, todayIso]);
+
+
   // Calculate today's workload for TopNav
-  const todayIso = getTodayIso();
   const todayRevisions = useMemo(
     () => revisions.filter((r) => r.scheduledDate === todayIso),
     [revisions, todayIso]
@@ -335,6 +529,7 @@ export default function App() {
 
   // Selected revision course object
   const selectedSlot = selectedSlotId ? revisions.find((r) => r.id === selectedSlotId) : undefined;
+  const deckCourse = deckCourseId ? courses.find((c) => c.id === deckCourseId) : undefined;
   const selectedSlotCourse = selectedSlot ? courses.find((c) => c.id === selectedSlot.courseId) : undefined;
   const shiftingCourse = shiftingRevision
     ? courses.find((c) => c.id === shiftingRevision.courseId)
@@ -351,6 +546,103 @@ export default function App() {
     flashSlot(revisionId);
   };
 
+  const cardCount = (courseId: string) => liveCards(decks[courseId]).length;
+
+  const playCourseCards = (courseId: string, revision?: RevisionItem) => {
+    const course = courses.find((c) => c.id === courseId);
+    if (!course) return;
+    setCardPlay({
+      title: course.title,
+      color: getCourseEffectiveColor(course, subjects.find((s) => s.id === course.subjectId)),
+      items: shuffle(subCardItems(decks, [courseId]), Date.now()),
+      mode: 'schedule',
+      revisionId: revision?.id,
+    });
+  };
+
+  const handleCloseCardPlay = (summary: { cards: number; success: number } | undefined, finished: boolean) => {
+    const revisionId = cardPlay?.revisionId;
+    setCardPlay(null);
+    flushDecks();
+    flushReviewLog();
+    const rev = revisionId ? revisions.find((r) => r.id === revisionId) : undefined;
+    // Une séance quittée en route ne mène pas à la validation du créneau
+    if (finished && summary && rev && !rev.completed) {
+      setCardsSummary({ revisionId: rev.id, cards: summary.cards, success: summary.success });
+      setCompletingRevision(rev);
+    }
+  };
+
+  // Gestionnaires partagés par les vues et les fenêtres
+  const openQuickShift = (rev: RevisionItem) => setShiftingRevision(rev);
+  const openCompleteModal = (rev: RevisionItem) => setCompletingRevision(rev);
+  const openNewCourseModal = () => setIsNewCourseOpen(true);
+  const openCourseDetail = (c: Course) => setSelectedCourseForDetail(c);
+  const patchSettings = (patch: Partial<AppSettings>) => setSettings((prev) => ({ ...prev, ...patch }));
+  // Glisser-déposer d'un cours dans l'arborescence : seulement s'il change vraiment de place
+  const handleMoveCourse: ComponentProps<typeof CourseCatalogView>['onMoveCourse'] = (id, node) => {
+    const c = courses.find((x) => x.id === id);
+    if (c && (c.subjectId !== node.subjectId || c.folderId !== node.folderId)) {
+      handleUpdateCourse(id, { subjectId: node.subjectId, folderId: node.folderId });
+    }
+  };
+
+  // Chaque vue est décrite une fois, qu'elle s'affiche en vue partagée (iPad) ou en pleine largeur
+  const renderPlanning = (split: boolean) => (
+    <CalendarPlanningView
+      revisions={revisions}
+      courses={courses}
+      subjects={subjects}
+      settings={settings}
+      isSplitView={split || undefined}
+      activeSessionRevisionId={split && currentView === 'session' ? activeSessionRevisionId : undefined}
+      onCloseStudySession={split ? handleCloseStudySession : undefined}
+      selectedDate={selectedDate}
+      onSelectDate={setSelectedDate}
+      onOpenQuickShift={openQuickShift}
+      onOpenCompleteModal={openCompleteModal}
+      onStartStudySession={handleStartStudySession}
+      onOpenNewCourseModal={openNewCourseModal}
+      onOpenSlotDetail={(rev) => setSelectedSlotId(rev.id)}
+      onMoveSlots={handleMoveSlots}
+      onMoveToDay={handleMoveSlotToDay}
+      onChangeSettings={patchSettings}
+    />
+  );
+  const renderCatalog = (compact: boolean) => (
+    <CourseCatalogView
+      courses={courses}
+      revisions={revisions}
+      subjects={subjects}
+      settings={settings}
+      onUpdateCourseMastery={handleUpdateCourseMastery}
+      onOpenQuickShift={openQuickShift}
+      onOpenCompleteModal={openCompleteModal}
+      onOpenNewCourseModal={openNewCourseModal}
+      onDeleteCourse={handleDeleteCourse}
+      onUpdateCourseNotes={handleUpdateCourseNotes}
+      onOpenCourseDetail={openCourseDetail}
+      compact={compact || undefined}
+      onGoToDate={handleGoToSlot}
+      onMoveCourse={handleMoveCourse}
+      onResetCourseColors={handleResetCourseColors}
+      onUpdateSubjectFolders={handleUpdateSubjectFolders}
+    />
+  );
+  const renderTimer = () => (
+    <StudySessionTimer
+      linkTypes={getLinkTypes(settings)}
+      revisions={revisions}
+      courses={courses}
+      subjects={subjects}
+      activeRevisionId={activeSessionRevisionId}
+      onSelectRevision={setActiveSessionRevisionId}
+      onCompleteRevision={handleConfirmComplete}
+      cardCount={cardCount}
+      onPlayCards={(rev) => playCourseCards(rev.courseId, rev)}
+    />
+  );
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors">
       {/* Top Navigation */}
@@ -358,7 +650,8 @@ export default function App() {
         currentView={currentView}
         onViewChange={setCurrentView}
         dashboardAlerts={dashboardAlerts}
-        onOpenNewCourseModal={() => setIsNewCourseOpen(true)}
+        cardsDue={cardsToday.due + cardsToday.fresh}
+        onOpenNewCourseModal={openNewCourseModal}
         onOpenSettingsModal={handleOpenSettingsModal}
         splitView={splitViewMode}
         onToggleSplitView={handleToggleSplitView}
@@ -390,6 +683,7 @@ export default function App() {
       )}
 
       {syncConflict && conflictDialogOpen && (
+        <Suspense fallback={null}>
         <SyncConflictModal
           local={{ courses, revisions, subjects, settings }}
           cloud={syncConflict.cloud}
@@ -400,6 +694,7 @@ export default function App() {
           onKeepLocal={keepLocal}
           onDefer={closeConflictDialog}
         />
+        </Suspense>
       )}
 
       {/* Toast Notification Banner */}
@@ -407,8 +702,9 @@ export default function App() {
 
       {/* Main App Content Viewport */}
       <main className="flex-1 w-full px-1.5 sm:px-2 py-4 sm:py-6">
+        <Suspense fallback={<ViewLoading />}>
         {/* iPad Multitasking Split View Layout */}
-        {splitViewMode && isLargeScreen && currentView !== 'stats' && currentView !== 'dashboard' ? (
+        {splitViewMode && isLargeScreen && currentView !== 'stats' && currentView !== 'dashboard' && currentView !== 'cards' ? (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
             {/* Left Column (5 cols): Daily Stacked Agenda */}
             <div className="lg:col-span-5 space-y-4">
@@ -421,107 +717,21 @@ export default function App() {
                 </span>
               </div>
 
-              <CalendarPlanningView
-                revisions={revisions}
-                courses={courses}
-                subjects={subjects}
-                settings={settings}
-                isSplitView={true}
-                activeSessionRevisionId={currentView === 'session' ? activeSessionRevisionId : undefined}
-                onCloseStudySession={handleCloseStudySession}
-                selectedDate={selectedDate}
-                onSelectDate={setSelectedDate}
-                onOpenQuickShift={(rev) => setShiftingRevision(rev)}
-                onOpenCompleteModal={(rev) => setCompletingRevision(rev)}
-                onStartStudySession={handleStartStudySession}
-                onOpenNewCourseModal={() => setIsNewCourseOpen(true)}
-                onOpenSlotDetail={(rev) => setSelectedSlotId(rev.id)}
-                onMoveSlots={handleMoveSlots}
-                onMoveToDay={handleMoveSlotToDay}
-                onChangeSettings={(patch) => setSettings((prev) => ({ ...prev, ...patch }))}
-              />
+              {renderPlanning(true)}
             </div>
 
             {/* Right Column (7 cols): Dynamic Second Workspace */}
             <div className="lg:col-span-7 space-y-4">
-              {currentView === 'session' ? (
-                <StudySessionTimer
-                  linkTypes={getLinkTypes(settings)}
-                  revisions={revisions}
-                  courses={courses}
-                  subjects={subjects}
-                  activeRevisionId={activeSessionRevisionId}
-                  onSelectRevision={setActiveSessionRevisionId}
-                  onCompleteRevision={handleConfirmComplete}
-                />
-              ) : (
-                <CourseCatalogView
-                  courses={courses}
-                  revisions={revisions}
-                  subjects={subjects}
-                  settings={settings}
-                  onUpdateCourseMastery={handleUpdateCourseMastery}
-                  onOpenQuickShift={(rev) => setShiftingRevision(rev)}
-                  onOpenCompleteModal={(rev) => setCompletingRevision(rev)}
-                  onOpenNewCourseModal={() => setIsNewCourseOpen(true)}
-                  onDeleteCourse={handleDeleteCourse}
-                  onUpdateCourseNotes={handleUpdateCourseNotes}
-                  onOpenCourseDetail={(c) => setSelectedCourseForDetail(c)}
-                  compact
-                  onGoToDate={handleGoToSlot}
-                  onMoveCourse={(id, node) => {
-                    const c = courses.find((x) => x.id === id);
-                    if (c && (c.subjectId !== node.subjectId || c.folderId !== node.folderId)) {
-                      handleUpdateCourse(id, { subjectId: node.subjectId, folderId: node.folderId });
-                    }
-                  }}
-                  onUpdateSubjectFolders={handleUpdateSubjectFolders}
-                />
-              )}
+              {currentView === 'session' ? renderTimer() : renderCatalog(true)}
             </div>
           </div>
         ) : (
           /* Standard Full-width View (when split mode is turned off or on Stats) */
           <div>
             {currentView === 'agenda' || currentView === 'week' || currentView === 'month' ? (
-              <CalendarPlanningView
-                revisions={revisions}
-                courses={courses}
-                subjects={subjects}
-                settings={settings}
-                selectedDate={selectedDate}
-                onSelectDate={setSelectedDate}
-                onOpenQuickShift={(rev) => setShiftingRevision(rev)}
-                onOpenCompleteModal={(rev) => setCompletingRevision(rev)}
-                onStartStudySession={handleStartStudySession}
-                onOpenNewCourseModal={() => setIsNewCourseOpen(true)}
-                onOpenSlotDetail={(rev) => setSelectedSlotId(rev.id)}
-                onMoveSlots={handleMoveSlots}
-                onMoveToDay={handleMoveSlotToDay}
-                onChangeSettings={(patch) => setSettings((prev) => ({ ...prev, ...patch }))}
-              />
+              renderPlanning(false)
             ) : currentView === 'courses' ? (
-              <CourseCatalogView
-                courses={courses}
-                revisions={revisions}
-                subjects={subjects}
-                settings={settings}
-                onUpdateCourseMastery={handleUpdateCourseMastery}
-                onOpenQuickShift={(rev) => setShiftingRevision(rev)}
-                onOpenCompleteModal={(rev) => setCompletingRevision(rev)}
-                onOpenNewCourseModal={() => setIsNewCourseOpen(true)}
-                onDeleteCourse={handleDeleteCourse}
-                onUpdateCourseNotes={handleUpdateCourseNotes}
-                onOpenCourseDetail={(c) => setSelectedCourseForDetail(c)}
-                onGoToDate={handleGoToSlot}
-                  onMoveCourse={(id, node) => {
-                    const c = courses.find((x) => x.id === id);
-                    if (c && (c.subjectId !== node.subjectId || c.folderId !== node.folderId)) {
-                      handleUpdateCourse(id, { subjectId: node.subjectId, folderId: node.folderId });
-                    }
-                  }}
-                  onUpdateSubjectFolders={handleUpdateSubjectFolders}
-              />
+              renderCatalog(false)
             ) : currentView === 'dashboard' ? (
               <DashboardView
                 courses={courses}
@@ -537,40 +747,53 @@ export default function App() {
                 onSyncNow={syncNow}
                 onOpenConflict={openConflictDialog}
                 onOpenBackupSettings={() => handleOpenSettingsModal('backup')}
-                onOpenCompleteModal={(rev) => setCompletingRevision(rev)}
-                onOpenQuickShift={(rev) => setShiftingRevision(rev)}
+                onOpenCompleteModal={openCompleteModal}
+                onOpenQuickShift={openQuickShift}
                 onShiftToToday={(rev) => handleConfirmShift(rev.id, todayIso, settings.autoCascadeShift)}
                 onApplyShifts={handleApplyShifts}
                 onStartStudySession={handleStartStudySession}
                 onGoToSlot={handleGoToSlot}
-                onOpenCourseDetail={(c) => setSelectedCourseForDetail(c)}
-                onChangeSettings={(patch) => setSettings((prev) => ({ ...prev, ...patch }))}
+                onOpenCourseDetail={openCourseDetail}
+                onChangeSettings={patchSettings}
+                cardsToday={cardsToday}
+                onPlayCards={() => playScope({ kind: 'all' }, 'today', false)}
+                onOpenCards={() => setCurrentView('cards')}
               />
             ) : currentView === 'session' ? (
-              <StudySessionTimer
-                linkTypes={getLinkTypes(settings)}
-                revisions={revisions}
+              renderTimer()
+            ) : currentView === 'cards' ? (
+              <FlashcardsView
                 courses={courses}
                 subjects={subjects}
-                activeRevisionId={activeSessionRevisionId}
-                onSelectRevision={setActiveSessionRevisionId}
-                onCompleteRevision={handleConfirmComplete}
+                decks={decks}
+                settings={settings}
+                onChangeSettings={patchSettings}
+                onPlay={playScope}
+                onOpenDeck={openDeck}
+                onImport={() => setCardsImport({})}
+                onAddCard={() => setPickingCardCourse(true)}
               />
             ) : (
               <StatsProgressView
                 courses={courses}
                 revisions={revisions}
                 subjects={subjects}
+                decks={decks}
+                reviewLog={reviewLog}
                 dailyTargetHours={settings.dailyTargetHours}
-                onOpenCourseDetail={(c) => setSelectedCourseForDetail(c)}
+                examDate={settings.examDate}
+                onOpenDeck={openDeck}
               />
             )}
           </div>
         )}
+        </Suspense>
       </main>
 
-      {/* Modals */}
+      {/* Modals (chargées à la demande : rien à afficher pendant le chargement) */}
+      <Suspense fallback={null}>
       {/* 1. New Course Modal */}
+      {newCourseMounted && (
       <NewCourseModal
         isOpen={isNewCourseOpen}
         onClose={() => setIsNewCourseOpen(false)}
@@ -580,8 +803,10 @@ export default function App() {
         onChangeLinkTypes={handleChangeLinkTypes}
         onSaveCourse={handleSaveNewCourse}
       />
+      )}
 
       {/* 2. Settings Modal (Disciplines, Colors, J presets, Dark mode, Backup) */}
+      {settingsMounted && (
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
@@ -619,6 +844,7 @@ export default function App() {
         authError={authError}
         onClearAuthError={clearAuthError}
       />
+      )}
 
       {/* 3. Course Detail & Title Edit Modal (opens when clicking any course in calendar or catalog) */}
       {selectedCourseForDetail && (
@@ -640,11 +866,57 @@ export default function App() {
             setSelectedCourseForDetail(null);
           }}
           onUpdateCourse={handleUpdateCourse}
-          onOpenQuickShift={(rev) => setShiftingRevision(rev)}
-          onOpenCompleteModal={(rev) => setCompletingRevision(rev)}
+          onOpenQuickShift={openQuickShift}
+          onOpenCompleteModal={openCompleteModal}
           onStartStudySession={handleStartStudySession}
           onDeleteCourse={handleDeleteCourse}
           onResizeSlot={handleResizeSlot}
+          cardCount={cardCount(selectedCourseForDetail.id)}
+          onOpenDeck={() => openDeck(selectedCourseForDetail.id)}
+          onPlayCards={() => playCourseCards(selectedCourseForDetail.id)}
+        />
+      )}
+
+      {deckCourse && (
+        <DeckEditor
+          course={deckCourse}
+          subject={subjects.find((s) => s.id === deckCourse.subjectId)}
+          deck={decks[deckCourse.id]}
+          onChange={(change) => updateDeck(deckCourse.id, change)}
+          initialCardId={deckCardId ?? undefined}
+          onClose={() => {
+            setDeckCourseId(null);
+            setDeckCardId(null);
+          }}
+          onImport={() => setCardsImport({ defaultCourseId: deckCourse.id })}
+          courses={courses}
+          subjects={subjects}
+          onMove={(toId, ids) => handleMoveCards(deckCourse.id, toId, ids)}
+        />
+      )}
+
+      {pickingCardCourse && (
+        <CardCoursePicker
+          courses={courses}
+          subjects={subjects}
+          defaultCourseId={lastCardCourseId ?? deckCourseId ?? undefined}
+          onPick={(id) => {
+            setLastCardCourseId(id);
+            setPickingCardCourse(false);
+            openDeck(id);
+          }}
+          onClose={() => setPickingCardCourse(false)}
+        />
+      )}
+
+      {cardsImport && (
+        <CardsImportModal
+          courses={courses}
+          subjects={subjects}
+          decks={decks}
+          defaultCourseId={cardsImport.defaultCourseId}
+          onImport={handleImportCards}
+          onClose={() => setCardsImport(null)}
         />
       )}
 
@@ -660,9 +932,25 @@ export default function App() {
           onOpenCourse={() => setSelectedCourseForDetail(selectedSlotCourse)}
           onResizeSlot={handleResizeSlot}
           onUpdateNotes={handleUpdateSlotNotes}
-          onOpenCompleteModal={(rev) => setCompletingRevision(rev)}
-          onOpenQuickShift={(rev) => setShiftingRevision(rev)}
+          onOpenCompleteModal={openCompleteModal}
+          onOpenQuickShift={openQuickShift}
           onStartStudySession={handleStartStudySession}
+          cardCount={cardCount(selectedSlotCourse.id)}
+          onPlayCards={(rev) => playCourseCards(rev.courseId, rev)}
+        />
+      )}
+
+      {cardPlay && (
+        <FlashcardPlayer
+          title={cardPlay.title}
+          color={cardPlay.color}
+          items={cardPlay.items}
+          decks={decks}
+          courses={courses}
+          mode={cardPlay.mode}
+          onReview={handleCardReview}
+          onClose={handleCloseCardPlay}
+          finishLabel={cardPlay.revisionId && !revisions.find((r) => r.id === cardPlay.revisionId)?.completed ? t('Valider le créneau') : undefined}
         />
       )}
 
@@ -671,7 +959,6 @@ export default function App() {
         <QuickShiftModal
           revision={shiftingRevision}
           course={shiftingCourse}
-          subject={subjects.find((s) => s.id === shiftingCourse.subjectId)}
           allCourseRevisions={revisions}
           isOpen={true}
           onClose={() => setShiftingRevision(null)}
@@ -685,13 +972,26 @@ export default function App() {
           revision={completingRevision}
           course={completingCourse}
           revisions={revisions}
-          subject={subjects.find((s) => s.id === completingCourse.subjectId)}
           isOpen={true}
-          onClose={() => setCompletingRevision(null)}
+          onClose={() => {
+            setCompletingRevision(null);
+            setCardsSummary(null);
+          }}
           onConfirmComplete={handleConfirmComplete}
           onUndoComplete={handleUndoComplete}
+          cardsSummary={cardsSummary?.revisionId === completingRevision.id ? cardsSummary : undefined}
         />
       )}
+      </Suspense>
+    </div>
+  );
+}
+
+/** Pendant le chargement d'une vue (premier affichage seulement, les morceaux sont ensuite en cache). */
+function ViewLoading() {
+  return (
+    <div className="flex justify-center py-16">
+      <div className="w-8 h-8 border-3 border-teal-600 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 }

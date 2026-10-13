@@ -20,15 +20,23 @@ Un jour est « à surveiller » dans deux cas :
 
 ## Le lissage d'un jour chargé
 
-Pour chaque jour à surveiller, du plus proche au plus lointain, on cherche un créneau non validé à **repousser de quelques jours** :
+Pour chaque jour à surveiller, du plus proche au plus lointain, l'application essaie deux choses, dans cet ordre.
+
+**D'abord, sans changer de jour.** Si un créneau déborde de la plage alors qu'une place est libre plus tôt le même jour (par exemple un créneau
+posé tard à la main, avec un trou le matin), il est **remonté à la première place libre** de la journée, en évitant les pauses. Cela ne touche
+ni les autres jours ni la cascade. Si le jour est seulement au-dessus de l'objectif, remonter ne change rien : on passe à l'étape suivante.
+
+**Ensuite, on cherche un créneau non validé à repousser de quelques jours** :
 
 1. On essaie d'abord les J les plus élevés (plus de marge qu'un J0 ou un J1) ; un créneau validé n'est jamais touché.
 2. Retard maximal accepté selon le J : **1 jour** pour J0 et J1, **2 jours** pour J2 et J3, **3 jours** au-delà.
-3. Un déplacement n'est retenu que s'il **allège** le jour de départ (moins de créneaux hors plage, ou moins de minutes au-dessus de l'objectif)
+3. Un créneau repoussé est **replacé à la première place libre de son nouveau jour** (comme lors d'un déplacement à la main) : le jour d'arrivée est
+   jugé avec cette heure, pas avec l'ancienne. Un créneau qui garderait une heure débordant aussi là-bas n'est donc plus refusé s'il y a de la place plus tôt.
+4. Un déplacement n'est retenu que s'il **allège** le jour de départ (moins de créneaux hors plage, ou moins de minutes au-dessus de l'objectif)
    et ne rend **aucun autre jour pire**, cascade comprise : un jour sans alerte n'en reçoit pas, un jour déjà chargé ne doit pas empirer.
-4. Si la cascade est activée (Réglages), les J suivants non validés du même cours sont décalés du même nombre de jours ; leurs jours d'arrivée
+5. Si la cascade est activée (Réglages), les J suivants non validés du même cours sont décalés du même nombre de jours ; leurs jours d'arrivée
    entrent dans la vérification.
-5. Si aucun créneau ne convient, l'application le dit : **« aucune solution simple »**. Il reste à décaler à la main ou à ajuster la plage de
+6. Si aucun créneau ne convient, l'application le dit : **« aucune solution simple »**. Il reste à décaler à la main ou à ajuster la plage de
    travail ou l'objectif.
 
 Les déplacements sont calculés l'un après l'autre sur un état simulé. Chaque proposition a une **case à cocher, tout est coché par défaut**,
@@ -43,7 +51,7 @@ la première place libre.
 
 1. Les créneaux en retard sont traités du plus ancien au plus récent.
 2. Chacun est replacé **le plus tôt possible à partir d'aujourd'hui**, sur un jour où il n'aggrave rien (objectif et plage respectés,
-   cascade comprise).
+   cascade comprise), à la première place libre de ce jour.
 3. Avec la cascade, les J suivants du même cours suivent le mouvement ; ceux qui ont déjà bougé ne sont pas proposés une seconde fois.
    Comme pour le lissage, les propositions se cochent et se décochent.
 4. On cherche sur les **14 prochains jours**. Au-delà, ou si aucun jour ne convient : « aucune solution simple », à décaler à la main.

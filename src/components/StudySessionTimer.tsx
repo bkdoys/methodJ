@@ -4,22 +4,17 @@ import { CourseLinkIcons } from './CourseLinkIcons';
 import { MasteryStars } from './MasteryStars';
 import { RevisionNotesJournal } from './RevisionNotesJournal';
 import { RichTextEditor } from './RichTextEditor';
-import { getSlotDurationMinutes } from '../utils/jMethod';
 import { formatMinutes, getTodayIso } from '../utils/dateUtils';
 import { getSubjectBadgeStyle } from '../utils/colorUtils';
 import {
   Play,
+  Layers,
   Pause,
   RotateCcw,
-  Sparkles,
-  BookOpen,
   CheckCircle2,
-  Volume2,
-  VolumeX,
-  Plus,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { t } from '../i18n';
+import { plural, t } from '../i18n';
 
 interface StudySessionTimerProps {
   revisions: RevisionItem[];
@@ -34,6 +29,9 @@ interface StudySessionTimerProps {
     notes?: string,
     updateCourseMastery?: boolean
   ) => void;
+  /** Nombre de cartes d'un cours, et lancement de leur révision depuis le créneau. */
+  cardCount?: (courseId: string) => number;
+  onPlayCards?: (revision: RevisionItem) => void;
 }
 
 export const StudySessionTimer: React.FC<StudySessionTimerProps> = ({
@@ -44,6 +42,8 @@ export const StudySessionTimer: React.FC<StudySessionTimerProps> = ({
   activeRevisionId,
   onSelectRevision,
   onCompleteRevision,
+  cardCount,
+  onPlayCards,
 }) => {
   const todayIso = getTodayIso();
   const todayRevisions = revisions.filter((r) => r.scheduledDate === todayIso);
@@ -68,10 +68,6 @@ export const StudySessionTimer: React.FC<StudySessionTimerProps> = ({
   const [rating, setRating] = useState<MasteryLevel>(
     currentCourse?.mastery && currentCourse.mastery > 0 ? currentCourse.mastery : 2
   );
-  const [audioEnabled, setAudioEnabled] = useState(false);
-
-  // Audio tone oscillator reference
-  const audioCtxRef = useRef<AudioContext | null>(null);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
 
   const TIMER_STORAGE_KEY = 'medj_active_timer_session';
@@ -315,11 +311,11 @@ export const StudySessionTimer: React.FC<StudySessionTimerProps> = ({
           </div>
 
           {/* Quick select other slots of today */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 phone:w-full phone:min-w-0">
             <select
               value={currentRevision?.id || ''}
               onChange={(e) => onSelectRevision(e.target.value)}
-              className="text-xs px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-medium focus:ring-1 focus:ring-teal-500"
+              className="text-xs px-3 py-2 phone:w-full phone:min-w-0 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-medium focus:ring-1 focus:ring-teal-500"
             >
               <optgroup label={t('Créneaux prévus aujourd\'hui')}>
                 {todayRevisions.map((r) => {
@@ -374,6 +370,18 @@ export const StudySessionTimer: React.FC<StudySessionTimerProps> = ({
           {currentCourse?.links && currentCourse.links.length > 0 && (
             <div className="flex justify-center pt-2">
               <CourseLinkIcons links={currentCourse.links} linkTypes={linkTypes} labels className="justify-center gap-2" />
+            </div>
+          )}
+          {currentCourse && currentRevision && onPlayCards && (cardCount?.(currentCourse.id) ?? 0) > 0 && (
+            <div className="flex justify-center pt-1">
+              <button
+                type="button"
+                onClick={() => onPlayCards(currentRevision)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-500/15 hover:bg-teal-100 dark:hover:bg-teal-500/25"
+              >
+                <Layers className="w-4 h-4" />
+                {t('Réviser les cartes')} · {plural(cardCount?.(currentCourse.id) ?? 0, '{n} carte', '{n} cartes')}
+              </button>
             </div>
           )}
           {currentCourse && (

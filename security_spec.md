@@ -7,6 +7,8 @@
 4. **Data Size Bounds**: Strings are strictly bounded with `.size() <= MAX` (e.g., titles <= 200 chars, notes <= 5000 chars, IDs <= 128 chars).
 5. **No Anonymous Cross-Tenant Access**: Read/write access strictly requires authenticated user session (`request.auth != null`).
 6. **Slot start time**: the optional `startTime` on a revision must be a string matching `HH:MM` (00:00–23:59); any other shape is rejected.
+6b. **Original date**: the optional `originalDate` on a revision (frozen when the course's J0 is validated) must be a string of at most 20 characters.
+6c. **Card review log**: `users/{uid}/cardLogs/{AAAA-MM-JJ}` accepts only `id`, `userId`, `entries` (list of at most 3000) and a server `syncedAt`; the document id must be a date and equal `id`.
 
 ## The "Dirty Dozen" Payloads Tested
 1. **Unauthenticated Read**: Attempting to read `/users/user_123/courses` without authentication -> DENIED.
@@ -29,3 +31,9 @@
 ## Course links
 
 `Course.links` is optional (list, at most 30 entries) and listed in the allowed keys of `validCourse`. The app only accepts `http(s)` addresses and opens them in a new tab with `rel="noopener noreferrer"`. The link types are stored in the settings document (`linkTypes`).
+
+## Flashcard decks
+`/users/{userId}/decks/{deckId}` holds one document per course (`deckId` = course id) with its flashcards (`validDeck`): the owner only, keys limited to `id` (equal to the document id), `userId`, `cards` (list, at most 1500 entries: the app allows 1000 live cards, plus deleted ones kept for a while as tombstones), `review` (map of scheduling states) and `syncedAt`, which must be the server time of the request (`request.time`): other devices query the decks changed since their last read on it, so a client cannot backdate or forward-date it. Firestore caps the document at 1 MiB, which bounds the card texts.
+
+## Morning reminder devices
+`/users/{userId}/devices/{deviceId}` holds one document per device subscribed to the morning reminder (`validDevice`): the owner only, keys limited to `userId`, `token` (push token, at most 4096 characters), `time` (`HH:MM`), `timeZone` (at most 64 characters), `lang` (`fr` or `en`), `updatedAt` and `lastSentDate`. `lastSentDate` is written by the `morningReminder` Cloud Function with admin access; it is only tolerated in client writes so that an update is not rejected. The function reads every `devices` collection with admin access (collection group query); clients cannot list other users' devices.

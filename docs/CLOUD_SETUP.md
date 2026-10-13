@@ -42,6 +42,18 @@ Ouvrez ensuite `https://votre-projet.web.app`, puis Préférences > Cloud > « C
 5. Publiez les règles : `./deploy.sh --rules`.
 6. Activez la connexion Google (voir ci-dessus) et publiez l'application : `./deploy.sh`.
 
+## Images des cartes (facultatif)
+
+Les images ajoutées aux cartes (photo, schéma, cartes à masques) sont compressées sur l'appareil (environ 50 à 300 Ko chacune) et gardées dans son stockage local. Pour les retrouver sur vos autres appareils, elles passent par **Cloud Storage**, et non par Firestore. Sans Storage, tout le reste fonctionne : les images restent simplement sur l'appareil où vous les avez ajoutées.
+
+1. Console Firebase > **Storage** > Commencer. Les nouveaux projets doivent passer au plan **Blaze** (paiement à l'usage). La part gratuite (5 Go stockés, 100 Go téléchargés par mois pour un bucket aux États-Unis) suffit largement : 1 000 images font environ 250 Mo, et chaque appareil ne télécharge une image qu'une fois. Vous pouvez définir une alerte de budget dans Google Cloud.
+2. Publiez les règles de Storage (seul le propriétaire lit et écrit, 1 Mo au plus par image) : `./deploy.sh --storage`.
+3. Autorisez la lecture depuis le navigateur (CORS), une fois, depuis [Cloud Shell](https://shell.cloud.google.com) ou avec `gcloud` installé :
+   ```bash
+   gcloud storage buckets update gs://votre-projet.firebasestorage.app --cors-file=storage.cors.json
+   ```
+4. Publiez l'application (`./deploy.sh`) : `firebase.json` autorise l'affichage des images (`img-src blob:`).
+
 ## Dépannage
 
 | Message | Cause et solution |
@@ -52,6 +64,7 @@ Ouvrez ensuite `https://votre-projet.web.app`, puis Préférences > Cloud > « C
 | **auth/operation-not-allowed** | Le fournisseur n'est pas activé : Authentication > Méthode de connexion. |
 | Le bouton Google ne fait rien / retour sans connexion (iPad) | Utilisez le domaine Firebase Hosting (`.web.app`) pour l'application, publiez la dernière version, puis fermez et rouvrez l'app. Si vous avez ajouté des en-têtes de sécurité (CSP), ils doivent autoriser `apis.google.com` et `*.firebaseapp.com` (c'est le cas de `firebase.json` fourni). |
 | **permission-denied** | Les règles ne sont pas publiées ou sont anciennes : `./deploy.sh --rules`. |
+| Une image reste « pas encore disponible » sur un autre appareil | L'appareil qui l'a ajoutée ne l'a pas encore envoyée (hors ligne), ou Storage n'est pas configuré (voir « Images des cartes »). Si la console du navigateur montre une erreur CORS, refaites l'étape 3. |
 | « Cloud non configuré » dans l'app | `firebase-applet-config.json` est absent ou vide. Relancez le script. |
 
 ## Données et vie privée

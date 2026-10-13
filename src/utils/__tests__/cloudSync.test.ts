@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { AppSettings, Course, RevisionItem } from '../../types';
 import {
   CloudSnapshot,
+  FULL_READ_MAX_AGE_MS,
   SyncData,
+  canSkipFullRead,
   cloudToData,
   decideReconcile,
   diffData,
@@ -11,6 +13,8 @@ import {
   hashData,
   loadSafetyBackups,
   markSynced,
+  pendingChanges,
+  recordCloudToken,
   recordCloudWrite,
   saveSafetyBackup,
 } from '../cloudSync';
@@ -186,5 +190,119 @@ describe('safety backups', () => {
     expect(loadSafetyBackups('u2')).toEqual([]);
     localStorage.setItem('medj_safety_backups_v1_u3', '{not json');
     expect(loadSafetyBackups('u3')).toEqual([]);
+  });
+});
+
+describe('pendingChanges', () => {
+  const data: SyncData = {
+    courses: [course('a'), course('b')],
+    revisions: [revision('r1', 'a', 0), revision('r2', 'a', 1), revision('r3', 'b', 0)],
+    subjects: [{ id: 's', name: 'S', color: 'teal' } as SyncData['subjects'][number]],
+    settings,
+  };
+
+  it('sends everything when no per-document fingerprints exist yet', () => {
+    const p = pendingChanges(data, undefined);
+    expect(p.courses).toHaveLength(2);
+    expect(p.revisions).toHaveLength(3);
+    expect(p.subjects).toHaveLength(1);
+    expect(p.count).toBe(7);
+  });
+
+  it('sends nothing right after a sync', () => {
+    markSynced('u1', data, null);
+    const p = pendingChanges(data, getSyncMeta('u1').docs);
+    expect(p.count).toBe(0);
+    expect(p.courses).toEqual([]);
+    expect(p.revisions).toEqual([]);
+  });
+
+  it('sends only the modified and new documents', () => {
+    markSynced('u1', data, null);
+    const edited: SyncData = {
+      ...data,
+      revisions: [
+        revision('r1', 'a', 0),
+        { ...revision('r2', 'a', 1), scheduledDate: '2026-10-05' },
+        revision('r3', 'b', 0),
+        revision('r4', 'b', 1),
+      ],
+    };
+    const p = pendingChanges(edited, getSyncMeta('u1').docs);
+    expect(p.revisions.map((r) => r.id)).toEqual(['r2', 'r4']);
+    expect(p.courses).toEqual([]);
+    expect(p.count).toBe(2);
+  });
+
+  it('counts a settings change and ignores technical fields', () => {
+    markSynced('u1', data, null);
+    const docs = getSyncMeta('u1').docs;
+    const withStamps: SyncData = {
+      ...data,
+      courses: data.courses.map((c) => ({ ...c, userId: 'u1', updatedAt: 'x' }) as Course),
+    };
+    expect(pendingChanges(withStamps, docs).count).toBe(0);
+    const themed: SyncData = { ...data, settings: { ...settings, theme: 'dark' } };
+    const p = pendingChanges(themed, docs);
+    expect(p.count).toBe(1);
+    expect(p.courses).toEqual([]);
+  });
+
+  it('ignores deleted documents (handled by targeted deletes)', () => {
+    markSynced('u1', data, null);
+    const p = pendingChanges({ ...data, courses: [course('a')] }, getSyncMeta('u1').docs);
+    expect(p.count).toBe(0);
+  });
+
+  it('keeps the fingerprints when a cloud write is recorded', () => {
+    markSynced('u1', data, null);
+    recordCloudWrite('u1', '2026-10-03T00:00:00.000Z');
+    expect(getSyncMeta('u1').docs).toBeDefined();
+  });
+});
+
+describe('sync token', () => {
+  const now = 1_000_000_000;
+
+  it('is kept by recordCloudWrite and markSynced', () => {
+    recordCloudWrite('u1', '2026-10-02T00:00:00.000Z', 'tok-1');
+    markSynced('u1', base, '2026-10-02T00:00:00.000Z');
+    expect(getSyncMeta('u1').token).toBe('tok-1');
+    recordCloudToken('u1', 'tok-2');
+    expect(getSyncMeta('u1').token).toBe('tok-2');
+    recordCloudToken('u1', null);
+    expect(getSyncMeta('u1').token).toBe('tok-2');
+  });
+
+  it('skips the full read only for a known token and a recent full read', () => {
+    const meta = { token: 'tok' };
+    expect(canSkipFullRead(meta, 'tok', now - 1000, now)).toBe(true);
+    expect(canSkipFullRead(meta, 'other', now - 1000, now)).toBe(false);
+    expect(canSkipFullRead(meta, null, now - 1000, now)).toBe(false);
+    expect(canSkipFullRead({}, 'tok', now - 1000, now)).toBe(false);
+    expect(canSkipFullRead(meta, 'tok', null, now)).toBe(false);
+    expect(canSkipFullRead(meta, 'tok', now - FULL_READ_MAX_AGE_MS, now)).toBe(false);
+  });
+
+  it('is ignored when comparing data', () => {
+    const withToken: SyncData = { ...base, settings: { ...settings, syncToken: 'x' } as AppSettings };
+    expect(hashData(withToken)).toBe(hashData(base));
+  });
+});
+
+describe('hashData format', () => {
+  // Les empreintes sont enregistrées sur chaque appareil : changer le texte haché ferait croire à des
+  // modifications locales (voire à un conflit) après une mise à jour. Ces valeurs ne doivent pas bouger.
+  it('stays byte-for-byte stable', () => {
+    expect(hashData(base)).toBe('4dec2f61:344');
+    const reordered: SyncData = { ...base, courses: [course('b'), course('a')], revisions: [revision('r2', 'b', 1), revision('r1', 'a', 0)] };
+    expect(hashData(reordered)).toBe('37473aa7:597');
+  });
+
+  it('follows a change inside a collection and in the settings', () => {
+    const edited: SyncData = { ...base, revisions: [{ ...revision('r1', 'a', 0), completed: true }] };
+    expect(hashData(edited)).not.toBe(hashData(base));
+    expect(hashData({ ...base, settings: { ...settings, theme: 'dark' } })).not.toBe(hashData(base));
+    expect(hashData({ ...base, revisions: [revision('r1', 'a', 0)] })).toBe(hashData(base)); // same content, new objects
   });
 });

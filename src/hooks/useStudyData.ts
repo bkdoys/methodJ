@@ -1,11 +1,12 @@
 import { Dispatch, SetStateAction } from 'react';
 import { AppSettings, Course, CourseLink, LinkType, MasteryLevel, RevisionItem, Subject, ToastMessage } from '../types';
-import { applyCascadeShift, generateRevisionsForCourse } from '../utils/jMethod';
+import { clearOriginalDates, freezeOriginalDates, generateRevisionsForCourse } from '../utils/jMethod';
+import { shiftAndPlace } from '../utils/shiftPlacement';
+import { PlannedMove, retimeRevision } from '../utils/smoothing';
 import {
   assignStartTimes,
   getDayBreaks,
   getDayWindow,
-  placeRevisionAtTime,
   placementsToUpdates,
   resizeSlotInLayout,
 } from '../utils/dayLayout';
@@ -33,6 +34,8 @@ interface UseStudyDataOptions {
   notify: (toast: ToastMessage) => void;
   /** Garde la fiche ouverte à jour quand son cours change. */
   setSelectedCourseForDetail: Dispatch<SetStateAction<Course | null>>;
+  /** Cours supprimés : leurs paquets de cartes partent avec eux. */
+  onCoursesDeleted?: (courseIds: string[]) => void;
 }
 
 /**
@@ -51,6 +54,7 @@ export function useStudyData({
   cloudUid,
   notify,
   setSelectedCourseForDetail,
+  onCoursesDeleted,
 }: UseStudyDataOptions) {
   // Handler: Add new course
   const handleSaveNewCourse = (
@@ -118,24 +122,8 @@ export function useStudyData({
     const targetRev = revs.find((r) => r.id === revisionId);
     if (!targetRev) return null;
 
-    const shifted = applyCascadeShift(revs, revisionId, newDate, autoCascade);
-    const originalDate = new Map(revs.map((r) => [r.id, r.scheduledDate]));
-    const movedIds = new Set(
-      shifted.updatedRevisions.filter((r) => originalDate.get(r.id) !== r.scheduledDate).map((r) => r.id)
-    );
-    let base = shifted.updatedRevisions;
-    const exact = exactStartMinutes !== undefined && movedIds.has(revisionId);
-    if (exact) base = placeRevisionAtTime(base, revisionId, exactStartMinutes!, settings);
-    const toPlaceIds = new Set([...movedIds].filter((id) => !(exact && id === revisionId)));
-    const placed = new Map(
-      assignStartTimes(
-        base.filter((r) => !toPlaceIds.has(r.id)),
-        base.filter((r) => toPlaceIds.has(r.id)),
-        settings,
-        true
-      ).map((r) => [r.id, r])
-    );
-    const finalRevisions = base.map((r) => placed.get(r.id) ?? r);
+    // Cascade puis replacement dans la plage du nouveau jour (même fonction que la simulation des plans)
+    const { shifted, finalRevisions } = shiftAndPlace(revs, revisionId, newDate, autoCascade, settings, exactStartMinutes);
 
     // Déplacer un J0 déplace aussi la date de départ du cours
     const course = crs.find((c) => c.id === targetRev.courseId);
@@ -224,12 +212,18 @@ export function useStudyData({
 
   // Handler: applique un plan (lissage ou rattrapage) : les décalages s'enchaînent sur un tableau de travail,
   // puis une seule mise à jour d'état, une seule synchro ciblée et un seul message avec « Annuler ».
-  const handleApplyShifts = (moves: { revisionId: string; toDate: string }[]) => {
+  const handleApplyShifts = (moves: PlannedMove[]) => {
     if (moves.length === 0) return;
     let workRevs = revisions;
     let workCourses = courses;
     let applied = 0;
     for (const m of moves) {
+      // Remontée dans la journée : seule l'heure change
+      if (m.toStart !== undefined) {
+        workRevs = retimeRevision(workRevs, m.revisionId, m.toStart);
+        applied++;
+        continue;
+      }
       const res = shiftOnce(workRevs, workCourses, m.revisionId, m.toDate, settings.autoCascadeShift);
       if (!res) continue;
       workRevs = res.finalRevisions;
@@ -313,6 +307,18 @@ export function useStudyData({
       })
     );
 
+    // J0 validé : les autres J du cours gardent leur date prévue actuelle comme référence
+    if (targetRev.jIndex === 0) {
+      const frozen = freezeOriginalDates(revisions, targetRev.courseId);
+      if (frozen.length > 0) {
+        const byId = new Map(frozen.map((r) => [r.id, r]));
+        setRevisions((prev) => prev.map((r) => byId.get(r.id) ?? r));
+        if (cloudUid) {
+          syncRevisionsBatchToCloud(cloudUid, frozen).catch((e) => console.warn('Original dates sync error:', e));
+        }
+      }
+    }
+
     let updatedCourse: Course | undefined;
     if (updateCourseMastery) {
       setCourses((prev) =>
@@ -359,6 +365,18 @@ export function useStudyData({
       rating: undefined,
     };
     setRevisions((prev) => prev.map((r) => (r.id === revisionId ? updatedRev : r)));
+
+    // J0 annulé : plus de date d'origine, le cycle redevient libre
+    if (targetRev.jIndex === 0) {
+      const cleared = clearOriginalDates(revisions, targetRev.courseId);
+      if (cleared.length > 0) {
+        const byId = new Map(cleared.map((r) => [r.id, r]));
+        setRevisions((prev) => prev.map((r) => byId.get(r.id) ?? r));
+        if (cloudUid) {
+          syncRevisionsBatchToCloud(cloudUid, cleared).catch((e) => console.warn('Original dates clear sync error:', e));
+        }
+      }
+    }
 
     // Si c'était la dernière révision validée du cours, la maîtrise revient
     // à la note de la révision validée précédente (ou 0 = Nouveau).
@@ -413,6 +431,30 @@ export function useStudyData({
     );
   };
 
+  // Retire la couleur personnelle de ces cours : ils reprennent celle de leur dossier (ou de leur discipline).
+  // Un seul changement d'état et un seul message avec « Annuler ».
+  const handleResetCourseColors = (courseIds: string[]) => {
+    const ids = new Set(courseIds);
+    const previous = new Map(courses.filter((c) => ids.has(c.id) && c.customColor).map((c) => [c.id, c.customColor as string]));
+    if (previous.size === 0) return;
+    setCourses((prev) =>
+      prev.map((c) => {
+        if (!previous.has(c.id)) return c;
+        const { customColor: _dropped, ...rest } = c;
+        return rest;
+      })
+    );
+    notify({
+      title: t('Couleur du dossier appliquée'),
+      description: plural(previous.size, '{n} cours reprend la couleur de son dossier.', '{n} cours reprennent la couleur de leur dossier.'),
+      type: 'info',
+      action: {
+        label: t('Annuler'),
+        onClick: () => setCourses((prev) => prev.map((c) => (previous.has(c.id) ? { ...c, customColor: previous.get(c.id) } : c))),
+      },
+    });
+  };
+
   // Types de liens (liste commune à tous les cours, dans les réglages)
   const handleChangeLinkTypes = (linkTypes: LinkType[]) => {
     setSettings((prev) => ({ ...prev, linkTypes }));
@@ -440,6 +482,7 @@ export function useStudyData({
     setCourses((prev) => prev.filter((c) => c.id !== courseId));
     setRevisions((prev) => prev.filter((r) => r.courseId !== courseId));
     setSelectedCourseForDetail((prev) => (prev?.id === courseId ? null : prev));
+    onCoursesDeleted?.([courseId]);
     if (cloudUid) {
       deleteCourseFromCloud(cloudUid, courseId, revisionIds).catch((err) =>
         console.warn('Cloud delete error:', err)
@@ -475,6 +518,7 @@ export function useStudyData({
     setCourses((prev) => prev.filter((c) => !ids.has(c.id)));
     setRevisions((prev) => prev.filter((r) => !ids.has(r.courseId)));
     setSelectedCourseForDetail((prev) => (prev && ids.has(prev.id) ? null : prev));
+    onCoursesDeleted?.([...ids]);
     if (cloudUid) {
       attached.forEach((c) =>
         deleteCourseFromCloud(
@@ -598,6 +642,7 @@ export function useStudyData({
     handleConfirmComplete,
     handleUndoComplete,
     handleUpdateCourse,
+    handleResetCourseColors,
     handleUpdateCourseMastery,
     handleChangeLinkTypes,
     handleUpdateCourseNotes,

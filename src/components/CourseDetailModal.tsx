@@ -24,13 +24,16 @@ import {
   BookOpen,
   Check,
   Plus,
+  Layers,
 } from 'lucide-react';
-import { PRESET_COURSE_COLORS, getCourseGradientStyle, getSubjectBadgeStyle } from '../utils/colorUtils';
+import { PRESET_COURSE_COLORS, getSubjectBadgeStyle } from '../utils/colorUtils';
+import { getFolderColor } from '../utils/folderColors';
 import { FolderTreePicker } from './FolderTreePicker';
 import { CourseLinksEditor } from './CourseLinksEditor';
 import { getLinkTypes } from '../utils/courseLinks';
 import { formatCoursePath } from '../utils/folders';
-import { t } from '../i18n';
+import { plural, t } from '../i18n';
+import { useConfirm } from './ConfirmDialog';
 
 interface CourseDetailModalProps {
   course: Course | null;
@@ -65,6 +68,11 @@ interface CourseDetailModalProps {
   onOpenSlot?: (revision: RevisionItem) => void;
   /** Présent quand on vient d'une fiche créneau : revient dessus sans fermer. */
   onBackToSlot?: () => void;
+  /** Nombre de cartes du cours, et ouverture de leur éditeur. */
+  cardCount?: number;
+  onOpenDeck?: () => void;
+  /** Révise toutes les cartes du cours. */
+  onPlayCards?: () => void;
 }
 
 export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
@@ -84,7 +92,11 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
   onResizeSlot,
   onOpenSlot,
   onBackToSlot,
+  cardCount = 0,
+  onOpenDeck,
+  onPlayCards,
 }) => {
+  const confirm = useConfirm();
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(course?.title ?? '');
   const [itemCode, setItemCode] = useState(course?.itemCode ?? '');
@@ -129,8 +141,10 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
 
   const todayIso = getTodayIso();
   const currentSubject = subjects.find((s) => s.id === (isEditing ? subjectId : course.subjectId)) || subjects[0];
-  const effectiveColor = customColor || currentSubject.color;
-  const pathLabel = formatCoursePath(currentSubject, isEditing ? folderId : course.folderId);
+  const shownFolderId = isEditing ? folderId : course.folderId;
+  // Couleur du cours : la sienne, sinon celle de son dossier (choisie ou nuance automatique), sinon celle de la discipline
+  const effectiveColor = customColor || getFolderColor(currentSubject, shownFolderId) || currentSubject.color;
+  const pathLabel = formatCoursePath(currentSubject, shownFolderId);
   const courseRevisions = revisions
     .filter((r) => r.courseId === course.id)
     .sort((a, b) => a.jIndex - b.jIndex);
@@ -482,6 +496,39 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
             </div>
           </div>
 
+          {/* Cartes (flashcards) du cours : rédigées dans leur propre fenêtre */}
+          {onOpenDeck && (
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <Layers className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                {t('Cartes')}
+                <span className="font-normal text-slate-500 dark:text-slate-400">
+                  · {cardCount > 0 ? plural(cardCount, '{n} carte', '{n} cartes') : t('aucune')}
+                </span>
+              </span>
+              <div className="flex items-center gap-1.5">
+              {onPlayCards && cardCount > 0 && (
+                <button
+                  type="button"
+                  onClick={onPlayCards}
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold rounded-lg text-white bg-teal-600 hover:bg-teal-700"
+                >
+                  <Play className="w-3 h-3 fill-current" />
+                  {t('Réviser')}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onOpenDeck}
+                className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold rounded-lg text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-500/15 hover:bg-teal-100 dark:hover:bg-teal-500/25"
+              >
+                {cardCount > 0 ? <Edit2 className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                {cardCount > 0 ? t('Gérer les cartes') : t('Créer des cartes')}
+              </button>
+              </div>
+            </div>
+          )}
+
           {/* Liens externes : enregistrés au fil de l'eau, comme la maîtrise et la couleur */}
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
             <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{t('Liens')}</span>
@@ -504,7 +551,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
                 <span className="text-xs text-slate-600 dark:text-slate-400">
                   {t('Couleur dans le calendrier')}
                   <span className="text-slate-400 dark:text-slate-500">
-                    {' '}· {customColor ? t('personnalisée') : t('matière ({code})', { code: currentSubject.code })}
+                    {' '}· {customColor ? t('personnalisée') : shownFolderId ? t('dossier') : t('matière ({code})', { code: currentSubject.code })}
                   </span>
                 </span>
               </div>
@@ -581,12 +628,14 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
         <div className="px-6 py-3.5 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
           <button
             type="button"
-            onClick={() => {
-              if (
-                window.confirm(
-                  t('Supprimer définitivement le cours « {title} » et toutes ses révisions planifiées ?', { title: course.title })
-                )
-              ) {
+            onClick={async () => {
+              const ok = await confirm({
+                title: t('Supprimer le cours « {title} » ?', { title: course.title }),
+                message: t('Toutes ses révisions planifiées seront supprimées. Cette action est irréversible.'),
+                confirmLabel: t('Supprimer'),
+                tone: 'danger',
+              });
+              if (ok) {
                 onDeleteCourse(course.id);
                 onClose();
               }

@@ -1,4 +1,4 @@
-import { AppSettings, Course, RevisionItem, Subject } from '../types';
+import { AppSettings, Course, Deck, RevisionItem, Subject } from '../types';
 import { APP_FILE_PREFIX } from '../appInfo';
 import { DEFAULT_SETTINGS, getInitialSeedCoursesAndRevisions } from './seedData';
 import { DEFAULT_SUBJECTS } from './demoContent';
@@ -99,6 +99,17 @@ export function loadStoredData(userId?: string | null): AppDataState {
   }
 }
 
+// Dernière valeur écrite par clé. L'état n'est jamais modifié en place : la même référence = le même contenu,
+// inutile de resérialiser et de réécrire (une modification de révision ne réécrit plus les cours ni les réglages).
+// Toutes les écritures de ces clés passent par `saveStoredData`.
+const lastWritten = new Map<string, unknown>();
+
+function writeIfChanged(key: string, value: unknown) {
+  if (lastWritten.get(key) === value) return;
+  localStorage.setItem(key, JSON.stringify(value));
+  lastWritten.set(key, value);
+}
+
 export function saveStoredData(
   courses: Course[],
   revisions: RevisionItem[],
@@ -112,17 +123,18 @@ export function saveStoredData(
     const kSubjects = getStorageKey(STORAGE_KEYS.SUBJECTS, userId);
     const kSettings = getStorageKey(STORAGE_KEYS.SETTINGS, userId);
 
-    localStorage.setItem(kCourses, JSON.stringify(courses));
-    localStorage.setItem(kRevisions, JSON.stringify(revisions));
-    localStorage.setItem(kSubjects, JSON.stringify(subjects));
-    localStorage.setItem(kSettings, JSON.stringify(settings));
+    writeIfChanged(kCourses, courses);
+    writeIfChanged(kRevisions, revisions);
+    writeIfChanged(kSubjects, subjects);
+    writeIfChanged(kSettings, settings);
   } catch (err) {
     console.error('Failed to save to localStorage', err);
   }
 }
 
-export function exportBackupJson(data: AppDataState): void {
-  const jsonStr = JSON.stringify(data, null, 2);
+/** Export JSON ; les paquets de cartes (`decks`) n'y figurent que s'il y en a. */
+export function exportBackupJson(data: AppDataState, decks: Deck[] = []): void {
+  const jsonStr = JSON.stringify(decks.length > 0 ? { ...data, decks } : data, null, 2);
   const blob = new Blob([jsonStr], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -160,5 +172,28 @@ export function parseImportBackupJson(jsonString: string): AppDataState | null {
   } catch (err) {
     console.error('Erreur import JSON:', err);
     return null;
+  }
+}
+
+/** Paquets de cartes d'un fichier de sauvegarde (absents des anciens exports : liste vide) ; les entrées invalides sont ignorées. */
+export function parseImportDecks(jsonString: string): Deck[] {
+  try {
+    const parsed = JSON.parse(jsonString);
+    if (!Array.isArray(parsed.decks)) return [];
+    return parsed.decks.filter(
+      (d: unknown): d is Deck => {
+        const o = d as Record<string, unknown>;
+        return (
+          !!o && typeof o.id === 'string' && Array.isArray(o.cards) && typeof o.review === 'object' && o.review !== null
+          && (o.cards as unknown[]).every((c) => {
+            const k = c as Record<string, unknown>;
+            return !!k && typeof k.id === 'string' && typeof k.front === 'string' && (k.kind === 'basic' || k.kind === 'cloze' || k.kind === 'occlusion')
+              && typeof k.updatedAt === 'string' && typeof k.createdAt === 'string';
+          })
+        );
+      }
+    ).map((d: Deck) => ({ id: d.id, cards: d.cards, review: d.review }));
+  } catch {
+    return [];
   }
 }

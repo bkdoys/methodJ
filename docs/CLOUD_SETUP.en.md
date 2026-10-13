@@ -42,6 +42,18 @@ Then open `https://your-project.web.app`, go to Preferences > Cloud > "Continue 
 5. Publish the rules: `./deploy.sh --rules`.
 6. Enable Google sign-in (see above) and publish the app: `./deploy.sh`.
 
+## Card images (optional)
+
+Images added to cards (photo, diagram, image occlusion cards) are compressed on the device (about 50 to 300 KB each) and kept in its local storage. To get them on your other devices, they go through **Cloud Storage**, not Firestore. Without Storage, everything else works: images simply stay on the device where you added them.
+
+1. Firebase console > **Storage** > Get started. New projects must switch to the **Blaze** plan (pay as you go). The free tier (5 GB stored, 100 GB downloaded per month for a US bucket) is more than enough: 1,000 images are about 250 MB, and each device downloads an image only once. You can set a budget alert in Google Cloud.
+2. Publish the Storage rules (only the owner reads and writes, at most 1 MB per image): `./deploy.sh --storage`.
+3. Allow reading from the browser (CORS), once, from [Cloud Shell](https://shell.cloud.google.com) or with `gcloud` installed:
+   ```bash
+   gcloud storage buckets update gs://your-project.firebasestorage.app --cors-file=storage.cors.json
+   ```
+4. Publish the app (`./deploy.sh`): `firebase.json` allows images to be displayed (`img-src blob:`).
+
 ## Troubleshooting
 
 | Message | Cause and fix |
@@ -52,6 +64,7 @@ Then open `https://your-project.web.app`, go to Preferences > Cloud > "Continue 
 | **auth/operation-not-allowed** | The provider is not enabled: Authentication > Sign-in method. |
 | Google button does nothing / back on the app but not signed in (iPad) | Serve the app from the Firebase Hosting domain (`.web.app`), publish the latest version, then fully close and reopen the app. If you added security headers (CSP), they must allow `apis.google.com` and `*.firebaseapp.com` (the provided `firebase.json` does). |
 | **permission-denied** | Rules are not published or outdated: `./deploy.sh --rules`. |
+| An image stays “not yet available” on another device | The device that added it has not sent it yet (offline), or Storage is not set up (see “Card images”). If the browser console shows a CORS error, redo step 3. |
 | "Cloud not configured" in the app | `firebase-applet-config.json` is missing or empty. Run the script again. |
 
 ## Data and privacy

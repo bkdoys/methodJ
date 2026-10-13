@@ -4,6 +4,7 @@ import {
   auth,
   isCloudConfigured,
   fetchCloudData,
+  fetchCloudSyncToken,
   mirrorLocalToCloud,
   syncLocalDataToCloud,
 } from '../utils/firebase';
@@ -12,12 +13,15 @@ import { loadStoredData, saveStoredData, setLastUid } from '../utils/storage';
 import {
   SafetyBackup,
   SyncData,
+  canSkipFullRead,
   cloudToData,
   decideReconcile,
   getSyncMeta,
   hasUnsyncedChanges,
   loadSafetyBackups,
   markSynced,
+  pendingChanges,
+  recordCloudToken,
   saveSafetyBackup,
 } from '../utils/cloudSync';
 import { T, t } from '../i18n';
@@ -68,6 +72,8 @@ export function useCloudSync({ dataLoaded, data, stateRef, applyData, notify }: 
   );
   const [safetyBackups, setSafetyBackups] = useState<SafetyBackup[]>([]);
   const reconcilingRef = useRef(false);
+  // Dernière relecture complète du cloud dans cette session (ms), pour borner les relectures légères
+  const lastFullReadRef = useRef<number | null>(null);
 
   const setConflict = useCallback((c: SyncConflict | null) => {
     syncConflictRef.current = c;
@@ -87,8 +93,15 @@ export function useCloudSync({ dataLoaded, data, stateRef, applyData, notify }: 
       const announce = source === 'login' || source === 'manual';
       if (announce) setIsSyncing(true);
       try {
+        // Retour sur l'app ou du réseau : si le jeton du cloud n'a pas bougé et que rien n'attend
+        // d'être envoyé (sinon la suite s'en charge), une lecture suffit
+        if ((source === 'visible' || source === 'online') && !hasUnsyncedChanges(user.uid, stateRef.current)) {
+          const token = await fetchCloudSyncToken(user.uid);
+          if (canSkipFullRead(getSyncMeta(user.uid), token, lastFullReadRef.current, Date.now())) return;
+        }
         const cloud = await fetchCloudData(user.uid);
         if (!cloud) return;
+        lastFullReadRef.current = Date.now();
         const meta = getSyncMeta(user.uid);
         // À la connexion, le travail fait hors ligne est dans le stockage propre au compte
         const local: SyncData =
@@ -119,6 +132,7 @@ export function useCloudSync({ dataLoaded, data, stateRef, applyData, notify }: 
         if (decision === 'in-sync') {
           if (local !== stateRef.current) applyData(local);
           markSynced(user.uid, local, cloud.stamp);
+          recordCloudToken(user.uid, cloud.token);
           setHasUnsynced(false);
           if (announce) {
             notify({
@@ -135,6 +149,7 @@ export function useCloudSync({ dataLoaded, data, stateRef, applyData, notify }: 
           applyData(cloudData);
           saveStoredData(cloudData.courses, cloudData.revisions, cloudData.subjects, cloudData.settings, user.uid);
           markSynced(user.uid, cloudData, cloud.stamp);
+          recordCloudToken(user.uid, cloud.token);
           setHasUnsynced(false);
           if (announce) {
             notify({
@@ -210,7 +225,9 @@ export function useCloudSync({ dataLoaded, data, stateRef, applyData, notify }: 
   }, []);
 
   // Envoi automatique vers le cloud (3 s après la dernière modification), uniquement s'il y a
-  // des modifications en attente, en ligne, sans conflit non résolu.
+  // des modifications en attente, en ligne, sans conflit non résolu. Seuls les documents modifiés
+  // depuis la dernière synchro sont écrits, plus les réglages : leur `updatedAt` est l'estampille
+  // qui signale le changement aux autres appareils.
   useEffect(() => {
     if (!dataLoaded || !currentUser) return;
     const uid = currentUser.uid;
@@ -221,7 +238,8 @@ export function useCloudSync({ dataLoaded, data, stateRef, applyData, notify }: 
     const timeout = setTimeout(async () => {
       if (isSyncingFromCloudRef.current || syncConflictRef.current) return;
       try {
-        const stamp = await syncLocalDataToCloud(uid, courses, revisions, subjects, settings);
+        const changes = pendingChanges(current, getSyncMeta(uid).docs);
+        const stamp = await syncLocalDataToCloud(uid, changes.courses, changes.revisions, changes.subjects, settings);
         markSynced(uid, current, stamp);
         setHasUnsynced(hasUnsyncedChanges(uid, stateRef.current));
       } catch (err) {

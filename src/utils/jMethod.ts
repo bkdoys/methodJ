@@ -147,6 +147,8 @@ export function syncCourseRevisions(
   const currentCourseRevisions = existingRevisions.filter(r => r.courseId === course.id);
 
   const updatedCourseRevisions: RevisionItem[] = [];
+  // Un J ajouté après la validation du J0 est suivi dès sa création
+  const j0Done = currentCourseRevisions.some((r) => r.jIndex === 0 && r.completed);
 
   for (const jVal of newActiveJList) {
     const existing = currentCourseRevisions.find(r => r.jIndex === jVal);
@@ -162,9 +164,31 @@ export function syncCourseRevisions(
         durationMinutes: getSlotDurationMinutes(jVal, settings),
         completed: false,
         slotOrder: updatedCourseRevisions.length,
+        ...(j0Done && jVal !== 0 ? { originalDate: addDays(course.j0Date, jVal) } : {}),
       });
     }
   }
 
   return [...otherRevisions, ...updatedCourseRevisions];
+}
+
+/**
+ * Figer la date d'origine : quand le J0 d'un cours est validé, chaque autre J reçoit sa date prévue du moment comme
+ * référence (`originalDate`). Avant, tout peut être décalé sans trace ; après, `scheduledDate` bouge mais pas elle.
+ * Ne renvoie que les créneaux modifiés.
+ */
+export function freezeOriginalDates(revisions: RevisionItem[], courseId: string): RevisionItem[] {
+  return revisions
+    .filter((r) => r.courseId === courseId && r.jIndex !== 0 && r.originalDate === undefined)
+    .map((r) => ({ ...r, originalDate: r.scheduledDate }));
+}
+
+/** J0 annulé : le cycle n'a plus de référence, tout redevient libre. Ne renvoie que les créneaux modifiés. */
+export function clearOriginalDates(revisions: RevisionItem[], courseId: string): RevisionItem[] {
+  return revisions
+    .filter((r) => r.courseId === courseId && r.originalDate !== undefined)
+    .map((r) => {
+      const { originalDate: _dropped, ...rest } = r;
+      return rest;
+    });
 }

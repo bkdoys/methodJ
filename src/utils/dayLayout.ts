@@ -281,6 +281,11 @@ function configuredDayBreaks(settings: Partial<Pick<AppSettings, 'breaks'>>, dat
 type Span = { start: number; end: number };
 const overlaps = (a: Span, b: Span) => a.start < b.end && b.start < a.end;
 
+/** Réglages qui décident où l'on peut poser un créneau (plage du jour, pauses, jours forcés, échelle). */
+export type PlacementSettings = Partial<
+  Pick<AppSettings, 'dayStartTime' | 'dayWindows' | 'breaks' | 'forcedDates' | 'timelineStartHour' | 'timelineEndHour' | 'timelineStepMinutes'>
+>;
+
 /**
  * Première place libre dans la plage, en avançant par pas. Si la plage est pleine, le créneau est posé
  * juste après le dernier créneau (au mieux, avant minuit) : il déborde de la plage plutôt que d'être perdu.
@@ -312,7 +317,7 @@ export function findFreeStart(
 export function assignStartTimes(
   existing: RevisionItem[],
   incoming: RevisionItem[],
-  settings: AppSettings,
+  settings: PlacementSettings,
   keepStartTime = false,
   now?: { date: string; minutes: number }
 ): RevisionItem[] {
@@ -364,7 +369,7 @@ export function placeRevisionAtTime(
   revisions: RevisionItem[],
   targetId: string,
   startMinutes: number,
-  settings: AppSettings
+  settings: PlacementSettings
 ): RevisionItem[] {
   const target = revisions.find((r) => r.id === targetId);
   if (!target) return revisions;

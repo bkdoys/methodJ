@@ -19,15 +19,23 @@ A day is “to watch” in two cases:
 
 ## Smoothing a busy day
 
-For each day to watch, from the nearest to the farthest, the app looks for a non-completed slot to **push back by a few days**:
+For each day to watch, from the nearest to the farthest, the app tries two things, in this order.
+
+**First, without changing day.** If a slot runs past the working window while a place is free earlier the same day (for example a slot
+placed late by hand, with a gap in the morning), it is **moved up to the first free place** of the day, avoiding breaks. This touches no
+other day and no cascade. If the day is only over the target, moving up changes nothing: the app goes on to the next step.
+
+**Then it looks for a non-completed slot to push back by a few days**:
 
 1. The highest Js are tried first (more slack than a J0 or J1); a completed slot is never touched.
 2. Maximum delay accepted by J: **1 day** for J0 and J1, **2 days** for J2 and J3, **3 days** beyond.
-3. A move is kept only if it **relieves** the starting day (fewer slots outside the window, or fewer minutes above the target) and
+3. A slot pushed back is **placed at the first free place of its new day** (as when you move it by hand): the arrival day is judged with that
+   time, not with the old one. A slot that would keep an hour that also overflows there is therefore no longer refused when there is room earlier.
+4. A move is kept only if it **relieves** the starting day (fewer slots outside the window, or fewer minutes above the target) and
    makes **no other day worse**, cascade included: a day without an alert does not receive one, an already busy day must not get worse.
-4. If the cascade is on (Settings), the following non-completed Js of the same course are shifted by the same number of days; their
+5. If the cascade is on (Settings), the following non-completed Js of the same course are shifted by the same number of days; their
    arrival days are part of the check.
-5. If no slot fits, the app says so: **“no simple solution”**. It is then up to you to move a slot by hand or to adjust the working window or
+6. If no slot fits, the app says so: **“no simple solution”**. It is then up to you to move a slot by hand or to adjust the working window or
    the target.
 
 Moves are computed one after the other on a simulated state. Each proposal has a **checkbox, everything is checked by default**, and a single
@@ -41,7 +49,7 @@ free place.
 
 1. Overdue slots are handled from the oldest to the most recent.
 2. Each one is put back **as early as possible from today**, on a day where it makes nothing worse (target and window respected,
-   cascade included).
+   cascade included), at the first free place of that day.
 3. With the cascade, the following Js of the same course follow; those that already moved are not proposed a second time.
    As with smoothing, proposals can be checked and unchecked.
 4. The search covers the **next 14 days**. Beyond that, or if no day fits: “no simple solution”, to be moved by hand.

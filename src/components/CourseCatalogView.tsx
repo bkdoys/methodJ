@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppSettings, Course, MasteryLevel, RevisionItem, Subject } from '../types';
 import { MasteryStars } from './MasteryStars';
 import { RetentionTimeline } from './RetentionTimeline';
@@ -10,21 +10,14 @@ import { COURSE_SORT_OPTIONS, CourseSortMode, DEFAULT_COURSE_SORT, isCourseSortM
 import { formatFrenchDate, getTodayIso } from '../utils/dateUtils';
 import {
   Search,
-  Filter,
   Plus,
   ArrowRightLeft,
   Trash2,
   BookOpen,
   Calendar,
-  CheckCircle2,
-  Clock,
-  Sparkles,
-  ChevronDown,
   Edit2,
-  Palette,
   NotebookPen,
   ArrowUpDown,
-  PanelLeft,
   GripVertical,
   PanelLeftClose,
   PanelLeftOpen,
@@ -35,10 +28,23 @@ import { getLinkTypes } from '../utils/courseLinks';
 import { COURSE_DRAG_MIME, CourseFolderTree, TreeSelection } from './CourseFolderTree';
 import { courseInNode, formatCoursePath } from '../utils/folders';
 import { t } from '../i18n';
+import { useConfirm } from './ConfirmDialog';
+import {
+  PANEL_DEFAULT_WIDTH,
+  PANEL_KEY_STEP,
+  PANEL_KEY_STEP_LARGE,
+  PANEL_MAX_WIDTH,
+  PANEL_MIN_WIDTH,
+  clampPanelWidth,
+  parseStoredPanelWidth,
+} from '../utils/panelWidth';
 
 
 const SORT_STORAGE_KEY = 'medj_catalog_sort_v1';
 const TREE_OPEN_STORAGE_KEY = 'medj_catalog_tree_v1';
+const TREE_WIDTH_STORAGE_KEY = 'medj_catalog_tree_width_v1';
+/** Cartes dessinées par tranche (la suivante s'ajoute au défilement). */
+const CARDS_PER_PAGE = 30;
 
 interface CourseCatalogViewProps {
   courses: Course[];
@@ -57,6 +63,8 @@ interface CourseCatalogViewProps {
   compact?: boolean;
   onGoToDate: (date: string, revisionId: string) => void;
   onMoveCourse: (courseId: string, node: TreeSelection) => void;
+  /** Retire la couleur personnelle de ces cours : ils reprennent celle de leur dossier. */
+  onResetCourseColors: (courseIds: string[]) => void;
   onUpdateSubjectFolders: (subject: Subject, moveCourses?: { from: string; to: string | undefined }) => void;
 }
 
@@ -75,8 +83,10 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
   compact = false,
   onGoToDate,
   onMoveCourse,
+  onResetCourseColors,
   onUpdateSubjectFolders,
 }) => {
+  const confirm = useConfirm();
   const [searchQuery, setSearchQuery] = useState('');
   // Arbre des disciplines et dossiers : replié, tous les cours sont visibles (la sélection est alors ignorée)
   const [selection, setSelection] = useState<TreeSelection | null>(null);
@@ -98,6 +108,24 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
       return !open;
     });
   };
+  // Largeur de l'arbre (réglable à la souris ou au clavier, mémorisée sur cet appareil)
+  const [treeWidth, setTreeWidth] = useState<number>(() => {
+    try {
+      return parseStoredPanelWidth(localStorage.getItem(TREE_WIDTH_STORAGE_KEY));
+    } catch {
+      return PANEL_DEFAULT_WIDTH;
+    }
+  });
+  const layoutRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
+  const saveTreeWidth = (width: number) => {
+    try {
+      localStorage.setItem(TREE_WIDTH_STORAGE_KEY, String(width));
+    } catch {
+      // stockage indisponible : la largeur reste valable pour cette session
+    }
+  };
+  const setClampedTreeWidth = (width: number) => setTreeWidth(clampPanelWidth(width, layoutRef.current?.clientWidth));
   const [editingNotesCourseId, setEditingNotesCourseId] = useState<string | null>(null);
   const [notesBuffer, setNotesBuffer] = useState('');
   const [synthesisCourseId, setSynthesisCourseId] = useState<string | null>(null);
@@ -135,24 +163,58 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
   // Une discipline supprimée entre-temps ne doit pas laisser un filtre fantôme
   const activeSelection = selection && subjects.some((s) => s.id === selection.subjectId) ? selection : null;
 
+  // Créneaux de chaque cours, triés par J (calculé une fois, au lieu d'un filtre par carte)
+  const revisionsByCourse = useMemo(() => {
+    const map = new Map<string, RevisionItem[]>();
+    revisions.forEach((r) => {
+      const list = map.get(r.courseId);
+      if (list) list.push(r);
+      else map.set(r.courseId, [r]);
+    });
+    map.forEach((list) => list.sort((a, b) => a.jIndex - b.jIndex));
+    return map;
+  }, [revisions]);
+
   // Filtered courses
+  const query = searchQuery.toLowerCase();
   const matchingCourses = courses.filter((course) => {
     const matchesSearch =
-      course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      course.itemCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (course.notes && course.notes.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      revisions.some(
-        (r) =>
-          r.courseId === course.id &&
-          r.notes &&
-          r.notes.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      course.title.toLowerCase().includes(query) ||
+      course.itemCode.toLowerCase().includes(query) ||
+      (course.notes && course.notes.toLowerCase().includes(query)) ||
+      (revisionsByCourse.get(course.id) ?? []).some((r) => r.notes && r.notes.toLowerCase().includes(query));
 
     const matchesSubject = !treeOpen || !activeSelection || courseInNode(course, activeSelection, subjects);
 
     return matchesSearch && matchesSubject;
   });
   const filteredCourses = sortCourses(matchingCourses, revisions, subjects, sortMode);
+
+  // Affichage par tranches : avec des centaines de cours, dessiner toutes les cartes alourdit toute la page.
+  // La tranche suivante s'ajoute quand le bas de la liste approche ; on repart du début quand le filtre change.
+  const [visibleCount, setVisibleCount] = useState(CARDS_PER_PAGE);
+  useEffect(() => {
+    setVisibleCount(CARDS_PER_PAGE);
+  }, [searchQuery, activeSelection?.subjectId, activeSelection?.folderId, treeOpen, sortMode]);
+  const visibleCourses = filteredCourses.slice(0, visibleCount);
+  const hasMore = filteredCourses.length > visibleCount;
+  const showMore = useCallback(() => setVisibleCount((n) => n + CARDS_PER_PAGE), []);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const sentinelRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      observerRef.current?.disconnect();
+      observerRef.current = null;
+      if (!el || typeof IntersectionObserver === 'undefined') return;
+      observerRef.current = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((e) => e.isIntersecting)) showMore();
+        },
+        { rootMargin: '600px' }
+      );
+      observerRef.current.observe(el);
+    },
+    [showMore]
+  );
 
   const handleSaveNotes = (courseId: string) => {
     onUpdateCourseNotes(courseId, notesBuffer);
@@ -213,7 +275,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-4 lg:items-stretch">
+      <div ref={layoutRef} className="flex flex-col lg:flex-row gap-4 lg:items-stretch">
       {!treeOpen && (
         <button
           type="button"
@@ -226,7 +288,11 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
         </button>
       )}
       {treeOpen && (
-        <aside className="lg:w-60 lg:shrink-0 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-2 shadow-2xs max-h-[70vh] lg:max-h-none overflow-y-auto">
+        <div
+          className="relative flex flex-col lg:shrink-0 lg:w-[var(--tree-w)]"
+          style={{ '--tree-w': `${treeWidth}px` } as React.CSSProperties}
+        >
+        <aside className="flex-1 min-h-0 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-2 shadow-2xs max-h-[70vh] lg:max-h-none overflow-y-auto">
           <div className="flex items-center justify-between px-2 pb-1.5 mb-1 border-b border-slate-100 dark:border-slate-800">
             <span className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{t('Disciplines')}</span>
             <button
@@ -246,8 +312,60 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
             onSelect={setSelection}
             onDropCourse={onMoveCourse}
             onUpdateSubject={onUpdateSubjectFolders}
+            onResetCourseColors={onResetCourseColors}
           />
         </aside>
+        {/* Poignée : glisser pour élargir ou rétrécir l'arbre (flèches du clavier, double-clic = largeur d'origine) */}
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={t('Largeur de l\'arbre')}
+          aria-valuemin={PANEL_MIN_WIDTH}
+          aria-valuemax={PANEL_MAX_WIDTH}
+          aria-valuenow={treeWidth}
+          tabIndex={0}
+          title={t('Glisser pour ajuster la largeur (double-clic : largeur d\'origine)')}
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            dragRef.current = { startX: e.clientX, startWidth: treeWidth };
+          }}
+          onPointerMove={(e) => {
+            if (dragRef.current) setClampedTreeWidth(dragRef.current.startWidth + e.clientX - dragRef.current.startX);
+          }}
+          onPointerUp={(e) => {
+            if (!dragRef.current) return;
+            const width = clampPanelWidth(dragRef.current.startWidth + e.clientX - dragRef.current.startX, layoutRef.current?.clientWidth);
+            dragRef.current = null;
+            setTreeWidth(width);
+            saveTreeWidth(width);
+          }}
+          onPointerCancel={() => {
+            dragRef.current = null;
+          }}
+          onDoubleClick={() => {
+            setTreeWidth(PANEL_DEFAULT_WIDTH);
+            saveTreeWidth(PANEL_DEFAULT_WIDTH);
+          }}
+          onKeyDown={(e) => {
+            const step = e.shiftKey ? PANEL_KEY_STEP_LARGE : PANEL_KEY_STEP;
+            const next =
+              e.key === 'ArrowRight' ? treeWidth + step
+              : e.key === 'ArrowLeft' ? treeWidth - step
+              : e.key === 'Home' ? PANEL_MIN_WIDTH
+              : e.key === 'End' ? PANEL_MAX_WIDTH
+              : e.key === 'Enter' ? PANEL_DEFAULT_WIDTH
+              : null;
+            if (next === null) return;
+            e.preventDefault();
+            const width = clampPanelWidth(next, layoutRef.current?.clientWidth);
+            setTreeWidth(width);
+            saveTreeWidth(width);
+          }}
+          className="group hidden lg:flex absolute top-0 bottom-0 left-full w-4 items-start justify-center pt-20 cursor-col-resize touch-none focus:outline-none"
+        >
+          <span className="w-0.5 h-12 rounded-full bg-slate-300 dark:bg-slate-700 group-hover:bg-teal-500 group-focus-visible:bg-teal-500 group-active:bg-teal-600 transition-colors" />
+        </div>
+        </div>
       )}
       <div className="flex-1 min-w-0">
       {/* Courses List */}
@@ -263,7 +381,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredCourses.map((course) => {
+          {visibleCourses.map((course) => {
             const subject = getSubject(course.subjectId, subjects);
             const effectiveColor = getCourseEffectiveColor(course, subject);
             const pathLabel = formatCoursePath(subject, course.folderId);
@@ -274,12 +392,8 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
               color: `color-mix(in srgb, ${effectiveColor} 78%, ${isDark ? '#f1f5f9' : '#0f172a'})`,
             };
             // Prochain créneau à faire : le premier non validé qui n'est pas en retard
-            const nextRevId = revisions
-              .filter((r) => r.courseId === course.id && !r.completed && r.scheduledDate >= todayIso)
-              .sort((a, b) => a.jIndex - b.jIndex)[0]?.id;
-            const courseRevisions = revisions
-              .filter((r) => r.courseId === course.id)
-              .sort((a, b) => a.jIndex - b.jIndex);
+            const courseRevisions = revisionsByCourse.get(course.id) ?? [];
+            const nextRevId = courseRevisions.find((r) => !r.completed && r.scheduledDate >= todayIso)?.id;
 
             const completedCount = courseRevisions.filter((r) => r.completed).length;
             const hasAnyNotes =
@@ -541,14 +655,14 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                       </button>
 
                       <button
-                        onClick={() => {
-                          if (
-                            window.confirm(
-                              t('Supprimer définitivement le cours « {title} » et toutes ses révisions planifiées ?', { title: course.title })
-                            )
-                          ) {
-                            onDeleteCourse(course.id);
-                          }
+                        onClick={async () => {
+                          const ok = await confirm({
+                            title: t('Supprimer le cours « {title} » ?', { title: course.title }),
+                            message: t('Toutes ses révisions planifiées seront supprimées. Cette action est irréversible.'),
+                            confirmLabel: t('Supprimer'),
+                            tone: 'danger',
+                          });
+                          if (ok) onDeleteCourse(course.id);
                         }}
                         className="text-slate-400 hover:text-rose-600 flex items-center gap-1 transition-colors"
                         title={t('Supprimer ce cours')}
@@ -562,6 +676,17 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
               </div>
             );
           })}
+          {hasMore && (
+            <div ref={sentinelRef} className="flex justify-center py-2">
+              <button
+                type="button"
+                onClick={showMore}
+                className="px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+              >
+                {t('Afficher plus ({n} restants)', { n: filteredCourses.length - visibleCount })}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

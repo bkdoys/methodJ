@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="180" height="180">
+  <defs>
+    <linearGradient id="medjGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d9488" />
+      <stop offset="50%" stop-color="#0f766e" />
+      <stop offset="100%" stop-color="#115e59" />
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <!-- Plein cadre : le système applique lui-même le masque (iOS) ou la découpe (Android) -->
+  <rect width="512" height="512" fill="url(#medjGrad)"/>
+  <!-- Même dessin que icon.svg, réduit autour du centre (zone de sécurité) -->
+  <g transform="translate(256 256) scale(0.95) translate(-256 -256)">
+    <g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M256 140 v232" stroke-width="36"/>
+      <path d="M140 256 h232" stroke-width="36"/>
+    </g>
+    <circle cx="370" cy="370" r="76" fill="#f59e0b" filter="url(#shadow)"/>
+    <text x="370" y="405" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="96" font-weight="900" fill="#ffffff" text-anchor="middle">J</text>
+  </g>
+</svg>

@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { ChevronRight, Folder, FolderPlus, Layers, Pencil, Trash2 } from 'lucide-react';
+import { ChevronRight, Folder, FolderPlus, Layers, Palette, Pencil, Trash2 } from 'lucide-react';
 import { Course, Subject } from '../types';
-import { addFolder, courseInNode, deleteFolder, getChildFolders, newFolderId, renameFolder } from '../utils/folders';
+import { addFolder, courseInNode, deleteFolder, getChildFolders, getFolders, newFolderId, renameFolder, setChildFoldersColor, setFolderColor } from '../utils/folders';
+import { getFolderColor } from '../utils/folderColors';
+import { FolderColorPopover } from './FolderColorPopover';
 import { t } from '../i18n';
+import { useConfirm } from './ConfirmDialog';
 
 /** Type de glisser-déposer d'un cours depuis le catalogue. */
 export const COURSE_DRAG_MIME = 'application/x-medj-course';
@@ -21,6 +24,8 @@ interface CourseFolderTreeProps {
   onDropCourse: (courseId: string, node: TreeSelection) => void;
   /** `moveCourses` : les cours du dossier supprimé passent dans `to` (undefined = racine de la discipline). */
   onUpdateSubject: (subject: Subject, moveCourses?: { from: string; to: string | undefined }) => void;
+  /** Retire la couleur personnelle de ces cours : ils reprennent celle de leur dossier. */
+  onResetCourseColors: (courseIds: string[]) => void;
 }
 
 type Editing = { kind: 'add'; subjectId: string; parentId?: string } | { kind: 'rename'; subjectId: string; folderId: string };
@@ -33,11 +38,15 @@ export const CourseFolderTree: React.FC<CourseFolderTreeProps> = ({
   onSelect,
   onDropCourse,
   onUpdateSubject,
+  onResetCourseColors,
 }) => {
+  const confirm = useConfirm();
   const [dropKey, setDropKey] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<Editing | null>(null);
   const [draft, setDraft] = useState('');
+  // Palette de couleur ouverte : quel dossier et quel bouton l'a ouverte
+  const [palette, setPalette] = useState<{ subjectId: string; folderId: string; anchor: HTMLElement } | null>(null);
 
   const toggle = (id: string) =>
     setCollapsed((prev) => {
@@ -107,6 +116,9 @@ export const CourseFolderTree: React.FC<CourseFolderTreeProps> = ({
     opts: { hasChildren: boolean; folderId?: string; canAddChild: boolean }
   ) => {
     const sel = isSelected(node);
+    // Un dossier a sa propre couleur (choisie, ou nuance automatique de la discipline). Son icône est pleine : avec un
+    // trait fin, elle paraissait plus claire que ses cours, dessinés en aplat dans le planning et le catalogue.
+    const color = getFolderColor(subject, node.folderId) ?? subject.color;
     const isOpen = !collapsed.has(node.folderId ?? node.subjectId);
     const renaming =
       editing?.kind === 'rename' && editing.subjectId === subject.id && editing.folderId === node.folderId;
@@ -118,8 +130,8 @@ export const CourseFolderTree: React.FC<CourseFolderTreeProps> = ({
         className="group flex items-center rounded-lg border transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60"
         style={{
           paddingLeft: depth * 14,
-          backgroundColor: dropTarget ? `${subject.color}26` : sel ? subject.accentBg : undefined,
-          borderColor: dropTarget || sel ? subject.color : 'transparent',
+          backgroundColor: dropTarget ? `${color}26` : sel ? (node.folderId ? `${color}1f` : subject.accentBg) : undefined,
+          borderColor: dropTarget || sel ? color : 'transparent',
           borderStyle: dropTarget ? 'dashed' : undefined,
         }}
         onDragOver={(e) => {
@@ -151,22 +163,29 @@ export const CourseFolderTree: React.FC<CourseFolderTreeProps> = ({
         <button
           type="button"
           onClick={() => onSelect(node)}
+          title={label}
           className="flex-1 min-w-0 flex items-center gap-1.5 py-1 text-left text-xs font-semibold"
         >
           {node.folderId ? (
-            <Folder className="w-3.5 h-3.5 shrink-0" style={{ color: subject.color }} />
+            <Folder className="w-3.5 h-3.5 shrink-0" style={{ color }} fill={color} />
           ) : (
             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: subject.color }} />
           )}
           <span
-            className={`truncate ${node.folderId ? '' : 'font-bold'} dark:text-slate-100`}
-            style={{ color: sel ? subject.color : undefined }}
+            // Jusqu'à deux lignes (le nom complet est dans l'infobulle), au lieu d'une ligne coupée
+            className={`min-w-0 line-clamp-2 break-words leading-snug ${node.folderId ? '' : 'font-bold'} dark:text-slate-100`}
+            style={{ color: sel ? color : undefined }}
           >
             {label}
           </span>
           <span className="ml-auto pl-1 text-[10px] font-mono text-slate-400 shrink-0">{count(node)}</span>
         </button>
-        <span className="hidden group-hover:flex group-focus-within:flex items-center shrink-0 pr-0.5">
+        {/* Les boutons restent affichés tant que la palette de ce dossier est ouverte (elle se place contre le bouton) */}
+        <span
+          className={`${
+            palette?.folderId !== undefined && palette.folderId === node.folderId && palette.subjectId === subject.id ? 'flex' : 'hidden group-hover:flex group-focus-within:flex'
+          } items-center shrink-0 pr-0.5`}
+        >
           {opts.canAddChild && (
             <button
               type="button"
@@ -182,6 +201,16 @@ export const CourseFolderTree: React.FC<CourseFolderTreeProps> = ({
             <>
               <button
                 type="button"
+                title={t('Couleur du dossier')}
+                aria-label={t('Couleur du dossier')}
+                aria-haspopup="dialog"
+                onClick={(e) => setPalette({ subjectId: subject.id, folderId: node.folderId!, anchor: e.currentTarget })}
+                className={actionBtn}
+              >
+                <Palette className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
                 title={t('Renommer')}
                 aria-label={t('Renommer')}
                 onClick={() => startEdit({ kind: 'rename', subjectId: subject.id, folderId: node.folderId! }, label)}
@@ -193,8 +222,14 @@ export const CourseFolderTree: React.FC<CourseFolderTreeProps> = ({
                 type="button"
                 title={t('Supprimer ce dossier')}
                 aria-label={t('Supprimer ce dossier')}
-                onClick={() => {
-                  if (!window.confirm(t('Supprimer le dossier « {name} » ? Ses cours et sous-dossiers remontent d\'un niveau.', { name: label }))) return;
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: t('Supprimer le dossier « {name} » ?', { name: label }),
+                    message: t('Ses cours et sous-dossiers remontent d\'un niveau.'),
+                    confirmLabel: t('Supprimer'),
+                    tone: 'danger',
+                  });
+                  if (!ok) return;
                   const { subject: next, courseTarget } = deleteFolder(subject, node.folderId!);
                   onUpdateSubject(next, { from: node.folderId!, to: courseTarget });
                   if (selected?.subjectId === subject.id && selected.folderId === node.folderId) {
@@ -267,6 +302,27 @@ export const CourseFolderTree: React.FC<CourseFolderTreeProps> = ({
           </div>
         );
       })}
+      {palette && (() => {
+        const subject = subjects.find((x) => x.id === palette.subjectId);
+        const folder = getFolders(subject).find((f) => f.id === palette.folderId);
+        if (!subject || !folder) return null;
+        // Cours du dossier (sous-dossiers compris) qui ont leur propre couleur : elle l'emporte sur celle du dossier
+        const personal = courses.filter((c) => c.customColor && courseInNode(c, { subjectId: subject.id, folderId: folder.id }, subjects));
+        return (
+          <FolderColorPopover
+            childFolderCount={getChildFolders(subject, folder.id).length}
+            onApplyToChildren={() => onUpdateSubject(setChildFoldersColor(subject, folder.id, getFolderColor(subject, folder.id) ?? subject.color))}
+            personalColorCount={personal.length}
+            onUseFolderColor={() => onResetCourseColors(personal.map((c) => c.id))}
+            anchor={palette.anchor}
+            folderName={folder.name}
+            chosen={folder.color}
+            current={getFolderColor(subject, folder.id) ?? subject.color}
+            onPick={(color) => onUpdateSubject(setFolderColor(subject, folder.id, color))}
+            onClose={() => setPalette(null)}
+          />
+        );
+      })()}
     </div>
   );
 };

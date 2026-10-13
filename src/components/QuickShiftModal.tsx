@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
-import { Course, RevisionItem, Subject } from '../types';
-import { addDays, diffInDays, formatFrenchDate, parseIsoDate } from '../utils/dateUtils';
-import { Calendar, ArrowRight, AlertCircle, Sparkles, X } from 'lucide-react';
+import { Course, RevisionItem } from '../types';
+import { addDays, diffInDays, formatFrenchDate } from '../utils/dateUtils';
+import { Calendar, ArrowRight, X } from 'lucide-react';
 import { t } from '../i18n';
 
 interface QuickShiftModalProps {
   revision: RevisionItem;
   course: Course;
-  subject?: Subject;
   allCourseRevisions: RevisionItem[];
   isOpen: boolean;
   onClose: () => void;
@@ -17,7 +16,6 @@ interface QuickShiftModalProps {
 export const QuickShiftModal: React.FC<QuickShiftModalProps> = ({
   revision,
   course,
-  subject,
   allCourseRevisions,
   isOpen,
   onClose,

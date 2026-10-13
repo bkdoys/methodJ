@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRightLeft, BookOpen, Check, Clock, Play, X } from 'lucide-react';
+import { ArrowRightLeft, BookOpen, Check, Clock, Layers, Play, X } from 'lucide-react';
 import { AppSettings, Course, RevisionItem, Subject } from '../types';
 import { RichTextEditor } from './RichTextEditor';
 import { DurationSelect } from './DurationSelect';
@@ -29,6 +29,9 @@ interface SlotDetailModalProps {
   onOpenCompleteModal: (revision: RevisionItem) => void;
   onOpenQuickShift: (revision: RevisionItem) => void;
   onStartStudySession: (revision: RevisionItem) => void;
+  /** Cartes du cours : leur nombre, et leur révision lancée depuis ce créneau. */
+  cardCount?: number;
+  onPlayCards?: (revision: RevisionItem) => void;
 }
 
 /** Vue d'un seul créneau J : l'essentiel pour agir dessus, avec un lien vers le cours complet. */
@@ -45,6 +48,8 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
   onOpenCompleteModal,
   onOpenQuickShift,
   onStartStudySession,
+  cardCount = 0,
+  onPlayCards,
 }) => {
   const [note, setNote] = useState(rev.notes ?? '');
   // Enregistre la note en cours avant toute action qui quitte ou change cette fiche
@@ -213,6 +218,16 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                 {t('Lancer')}
               </button>
             </>
+          )}
+          {onPlayCards && cardCount > 0 && (
+            <button
+              onClick={then(() => onPlayCards(rev))}
+              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-500/15 hover:bg-teal-100 dark:hover:bg-teal-500/25 rounded-lg"
+              title={t('Réviser les cartes de ce cours')}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              {t('Cartes')} · {cardCount}
+            </button>
           )}
           <button
             onClick={then(onOpenCourse)}

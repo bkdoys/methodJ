@@ -13,6 +13,12 @@ export function getTodayIso(): string {
   return `${year}-${month}-${day}`;
 }
 
+/** Millisecondes jusqu'au prochain minuit local, plus une seconde de marge (changement d'heure compris). */
+export function msUntilNextDay(now: Date): number {
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  return next.getTime() - now.getTime() + 1000;
+}
+
 export function parseIsoDate(isoString: string): Date {
   const [year, month, day] = isoString.split('-').map(Number);
   return new Date(year, month - 1, day);

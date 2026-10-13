@@ -90,8 +90,25 @@ export const BreaksEditor: React.FC<BreaksEditorProps> = ({ value, onChange, wee
               {weekdayLabels[Number(k)]}
             </span>
             <div className="flex-1 flex items-center gap-2 flex-wrap">
-              <BreakRows list={value[k]} label={weekdayLabels[Number(k)]} onChange={(l) => set(k, l)} />
-              {value[k].length === 0 && <span className="text-[11px] text-slate-400">{t('aucune pause')}</span>}
+              {/* Retirer la dernière pause d'un jour le remet sur les pauses communes ; « aucune pause » se choisit exprès */}
+              <BreakRows
+                list={value[k]}
+                label={weekdayLabels[Number(k)]}
+                onChange={(l) => (l.length === 0 ? unset(k) : set(k, l))}
+              />
+              {value[k].length === 0 ? (
+                <span className="text-[11px] text-amber-700 dark:text-amber-400">
+                  {t('Aucune pause ce jour-là : les pauses communes ne s\'appliquent pas.')}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => set(k, [])}
+                  className="text-[11px] text-slate-500 dark:text-slate-400 hover:underline"
+                >
+                  {t('Aucune pause ce jour')}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => unset(k)}

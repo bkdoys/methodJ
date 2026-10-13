@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Course, MasteryLevel, RevisionItem, Subject } from '../types';
+import { Course, MasteryLevel, RevisionItem } from '../types';
 import { MasteryStars } from './MasteryStars';
 import { CheckCircle2, RotateCcw, Sparkles, X } from 'lucide-react';
 import { RevisionNotesJournal } from './RevisionNotesJournal';
 import { RichTextEditor } from './RichTextEditor';
 import confetti from 'canvas-confetti';
-import { t } from '../i18n';
+import { plural, t } from '../i18n';
 import { formatMinutes } from '../utils/dateUtils';
 
 interface CompleteRevisionModalProps {
@@ -13,7 +13,6 @@ interface CompleteRevisionModalProps {
   course: Course;
   /** Tous les créneaux, pour rappeler les notes des J précédents. */
   revisions?: RevisionItem[];
-  subject?: Subject;
   isOpen: boolean;
   onClose: () => void;
   onConfirmComplete: (
@@ -24,17 +23,19 @@ interface CompleteRevisionModalProps {
   ) => void;
   /** Annule la validation ; renvoie true si elle a bien été annulée. */
   onUndoComplete?: (revisionId: string) => boolean;
+  /** Bilan des cartes révisées juste avant, depuis ce créneau : repère pour la note de maîtrise. */
+  cardsSummary?: { cards: number; success: number };
 }
 
 export const CompleteRevisionModal: React.FC<CompleteRevisionModalProps> = ({
   revision,
   course,
   revisions = [],
-  subject,
   isOpen,
   onClose,
   onConfirmComplete,
   onUndoComplete,
+  cardsSummary,
 }) => {
   const [selectedRating, setSelectedRating] = useState<MasteryLevel>(
     revision.completed && revision.rating
@@ -104,6 +105,15 @@ export const CompleteRevisionModal: React.FC<CompleteRevisionModalProps> = ({
                 {formatMinutes(revision.durationMinutes)}
               </span>
             </div>
+
+            {cardsSummary && (
+              <div className="flex items-center justify-between p-3 rounded-xl bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/30 text-xs">
+                <span className="font-semibold text-teal-800 dark:text-teal-200">{t('Cartes révisées :')}</span>
+                <span className="font-bold text-teal-900 dark:text-teal-100">
+                  {plural(cardsSummary.cards, '{n} carte', '{n} cartes')} · {t('{p} % réussies', { p: cardsSummary.success })}
+                </span>
+              </div>
+            )}
 
             {/* Knowledge / Mastery Evaluation : une ligne d'étoiles (largeur stable) */}
             <div className="flex items-center gap-x-3 gap-y-1 flex-wrap">

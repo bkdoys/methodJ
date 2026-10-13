@@ -16,6 +16,8 @@ export interface CloudSnapshot {
   subjects: Subject[];
   settings: AppSettings | null;
   stamp: string | null;
+  /** Jeton écrit dans le document des réglages à chaque envoi complet ou partiel (absent si jamais écrit). */
+  token?: string | null;
 }
 
 /**
@@ -28,6 +30,27 @@ export interface SyncMeta {
   hash?: string;
   stamp?: string;
   syncedAt?: string;
+  /** Empreinte de chaque document à la dernière synchro : l'envoi automatique n'envoie que ceux qui ont changé. */
+  docs?: DocHashes;
+  /** Dernier jeton de synchro du cloud que CET appareil a écrit ou lu en entier. */
+  token?: string;
+}
+
+/** Empreintes par document (id -> empreinte), réglages compris. */
+export interface DocHashes {
+  courses: Record<string, string>;
+  revisions: Record<string, string>;
+  subjects: Record<string, string>;
+  settings: string;
+}
+
+/** Documents à envoyer : ceux qui sont nouveaux ou modifiés depuis la dernière synchro. */
+export interface PendingChanges {
+  courses: Course[];
+  revisions: RevisionItem[];
+  subjects: Subject[];
+  /** Nombre de documents modifiés, réglages compris. */
+  count: number;
 }
 
 export type ReconcileDecision = 'in-sync' | 'adopt-cloud' | 'push-local' | 'conflict';
@@ -37,7 +60,7 @@ const BACKUPS_KEY = 'medj_safety_backups_v1';
 const MAX_BACKUPS = 2;
 
 // Champs techniques ajoutés par la synchro : ignorés dans les comparaisons.
-const IGNORED_KEYS = new Set(['userId', 'updatedAt']);
+const IGNORED_KEYS = new Set(['userId', 'updatedAt', 'syncToken']);
 
 /** JSON canonique : clés triées, champs techniques retirés. */
 function canon(value: unknown): string {
@@ -55,21 +78,80 @@ function canon(value: unknown): string {
 
 const byId = <T extends { id: string }>(a: T, b: T) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
-/** Empreinte stable des données (indépendante de l'ordre des tableaux et des clés). */
-export function hashData(d: SyncData): string {
-  const s = canon({
-    courses: [...d.courses].sort(byId),
-    revisions: [...d.revisions].sort(byId),
-    subjects: [...d.subjects].sort(byId),
-    settings: d.settings,
-  });
-  // FNV-1a 32 bits ; suffisant pour détecter un changement
+// FNV-1a 32 bits ; suffisant pour détecter un changement
+function fnv1a(s: string): string {
   let h = 0x811c9dc5;
   for (let i = 0; i < s.length; i++) {
     h ^= s.charCodeAt(i);
     h = Math.imul(h, 0x01000193);
   }
   return `${(h >>> 0).toString(16)}:${s.length}`;
+}
+
+// JSON canonique gardé par objet et par tableau : l'état n'est jamais modifié en place (un changement crée de
+// nouveaux objets), donc seuls les éléments modifiés sont resérialisés. Même texte que `canon` sur le tableau trié.
+const canonCache = new WeakMap<object, string>();
+function canonCached(value: object): string {
+  let out = canonCache.get(value);
+  if (out === undefined) {
+    out = canon(value);
+    canonCache.set(value, out);
+  }
+  return out;
+}
+function canonSorted<T extends { id: string }>(items: T[]): string {
+  let out = canonCache.get(items);
+  if (out === undefined) {
+    out = `[${[...items].sort(byId).map(canonCached).join(',')}]`;
+    canonCache.set(items, out);
+  }
+  return out;
+}
+
+/**
+ * Empreinte stable des données (indépendante de l'ordre des tableaux et des clés). Le texte haché est exactement
+ * `canon({ courses, revisions, settings, subjects })` (collections triées par id, clés dans l'ordre) : il ne doit
+ * pas changer, sinon les empreintes déjà enregistrées feraient croire à des modifications locales.
+ */
+export function hashData(d: SyncData): string {
+  const key = (k: string) => JSON.stringify(k);
+  return fnv1a(
+    `{${key('courses')}:${canonSorted(d.courses)},${key('revisions')}:${canonSorted(d.revisions)},` +
+      `${key('settings')}:${canon(d.settings)},${key('subjects')}:${canonSorted(d.subjects)}}`
+  );
+}
+
+const hashEach = <T extends { id: string }>(items: T[]): Record<string, string> =>
+  Object.fromEntries(items.map((x) => [x.id, fnv1a(canonCached(x))]));
+
+/** Empreinte de chaque document (mêmes règles que `hashData` : champs techniques ignorés). */
+export function hashDocs(d: SyncData): DocHashes {
+  return {
+    courses: hashEach(d.courses),
+    revisions: hashEach(d.revisions),
+    subjects: hashEach(d.subjects),
+    settings: fnv1a(canon(d.settings)),
+  };
+}
+
+/**
+ * Documents nouveaux ou modifiés par rapport aux empreintes de la dernière synchro.
+ * Sans empreintes (première synchro, ancienne version de l'app), tout est à envoyer.
+ * Les suppressions ne sont pas listées : elles passent par les suppressions ciblées.
+ */
+export function pendingChanges(data: SyncData, docs: DocHashes | undefined): PendingChanges {
+  if (!docs) {
+    const count = data.courses.length + data.revisions.length + data.subjects.length + 1;
+    return { courses: data.courses, revisions: data.revisions, subjects: data.subjects, count };
+  }
+  const changed = <T extends { id: string }>(items: T[], known: Record<string, string>) =>
+    items.filter((x) => known[x.id] !== fnv1a(canonCached(x)));
+  const courses = changed(data.courses, docs.courses);
+  const revisions = changed(data.revisions, docs.revisions);
+  const subjects = changed(data.subjects, docs.subjects);
+  const settingsChanged = docs.settings !== fnv1a(canon(data.settings));
+  const count = courses.length + revisions.length + subjects.length + (settingsChanged ? 1 : 0);
+  return { courses, revisions, subjects, count };
 }
 
 /** Transforme un instantané cloud en données utilisables (valeurs par défaut du local si absentes). */
@@ -101,17 +183,48 @@ function setSyncMeta(userId: string, meta: SyncMeta) {
   }
 }
 
-/** À appeler après chaque écriture réussie vers le cloud : retient la plus récente estampille écrite. */
-export function recordCloudWrite(userId: string, stamp: string) {
+/**
+ * À appeler après chaque écriture réussie vers le cloud : retient la plus récente estampille écrite
+ * et, pour un envoi qui a réécrit les réglages, le jeton de synchro qu'il y a placé.
+ */
+export function recordCloudWrite(userId: string, stamp: string, token?: string) {
   const meta = getSyncMeta(userId);
-  if (!meta.stamp || stamp > meta.stamp) setSyncMeta(userId, { ...meta, stamp });
+  const next = { ...meta };
+  if (!meta.stamp || stamp > meta.stamp) next.stamp = stamp;
+  if (token) next.token = token;
+  setSyncMeta(userId, next);
+}
+
+/** Le contenu du cloud portant ce jeton a été lu en entier et traité sur cet appareil. */
+export function recordCloudToken(userId: string, token: string | null | undefined) {
+  if (!token) return;
+  setSyncMeta(userId, { ...getSyncMeta(userId), token });
+}
+
+/** Au-delà de ce délai sans relecture complète, on relit tout le cloud même si le jeton n'a pas bougé. */
+export const FULL_READ_MAX_AGE_MS = 30 * 60 * 1000;
+
+/**
+ * Au retour sur l'app, peut-on se contenter du jeton (une lecture) au lieu de relire tout le cloud ?
+ * Oui si le jeton du cloud est celui que cet appareil a écrit ou lu en dernier, et si la dernière
+ * relecture complète est récente : elle rattrape les rares cas où un autre appareil a écrit juste
+ * avant nous (son jeton est alors remplacé par le nôtre).
+ */
+export function canSkipFullRead(
+  meta: SyncMeta,
+  cloudToken: string | null | undefined,
+  lastFullReadAt: number | null,
+  now: number
+): boolean {
+  if (!cloudToken || !meta.token || cloudToken !== meta.token) return false;
+  return lastFullReadAt !== null && now - lastFullReadAt < FULL_READ_MAX_AGE_MS;
 }
 
 /** Local et cloud sont identiques : on mémorise cet état comme référence. */
 export function markSynced(userId: string, data: SyncData, cloudStamp?: string | null) {
   const meta = getSyncMeta(userId);
   const stamp = [meta.stamp, cloudStamp].filter((x): x is string => !!x).sort().pop();
-  setSyncMeta(userId, { hash: hashData(data), stamp, syncedAt: new Date().toISOString() });
+  setSyncMeta(userId, { ...meta, hash: hashData(data), stamp, syncedAt: new Date().toISOString(), docs: hashDocs(data) });
 }
 
 /** Des modifications locales n'ont pas encore été envoyées au cloud. */

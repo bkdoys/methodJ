@@ -4,6 +4,7 @@ import { Course, LinkType } from '../types';
 import { MAX_LINK_TYPES, addLinkType, getLinkIcon, linkTypeName } from '../utils/courseLinks';
 import { LinkTypeFields } from './LinkTypeFields';
 import { t } from '../i18n';
+import { useConfirm } from './ConfirmDialog';
 
 interface LinkTypesManagerProps {
   linkTypes: LinkType[];
@@ -14,6 +15,7 @@ interface LinkTypesManagerProps {
 
 /** Réglages : renommer, changer l'icône et la couleur, ajouter ou supprimer des types de liens. */
 export const LinkTypesManager: React.FC<LinkTypesManagerProps> = ({ linkTypes, courses, onChange }) => {
+  const confirm = useConfirm();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState({ name: '', icon: 'link', color: '#0d9488' });
@@ -57,13 +59,15 @@ export const LinkTypesManager: React.FC<LinkTypesManagerProps> = ({ linkTypes, c
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     if (linkTypes.length <= 1) return;
-                    const msg =
-                      used > 0
-                        ? t('Supprimer le type « {name} » ? {n} lien(s) s\'afficheront comme « Autre ».', { name: linkTypeName(type), n: used })
-                        : t('Supprimer le type « {name} » ?', { name: linkTypeName(type) });
-                    if (window.confirm(msg)) onChange(linkTypes.filter((x) => x.id !== type.id));
+                    const ok = await confirm({
+                      title: t('Supprimer le type « {name} » ?', { name: linkTypeName(type) }),
+                      message: used > 0 ? t('{n} lien(s) s\'afficheront comme « Autre ».', { n: used }) : undefined,
+                      confirmLabel: t('Supprimer'),
+                      tone: 'danger',
+                    });
+                    if (ok) onChange(linkTypes.filter((x) => x.id !== type.id));
                   }}
                   disabled={linkTypes.length <= 1}
                   title={t('Supprimer ce type')}

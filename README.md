@@ -14,13 +14,31 @@ methodJ planifie vos révisions selon la **méthode des J** (répétition espac�
 
 ![Écran scindé : planning du jour et catalogue des cours](docs/screenshots/planning-split.jpg)
 
-**Catalogue et arborescence** : rangez vos cours par discipline › dossier › sous-dossier, filtrez en un clic, et attachez des liens (Drive, flashcards…) à chaque cours.
+**Catalogue et arborescence** : rangez vos cours par discipline › dossier › sous-dossier, filtrez en un clic, donnez une couleur à chaque dossier (ou laissez la nuance automatique de la discipline), élargissez l'arbre à votre goût, et attachez des liens (Drive, flashcards…) à chaque cours.
 
 ![Catalogue des cours avec l'arborescence](docs/screenshots/cours-arbre.jpg)
 
 **Dashboard** : tout ce qui demande une action au même endroit (retards, jours au-dessus de votre objectif, créneaux hors de la plage de travail), avec des propositions de lissage et de rattrapage que vous cochez avant de les accepter. Les règles sont décrites dans [docs/PLANNING_RULES.md](docs/PLANNING_RULES.md).
 
 ![Dashboard : jours à surveiller, lissage proposé et retards](docs/screenshots/dashboard.jpg)
+
+**Cartes** : les cartes du jour à gauche, vos paquets rangés par discipline › dossier › cours à droite (▶ pour les cartes du jour d'un dossier, « Tout » pour toutes ses cartes, recherche dans les questions et les réponses).
+
+![Vue Cartes : cartes du jour et paquets par discipline](docs/screenshots/cartes.jpg)
+
+**Une carte, et une carte à masques** : le lecteur plein écran note chaque réponse (Encore, Difficile, Bien, Facile) et affiche le délai avant le prochain passage ; sur un schéma, on masque des zones (rectangles, ovales ou contours au polygone) et on devine une zone à la fois.
+
+![Carte recto/verso : réponse affichée et boutons de note](docs/screenshots/carte.jpg)
+
+![Carte à masques sur un schéma : la zone à deviner en rouge](docs/screenshots/carte-masques.jpg)
+
+**Statistiques** : progression du programme (cours commencés, rythme), charge à venir sur 14, 30 ou 60 jours, mémorisation selon l'étape J, écart au planning d'origine (la date prévue est figée à la validation du J0) et, si vous saisissez une date d'examen, une projection de ce qu'il reste à commencer.
+
+![Statistiques : progression, charge à venir, écart au planning d'origine](docs/screenshots/stats.jpg)
+
+**Statistiques des cartes** : rétention estimée et réelle, cartes révisées par jour, cartes dues sur 30 jours, cartes souvent oubliées, et progression par discipline.
+
+![Statistiques : flashcards et progression par discipline](docs/screenshots/stats-cartes.jpg)
 
 <details>
 <summary>Thème sombre</summary>
@@ -33,6 +51,16 @@ methodJ planifie vos révisions selon la **méthode des J** (répétition espac�
 
 ![Dashboard, thème sombre](docs/screenshots/dashboard-sombre.jpg)
 
+![Vue Cartes, thème sombre](docs/screenshots/cartes-sombre.jpg)
+
+![Carte recto/verso, thème sombre](docs/screenshots/carte-sombre.jpg)
+
+![Carte à masques, thème sombre](docs/screenshots/carte-masques-sombre.jpg)
+
+![Statistiques, thème sombre](docs/screenshots/stats-sombre.jpg)
+
+![Statistiques des cartes, thème sombre](docs/screenshots/stats-cartes-sombre.jpg)
+
 </details>
 
 ## Fonctionnalités
@@ -42,8 +70,9 @@ methodJ planifie vos révisions selon la **méthode des J** (répétition espac�
 - **Décalage en cascade** : si vous repoussez un créneau, les suivants non faits suivent.
 - **Chronomètre de révision** avec notes et auto-évaluation de la maîtrise.
 - **Catalogue de cours**, disciplines et couleurs personnalisables (import CSV/JSON), avec une arborescence (discipline › dossier › sous-dossier) pour ranger et filtrer les cours, et des liens (Drive, flashcards…) attachés à chaque cours, et un export `.ics` de vos créneaux (Google Agenda, Apple, Outlook).
+- **Cartes (flashcards)** rédigées dans chaque cours (recto/verso ou texte à trous, avec images : photo prise depuis l'iPad, fichier, capture collée ou dessin à main levée (au doigt ou au stylet, aussi pour annoter une image), compressées à l'ajout ; et cartes à masques sur un schéma, comme l'Image Occlusion d'Anki), révisées avec l'algorithme FSRS (celui d'Anki) : cartes du jour, ou toutes les cartes d'un cours, d'un dossier ou d'une discipline, aussi depuis un créneau J. Import CSV (export Anki « Notes en texte brut » ou tableur). Enregistrées sur l'appareil et synchronisées par cours (images via Cloud Storage, facultatif : voir [la synchronisation](docs/CLOUD_SETUP.md#images-des-cartes-facultatif)).
 - **Dashboard** : retards, jours surchargés ou avec des créneaux hors plage, lissage de charge et rattrapage proposés (jamais appliqués sans votre accord, annulables), état de la synchronisation.
-- **Statistiques** : série, retards, charge à venir, rétention par J.
+- **Statistiques** : cours commencés et rythme, 7 derniers jours comparés aux 7 d'avant, charge à venir (14, 30 ou 60 jours), mémorisation par étape J, **écart au planning d'origine** (la date prévue de chaque J est figée à la validation du J0 ; repousser un créneau ne la change pas), et, pour les cartes, rétention estimée et réelle, activité du journal des révisions, cartes dues et cartes souvent oubliées. Une **date d'examen** facultative (Préférences > Planning) ajoute une projection du rythme nécessaire ; sans date, rien n'est affiché.
 - **Interface en français et en anglais** : la langue du navigateur est suivie au premier lancement, puis réglable dans Préférences > Affichage.
 - **Installable** sur iPad / téléphone / ordinateur (PWA), plein écran.
 - **Vos données vous appartiennent** : tout est stocké dans votre navigateur, avec export / import JSON. La synchronisation entre appareils est **facultative** (votre propre projet Firebase, voir ci-dessous).

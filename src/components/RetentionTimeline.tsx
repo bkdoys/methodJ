@@ -44,6 +44,7 @@ export const RetentionTimeline: React.FC<RetentionTimelineProps> = ({
   revisions,
   compact = false,
 }) => {
+  const todayIso = getTodayIso();
   const { segments, totalDays, todayDay } = useMemo(() => {
     const list = revisions
       .filter((r) => r.courseId === course.id)
@@ -70,9 +71,9 @@ export const RetentionTimeline: React.FC<RetentionTimelineProps> = ({
     return {
       segments: segs,
       totalDays: total,
-      todayDay: diffInDays(getTodayIso(), course.j0Date),
+      todayDay: diffInDays(todayIso, course.j0Date),
     };
-  }, [course.id, course.j0Date, revisions]);
+  }, [course.id, course.j0Date, revisions, todayIso]);
 
   if (segments.length === 0 || totalDays <= 0) return null;
 
