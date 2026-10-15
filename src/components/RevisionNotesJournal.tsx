@@ -4,6 +4,7 @@ import { RevisionItem } from '../types';
 import { formatFrenchDate } from '../utils/dateUtils';
 import { NotebookPen } from 'lucide-react';
 import { t } from '../i18n';
+import { revLabel } from '../utils/jMethod';
 
 interface RevisionNotesJournalProps {
   courseId: string;
@@ -72,7 +73,7 @@ export const RevisionNotesJournal: React.FC<RevisionNotesJournalProps> = ({
               className="shrink-0 h-5 px-1.5 rounded-md bg-teal-600/10 text-teal-700 dark:text-teal-400 font-bold flex items-center"
               style={accentColor ? { backgroundColor: `${accentColor}26`, color: accentColor } : undefined}
             >
-              J{r.jIndex}
+              {revLabel(r)}
             </span>
             <div className="min-w-0 flex-1">
               <RichNote

@@ -19,6 +19,7 @@ import { computeReviewLogStats } from '../utils/reviewLogStats';
 import { Card } from './Card';
 import { FlashcardText } from './FlashcardText';
 import { plural, t } from '../i18n';
+import { INBOX_COURSE_ID } from '../utils/inbox';
 
 interface StatsProgressViewProps {
   courses: Course[];
@@ -133,7 +134,7 @@ export const StatsProgressView: React.FC<StatsProgressViewProps> = ({
     [subjects, courses, revisions, todayIso]
   );
   const history = useMemo(() => computeReviewLogStats(reviewLog, todayIso), [reviewLog, todayIso]);
-  const cards = useMemo(() => computeCardStats(decks, courses.map((c) => c.id), new Date()), [decks, courses]);
+  const cards = useMemo(() => computeCardStats(decks, [...courses.map((c) => c.id), INBOX_COURSE_ID], new Date()), [decks, courses]);
 
   // Maîtrise parmi les cours commencés : un cours jamais révisé n'a pas encore de note
   const mastery = useMemo(() => {
@@ -509,7 +510,7 @@ export const StatsProgressView: React.FC<StatsProgressViewProps> = ({
                             )}
                             <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 shrink-0">{t('{n}× oubliée', { n: l.lapses })}</span>
                           </span>
-                          <span className="block text-[10px] text-slate-400 dark:text-slate-500 truncate">{courseOf.get(l.courseId)?.title}</span>
+                          <span className="block text-[10px] text-slate-400 dark:text-slate-500 truncate">{courseOf.get(l.courseId)?.title ?? (l.courseId === INBOX_COURSE_ID ? t('Cartes à trier') : '')}</span>
                         </button>
                       </li>
                     ))}

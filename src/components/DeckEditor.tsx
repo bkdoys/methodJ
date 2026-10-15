@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRightLeft, Check, EyeOff, FileUp, Layers, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { ArrowRightLeft, Check, EyeOff, FileUp, FolderInput, Layers, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import { Course, Deck, Flashcard, FlashcardKind, OcclusionMask, OcclusionMode, Subject } from '../types';
 import {
   addCard,
@@ -19,6 +20,8 @@ import { getCourseEffectiveColor } from '../utils/colorUtils';
 import { FlashcardText } from './FlashcardText';
 import { useConfirm } from './ConfirmDialog';
 import { plural, t } from '../i18n';
+import { CardCoursePicker } from './CardCoursePicker';
+import { isInboxCourse } from '../utils/inbox';
 
 interface DeckEditorProps {
   course: Course;
@@ -35,6 +38,8 @@ interface DeckEditorProps {
   onMove?: (toCourseId: string, cardIds: string[]) => boolean;
   /** Carte ouverte en modification à l'arrivée (résultat de recherche). */
   initialCardId?: string;
+  /** « Cartes à trier » ouvertes pour ranger (bouton « Trier ») : le bouton « Ranger » est mis en évidence un instant. */
+  highlightFiling?: boolean;
 }
 
 const FIELD =
@@ -52,6 +57,7 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
   subjects = [],
   onMove,
   initialCardId,
+  highlightFiling = false,
 }) => {
   const confirm = useConfirm();
   const [kind, setKind] = useState<FlashcardKind>('basic');
@@ -179,6 +185,26 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
     if (onMove(moveTo, liveSelected)) setSelected(new Set());
   };
 
+  // « Cartes à trier » : chaque carte se range d'un clic, en choisissant son cours dans l'arbre des cours
+  const inbox = isInboxCourse(course);
+  const [pickFor, setPickFor] = useState<string[] | null>(null);
+  const [glow, setGlow] = useState(highlightFiling);
+  useEffect(() => {
+    if (!glow) return;
+    const id = setTimeout(() => setGlow(false), 2500);
+    return () => clearTimeout(id);
+  }, [glow]);
+  const fileCards = (toCourseId: string) => {
+    const ids = pickFor ?? [];
+    setPickFor(null);
+    if (!onMove || ids.length === 0) return;
+    if (editingId && ids.includes(editingId)) resetForm();
+    if (!onMove(toCourseId, ids)) return;
+    setSelected((prev) => new Set([...prev].filter((id) => !ids.includes(id))));
+    // Tout est rangé : la boîte est vide, on la referme (le message garde « Annuler »)
+    if (cards.every((c) => ids.includes(c.id))) onClose();
+  };
+
   const remove = async (card: Flashcard) => {
     const ok = await confirm({
       title: t('Supprimer cette carte ?'),
@@ -238,6 +264,19 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
               {plural(cards.length, '{n} carte', '{n} cartes')}
             </p>
           </div>
+          {inbox && onMove && otherCourses.length > 0 && cards.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setPickFor(liveSelected.length > 0 ? liveSelected : cards.map((c) => c.id))}
+              title={liveSelected.length > 0 ? t('Ranger les cartes cochées dans un cours') : t('Ranger toutes ces cartes dans un cours')}
+              className={`flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg text-white bg-teal-600 hover:bg-teal-700 shadow-xs transition-shadow ${
+                glow ? 'ring-4 ring-teal-300/80 dark:ring-teal-500/60 animate-pulse' : ''
+              }`}
+            >
+              <FolderInput className="w-4 h-4" />
+              {liveSelected.length > 0 ? t('Ranger ({n})', { n: liveSelected.length }) : t('Tout ranger')}
+            </button>
+          )}
           {onImport && (
             <button
               type="button"
@@ -446,7 +485,24 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
             {onMove && cards.length > 0 && otherCourses.length > 0 && (
               <div className="flex items-center gap-2 flex-wrap text-xs mb-1">
                 {liveSelected.length === 0 ? (
-                  <span className="text-slate-500 dark:text-slate-400">{t('Cochez des cartes pour les déplacer vers un autre cours.')}</span>
+                  <span className="text-slate-500 dark:text-slate-400">
+                    {inbox
+                      ? t('Rangez chaque carte avec « Ranger », ou cochez-en plusieurs et utilisez le bouton en haut.')
+                      : t('Cochez des cartes pour les déplacer vers un autre cours.')}
+                  </span>
+                ) : inbox ? (
+                  <>
+                    <span className="font-bold text-slate-800 dark:text-slate-200">
+                      {plural(liveSelected.length, '{n} sélectionnée', '{n} sélectionnées')}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelected(new Set())}
+                      className="px-2 py-1.5 font-semibold text-slate-600 dark:text-slate-300 hover:underline"
+                    >
+                      {t('Désélectionner')}
+                    </button>
+                  </>
                 ) : (
                   <>
                     <span className="font-bold text-slate-800 dark:text-slate-200">
@@ -562,6 +618,17 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
                       {plural((card.masks ?? []).length, '{n} masque', '{n} masques')}
                     </span>
                   )}
+                  {inbox && onMove && otherCourses.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setPickFor([card.id])}
+                      title={t('Ranger cette carte dans un cours')}
+                      className="inline-flex items-center gap-1 px-2 py-1 mr-1 text-[11px] font-bold rounded-lg text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-950/60"
+                    >
+                      <FolderInput className="w-3.5 h-3.5" />
+                      {t('Ranger')}
+                    </button>
+                  )}
                   <button
                     type="button"
                     aria-label={t('Modifier')}
@@ -584,6 +651,19 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
           </div>
         </div>
       </div>
+      {/* Choix du cours où ranger : rendu dans body, le flou de l'arrière-plan piégerait une fenêtre fixe */}
+      {pickFor &&
+        createPortal(
+          <CardCoursePicker
+            courses={courses.filter((c) => c.id !== course.id)}
+            subjects={subjects}
+            title={plural(pickFor.length, 'Ranger {n} carte', 'Ranger {n} cartes')}
+            subtitle={t('Dans quel cours ?')}
+            onPick={fileCards}
+            onClose={() => setPickFor(null)}
+          />,
+          document.body
+        )}
     </div>
   );
 };

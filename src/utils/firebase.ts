@@ -420,6 +420,19 @@ export async function deleteCourseFromCloud(
   }
 }
 
+/** Supprime des créneaux précis (révision R retirée, J à faire d'un cours passé en libre…). */
+export async function deleteRevisionsFromCloud(userId: string, revisionIds: string[]): Promise<void> {
+  if (revisionIds.length === 0) return;
+  const ops: ((batch: WriteBatch) => void)[] = revisionIds.map((id) => (batch) =>
+    batch.delete(doc(db, 'users', userId, 'revisions', id))
+  );
+  try {
+    await commitBatchOperations(ops, 400);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `users/${userId}/revisions`);
+  }
+}
+
 export async function deleteSubjectsFromCloud(
   userId: string,
   subjectIds: string[]

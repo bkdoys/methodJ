@@ -43,7 +43,9 @@ export interface Subject {
 export interface RevisionItem {
   id: string;
   courseId: string;
-  jIndex: number;          // 0, 1, 3, 7, 15, 30, 60, etc.
+  jIndex: number;          // 0, 1, 3, 7, 15, 30, 60, etc. ; pour une révision R, son numéro (1, 2, 3…)
+  /** `R` = révision libre ajoutée à la main (cours sans J) : jamais en cascade, `jIndex` est son numéro. Absent = un J. */
+  kind?: 'R';
   scheduledDate: string;   // YYYY-MM-DD
   durationMinutes: number; // 90 min for J0 and J1, 60 min for J >= 2
   completed: boolean;
@@ -64,8 +66,12 @@ export interface Course {
   folderId?: string;       // Sous-dossier de la discipline où le cours est rangé ; absent = à la racine de la discipline
   links?: CourseLink[];    // Liens externes (cours, notes, flashcards…) affichés dans les fiches du cours et des J
   customColor?: string;    // Custom color override for this course (defaults to subject.color)
-  j0Date: string;          // YYYY-MM-DD
-  activeJList: number[];   // e.g. [0, 1, 3, 7, 15, 30, 60]
+  j0Date: string;          // YYYY-MM-DD (cours libre : date de création, sans J0)
+  activeJList: number[];   // e.g. [0, 1, 3, 7, 15, 30, 60] ; vide pour un cours libre
+  /** `free` = cours sans J programmé : on lui ajoute des révisions R à la main. Absent = méthode des J. */
+  mode?: 'free';
+  /** Cours caché « Cartes à trier » : reçoit les cartes créées sans cours (voir utils/inbox.ts). */
+  inbox?: true;
   mastery: MasteryLevel;
   notes?: string;
   createdAt: string;
@@ -108,6 +114,13 @@ export interface AppSettings {
   googleCalendarId?: string;
   /** Date (ISO) du dernier envoi réussi vers cet agenda ; affichée dans le tableau de bord. */
   googleCalendarSyncedAt?: string;
+  /** Cours en révision libre : alerte quand aucune R n'est planifiée et rien n'a été fait depuis ce nombre de jours ; absent = 15, 0 = jamais. */
+  freeAlertDays?: number;
+  /**
+   * Reports de cette alerte, par cours : `since` = dernière activité au moment du report (une révision faite depuis
+   * l'annule), `until` = jour où l'alerte revient, `delay` = jours du dernier report (le suivant en prend la moitié).
+   */
+  freeAlertSnooze?: Record<string, { since: string; until: string; delay: number }>;
   /** Nouvelles cartes (flashcards) proposées par jour dans « Cartes du jour » ; absent = 20. */
   cardsNewPerDay?: number;
   /** Langue de l'interface ; absent = français. */

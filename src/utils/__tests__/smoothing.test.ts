@@ -195,8 +195,8 @@ describe('partial acceptance', () => {
       cj7, ...[0, 1].map((i) => rev(`b${i}`, 7, addDays(today, 2), { slotOrder: i + 1 })), // jour B : 3 h, pile l'objectif
     ];
     const proposals = [
-      { kind: 'smooth' as const, revisionId: cj3.id, courseId: 'C', jIndex: 3, fromDate: today, toDate: addDays(today, 1), cascade: [] },
-      { kind: 'smooth' as const, revisionId: z.id, courseId: 'Z', jIndex: 7, fromDate: today, toDate: addDays(today, 2), cascade: [] },
+      { kind: 'smooth' as const, revisionId: cj3.id, courseId: 'C', jIndex: 3, label: 'J3', fromDate: today, toDate: addDays(today, 1), cascade: [] },
+      { kind: 'smooth' as const, revisionId: z.id, courseId: 'Z', jIndex: 7, label: 'J7', fromDate: today, toDate: addDays(today, 2), cascade: [] },
     ];
     // z seul ferait passer le jour B à 4 h : refusé ; avec le déplacement de cj3, la cascade libère cj7 et il passe
     expect(isMoveSafe('smooth', revs, settings, today, z.id, addDays(today, 2))).toBe(false);

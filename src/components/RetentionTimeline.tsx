@@ -3,6 +3,7 @@ import { Course, MasteryLevel, RevisionItem } from '../types';
 import { MASTERY_CONFIG } from './MasteryBadge';
 import { diffInDays, getTodayIso } from '../utils/dateUtils';
 import { t } from '../i18n';
+import { isRReview } from '../utils/jMethod';
 
 /**
  * Frise de progression d'un cours.
@@ -47,7 +48,8 @@ export const RetentionTimeline: React.FC<RetentionTimelineProps> = ({
   const todayIso = getTodayIso();
   const { segments, totalDays, todayDay } = useMemo(() => {
     const list = revisions
-      .filter((r) => r.courseId === course.id)
+      // Les révisions R n'ont pas de place sur une échelle en jours depuis le J0
+      .filter((r) => r.courseId === course.id && !isRReview(r))
       .sort((a, b) => a.jIndex - b.jIndex);
 
     if (list.length === 0) {

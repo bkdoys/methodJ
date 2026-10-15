@@ -7,6 +7,7 @@ import {
   Cloud,
   CloudOff,
   Flame,
+  Inbox,
   Layers,
   Play,
   RefreshCw,
@@ -23,6 +24,9 @@ import { googleClientId } from '../utils/firebase';
 import { getCourseEffectiveColor, getSubject } from '../utils/colorUtils';
 import { diffInDays, formatFrenchDate, formatFrenchDayShort, formatMinutes, getTodayIso } from '../utils/dateUtils';
 import { formatCoursePath } from '../utils/folders';
+import { isFreeCourse, revLabel } from '../utils/jMethod';
+import { FreeCourseAlert, findFreeCourseAlerts } from '../utils/freeAlerts';
+import { FreeCourseBadge } from './FreeCourseBadge';
 import { getLocale, plural, t } from '../i18n';
 import type { SyncStatus } from '../hooks/useCloudSync';
 
@@ -60,6 +64,11 @@ interface DashboardViewProps {
   cardsToday?: { due: number; fresh: number; total: number };
   onPlayCards?: () => void;
   onOpenCards?: () => void;
+  /** Cartes créées sans cours, à ranger (« Cartes à trier ») ; carte masquée à 0. */
+  inboxCards?: number;
+  onOpenInbox?: () => void;
+  /** Reporte l'alerte d'un cours en révision libre laissé de côté. */
+  onSnoozeFreeAlert?: (alert: FreeCourseAlert) => void;
 }
 
 const SYNC_LABEL: Record<SyncStatus, () => string> = {
@@ -99,6 +108,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   cardsToday,
   onPlayCards,
   onOpenCards,
+  inboxCards = 0,
+  onOpenInbox,
+  onSnoozeFreeAlert,
 }) => {
   const todayIso = getTodayIso();
   const data = useMemo(() => computeDashboard(courses, revisions, todayIso), [courses, revisions, todayIso]);
@@ -148,7 +160,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             className="block max-w-full truncate text-left text-xs font-bold text-slate-900 dark:text-white hover:text-teal-600 dark:hover:text-teal-400"
             title={t('Voir ce jour dans le planning')}
           >
-            <span className="font-mono text-teal-700 dark:text-teal-400">J{rev.jIndex}</span> · {title}
+            <span className="font-mono text-teal-700 dark:text-teal-400">{revLabel(rev)}</span> · {title}
           </button>
           <span className="block truncate text-[11px] text-slate-500 dark:text-slate-400" title={path.full}>
             {late
@@ -206,7 +218,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             className="mt-0.5 accent-teal-600 shrink-0"
           />
           <span className="min-w-0">
-            <span className="font-mono font-bold text-teal-700 dark:text-teal-400">J{p.jIndex}</span>
+            <span className="font-mono font-bold text-teal-700 dark:text-teal-400">{p.label}</span>
             {' · '}
             <span className="font-semibold">{course?.title ?? t('Cours supprimé')}</span>
             {' : '}
@@ -314,7 +326,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const lastSyncText = lastSyncedAt
     ? new Date(lastSyncedAt).toLocaleString(getLocale(), { dateStyle: 'medium', timeStyle: 'short' })
     : t('jamais sur cet appareil');
-  const hasAction = overdue.length > 0 || alertDays.length > 0;
+  const freeAlerts = useMemo(() => findFreeCourseAlerts(courses, revisions, settings, todayIso), [courses, revisions, settings, todayIso]);
+  const hasAction = overdue.length > 0 || alertDays.length > 0 || freeAlerts.length > 0 || inboxCards > 0;
   const allClear = !hasAction && syncStatus !== 'conflict';
   const visibleOverdue = showAllOverdue ? overdue : overdue.slice(0, OVERDUE_VISIBLE);
 
@@ -593,10 +606,85 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   ) : null;
 
-  // Cartes d'action, dans l'ordre d'importance quand elles sont toutes actives : jours à surveiller, puis retards
+  // Cours en révision libre sans R planifiée ni révision récente (absente s'il n'existe aucun cours libre)
+  const hasFreeCourses = courses.some(isFreeCourse);
+  const cardFree = (
+  <Card
+    title={t('Cours libres à réviser')}
+    tone={freeAlerts.length > 0 ? 'warn' : undefined}
+    hint={
+      freeAlerts.length > 0
+        ? t('Aucune révision planifiée et rien de fait depuis un moment : planifiez une R depuis la fiche du cours, ou reportez.')
+        : undefined
+    }
+  >
+    {freeAlerts.length === 0 && (
+      <p className="text-xs text-slate-500 dark:text-slate-400">{t('Chaque cours libre a une révision prévue ou récente.')}</p>
+    )}
+    <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+      {freeAlerts.map((a) => {
+        const subject = getSubject(a.course.subjectId, subjects);
+        const never = a.since === a.course.createdAt && !revisions.some((r) => r.courseId === a.course.id && r.completed);
+        return (
+          <li key={a.course.id} className="flex items-center gap-3 py-2 flex-wrap">
+            <span className="w-1.5 self-stretch rounded-full shrink-0" style={{ backgroundColor: getCourseEffectiveColor(a.course, subject) }} aria-hidden />
+            <div className="min-w-0 flex-1">
+              <button
+                type="button"
+                onClick={() => onOpenCourseDetail(a.course)}
+                className="flex items-center gap-1.5 max-w-full text-left text-xs font-bold text-slate-900 dark:text-white hover:text-teal-600 dark:hover:text-teal-400"
+              >
+                <span className="truncate">{a.course.title}</span>
+                <FreeCourseBadge />
+              </button>
+              <span className="block truncate text-[11px] text-slate-500 dark:text-slate-400">
+                {never
+                  ? plural(a.idleDays, 'Créé il y a {n} jour, aucune révision', 'Créé il y a {n} jours, aucune révision')
+                  : plural(a.idleDays, 'Dernière révision il y a {n} jour', 'Dernière révision il y a {n} jours')}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button type="button" onClick={() => onOpenCourseDetail(a.course)} className={primaryBtn}>
+                {t('Planifier une R')}
+              </button>
+              {a.nextSnooze !== null && onSnoozeFreeAlert ? (
+                <button type="button" onClick={() => onSnoozeFreeAlert(a)} className={ghostBtn} title={t('L\'alerte revient dans {n} j ; chaque report est deux fois plus court', { n: a.nextSnooze })}>
+                  {plural(a.nextSnooze, 'Reporter {n} jour', 'Reporter {n} jours')}
+                </button>
+              ) : (
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">{t('Plus de report possible')}</span>
+              )}
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  </Card>
+  );
+
+  // Cartes créées sans cours, à ranger dans un cours (masquée quand il n'y en a pas)
+  const cardInbox = (
+  <Card title={t('Cartes à trier')} tone="warn" aside={<Inbox className="w-4 h-4 text-slate-500 shrink-0" />}>
+    <div className="flex items-center gap-2 flex-wrap">
+      <p className="flex-1 text-sm text-slate-700 dark:text-slate-300">
+        {plural(inboxCards, '{n} carte créée sans cours, à ranger dans un cours.', '{n} cartes créées sans cours, à ranger dans un cours.')}
+      </p>
+      {onOpenInbox && (
+        <button type="button" onClick={onOpenInbox} className={primaryBtn}>
+          {t('Trier')}
+        </button>
+      )}
+    </div>
+  </Card>
+  );
+
+  // Cartes d'action, dans l'ordre d'importance : retards, jours surchargés, cours libres à réviser, cartes à trier.
+  // Active, une carte passe au-dessus d'« Aujourd'hui » ; vide, en dessous. `optional` : vide, elle n'apparaît pas.
   const actionCards = [
-    { key: 'days', el: cardDays, active: alertDays.length > 0 },
     { key: 'overdue', el: cardOverdue, active: overdue.length > 0 },
+    { key: 'days', el: cardDays, active: alertDays.length > 0 },
+    { key: 'free', el: cardFree, active: freeAlerts.length > 0, optional: !hasFreeCourses },
+    { key: 'inbox', el: cardInbox, active: inboxCards > 0, optional: true },
   ];
 
   return (
@@ -621,7 +709,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {/* Une carte d'action qui a quelque chose à traiter passe au-dessus d'« Aujourd'hui », une carte vide passe dessous */}
           {actionCards.filter((c) => c.active).map((c) => <React.Fragment key={c.key}>{c.el}</React.Fragment>)}
           {cardToday}
-          {actionCards.filter((c) => !c.active).map((c) => <React.Fragment key={c.key}>{c.el}</React.Fragment>)}
+          {actionCards.filter((c) => !c.active && !c.optional).map((c) => <React.Fragment key={c.key}>{c.el}</React.Fragment>)}
         </div>
         <div className="space-y-4 min-w-0">
           {cardSync}

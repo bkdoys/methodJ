@@ -30,6 +30,7 @@ interface NewCourseModalProps {
       customColor?: string;
       j0Date: string;
       activeJList: number[];
+      mode?: 'free';
       mastery: MasteryLevel;
       notes: string;
     },
@@ -56,6 +57,8 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
   const [activeJList, setActiveJList] = useState<number[]>(settings.defaultJPattern);
   const [notes, setNotes] = useState('');
   const [saveAsDefault, setSaveAsDefault] = useState(false);
+  // Cours sans J : aucun créneau créé, on ajoutera des révisions R depuis sa fiche
+  const [free, setFree] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
 
   if (!isOpen) return null;
@@ -87,10 +90,11 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
         customColor: customColor || undefined,
         j0Date,
         activeJList: activeJList.includes(0) ? activeJList : [0, ...activeJList],
+        ...(free ? { mode: 'free' as const } : {}),
         mastery: 0,
         notes: notes.trim(),
       },
-      saveAsDefault
+      saveAsDefault && !free
     );
 
     // Reset and close
@@ -101,6 +105,7 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
     setCustomColor(undefined);
     setShowColorPicker(false);
     setNotes('');
+    setFree(false);
     onClose();
   };
 
@@ -206,6 +211,8 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
               </div>
             </details>
 
+            {!free && (
+            <>
             {/* J0 Date Picker */}
             <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -339,6 +346,9 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
               </div>
             </div>
 
+            </>
+            )}
+
             {/* Couleur du cours dans le calendrier (version discrète) */}
             <div className="pt-1">
               <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -414,6 +424,7 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
             </div>
 
             {/* Remember as default setting option */}
+            {!free && (
             <div className="flex items-center gap-2 pt-1">
               <input
                 id="default-pattern-check"
@@ -426,6 +437,7 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
                 {t('Mémoriser cette sélection de J comme réglage par défaut pour éviter de répéter à chaque cours')}
               </label>
             </div>
+            )}
 
             {/* Notes */}
             <div>
@@ -440,6 +452,27 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
                 maxHeight="40vh"
                 className="w-full px-3 py-2 text-sm leading-relaxed border border-slate-200 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
+            </div>
+
+            {/* Cours en révision libre (usage occasionnel) : discret, en bas du formulaire */}
+            <div className="pt-1">
+              <label
+                className="inline-flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 cursor-pointer"
+                title={t('Aucune révision programmée : vous ajouterez des révisions (R) au fil du temps depuis la fiche du cours. Vous pourrez le passer en méthode des J plus tard.')}
+              >
+                <input
+                  type="checkbox"
+                  checked={free}
+                  onChange={(e) => setFree(e.target.checked)}
+                  className="rounded border-slate-300 text-violet-600 focus:ring-violet-500 h-3.5 w-3.5"
+                />
+                {t('Révision libre, sans J programmé')}
+              </label>
+              {free && (
+                <p className="mt-1 text-[11px] text-violet-700 dark:text-violet-300">
+                  {t('Aucune révision programmée : vous ajouterez des révisions (R) au fil du temps depuis la fiche du cours. Vous pourrez le passer en méthode des J plus tard.')}
+                </p>
+              )}
             </div>
           </div>
 
@@ -458,7 +491,7 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
               className="px-5 py-2 text-xs sm:text-sm font-bold text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-50 rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
             >
               <Plus className="w-4 h-4" />
-              <span>{t('Créer et planifier')}</span>
+              <span>{free ? t('Créer le cours') : t('Créer et planifier')}</span>
             </button>
           </div>
         </form>

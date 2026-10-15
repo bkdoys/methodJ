@@ -1,7 +1,17 @@
 import { Dispatch, SetStateAction } from 'react';
 import { AppSettings, Course, CourseLink, LinkType, MasteryLevel, RevisionItem, Subject, ToastMessage } from '../types';
-import { clearOriginalDates, freezeOriginalDates, generateRevisionsForCourse } from '../utils/jMethod';
+import {
+  clearOriginalDates,
+  convertCourseToFree,
+  convertCourseToJ,
+  CourseConversion,
+  createRReview,
+  freezeOriginalDates,
+  generateRevisionsForCourse,
+  revLabel,
+} from '../utils/jMethod';
 import { shiftAndPlace } from '../utils/shiftPlacement';
+import { clearFreeSnoozes } from '../utils/freeAlerts';
 import { PlannedMove, retimeRevision } from '../utils/smoothing';
 import {
   assignStartTimes,
@@ -16,6 +26,7 @@ import {
   syncRevisionsBatchToCloud,
   syncCourseToCloud,
   deleteCourseFromCloud,
+  deleteRevisionsFromCloud,
   deleteSubjectsFromCloud,
 } from '../utils/firebase';
 import { plural, t } from '../i18n';
@@ -66,11 +77,14 @@ export function useStudyData({
       links?: CourseLink[];
       j0Date: string;
       activeJList: number[];
+      /** `free` : cours sans J, aucun créneau créé (on ajoutera des révisions R à la main). */
+      mode?: 'free';
       mastery: MasteryLevel;
       notes: string;
     },
     saveAsDefaultPattern: boolean
   ) => {
+    const free = courseData.mode === 'free';
     const newCourseId = `c_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const newCourse: Course = {
       id: newCourseId,
@@ -79,15 +93,17 @@ export function useStudyData({
       subjectId: courseData.subjectId,
       ...(courseData.folderId ? { folderId: courseData.folderId } : {}),
       ...(courseData.links?.length ? { links: courseData.links } : {}),
-      j0Date: courseData.j0Date,
-      activeJList: courseData.activeJList,
+      // Un cours libre n'a pas de J0 : sa date de création en tient lieu (champ requis)
+      j0Date: free ? getTodayIso() : courseData.j0Date,
+      activeJList: free ? [] : courseData.activeJList,
+      ...(free ? { mode: 'free' as const } : {}),
       mastery: courseData.mastery,
       notes: courseData.notes,
       createdAt: getTodayIso(),
     };
 
     // Chaque créneau est posé là où il y a de la place dans la plage autorisée de son jour
-    const newRevisions = assignStartTimes(
+    const newRevisions = free ? [] : assignStartTimes(
       revisions,
       generateRevisionsForCourse(newCourseId, courseData.j0Date, courseData.activeJList, settings),
       settings,
@@ -99,7 +115,7 @@ export function useStudyData({
     setCourses((prev) => [newCourse, ...prev]);
     setRevisions((prev) => [...prev, ...newRevisions]);
 
-    if (saveAsDefaultPattern) {
+    if (saveAsDefaultPattern && !free) {
       setSettings((prev) => ({
         ...prev,
         defaultJPattern: courseData.activeJList,
@@ -199,7 +215,7 @@ export function useStudyData({
     } else {
       notify({
         title: t('Créneau décalé'),
-        description: t('J{j} déplacé au {date}.', { j: targetRev.jIndex, date: formatFrenchDate(newDate) }),
+        description: t('{label} déplacé au {date}.', { label: revLabel(targetRev), date: formatFrenchDate(newDate) }),
         type: 'info',
         action: { label: t('Annuler'), onClick: undo },
       });
@@ -420,6 +436,9 @@ export function useStudyData({
       links?: CourseLink[];
       notes?: string;
       mastery?: MasteryLevel;
+      /** Cours en révision libre : date de départ (création), qui sert aussi de `j0Date`. */
+      createdAt?: string;
+      j0Date?: string;
     }
   ) => {
     setCourses((prev) =>
@@ -635,8 +654,115 @@ export function useStudyData({
     }
   };
 
+  // Heure actuelle : un créneau ajouté pour aujourd'hui se place à partir de maintenant, pas avant
+  const nowSlot = () => ({ date: getTodayIso(), minutes: new Date().getHours() * 60 + new Date().getMinutes() });
+
+  // Révision R (cours libre) : ajoutée au jour choisi, à la première place libre de sa plage
+  const handleAddReview = (courseId: string, date: string) => {
+    const [rev] = assignStartTimes(revisions, [createRReview(courseId, date, revisions, settings)], settings, false, nowSlot());
+    setRevisions((prev) => [...prev, rev]);
+    // Planifier une R remet à zéro les reports de l'alerte « cours libres à réviser »
+    if (settings.freeAlertSnooze?.[courseId]) {
+      setSettings((prev) => ({ ...prev, freeAlertSnooze: clearFreeSnoozes(prev.freeAlertSnooze, [courseId], courses) }));
+    }
+    if (cloudUid) syncRevisionToCloud(cloudUid, rev).catch((e) => console.warn('Add review sync error:', e));
+    notify({
+      title: t('Révision ajoutée'),
+      description: t('{label} prévue le {date}.', { label: revLabel(rev), date: formatFrenchDate(date) }),
+      type: 'success',
+      action: {
+        label: t('Annuler'),
+        onClick: () => {
+          setRevisions((prev) => prev.filter((r) => r.id !== rev.id));
+          if (cloudUid) deleteRevisionsFromCloud(cloudUid, [rev.id]).catch((e) => console.warn('Undo add review sync error:', e));
+        },
+      },
+    });
+  };
+
+  // Retire une révision R (la confirmation est demandée par l'interface)
+  const handleDeleteReview = (revisionId: string) => {
+    const rev = revisions.find((r) => r.id === revisionId);
+    if (!rev) return;
+    setRevisions((prev) => prev.filter((r) => r.id !== revisionId));
+    if (cloudUid) deleteRevisionsFromCloud(cloudUid, [revisionId]).catch((e) => console.warn('Delete review sync error:', e));
+    notify({
+      title: t('Révision supprimée'),
+      description: t('{label} du {date} retirée.', { label: revLabel(rev), date: formatFrenchDate(rev.scheduledDate) }),
+      type: 'info',
+      action: {
+        label: t('Annuler'),
+        onClick: () => {
+          setRevisions((prev) => [...prev, rev]);
+          if (cloudUid) syncRevisionToCloud(cloudUid, rev).catch((e) => console.warn('Undo delete review sync error:', e));
+        },
+      },
+    });
+  };
+
+  // Applique un changement de mode : un seul changement d'état, des écritures ciblées, et « Annuler » qui remet tout
+  const applyConversion = (before: Course, conv: CourseConversion, title: string, description: string) => {
+    const added = assignStartTimes(revisions, conv.added, settings, false, nowSlot());
+    const removedIds = new Set(conv.removed.map((r) => r.id));
+    const changedById = new Map(conv.changed.map((r) => [r.id, r]));
+    const originals = revisions.filter((r) => changedById.has(r.id));
+    const addedIds = new Set(added.map((r) => r.id));
+
+    setCourses((prev) => prev.map((c) => (c.id === before.id ? conv.course : c)));
+    setSelectedCourseForDetail((prev) => (prev && prev.id === before.id ? conv.course : prev));
+    setRevisions((prev) => [...prev.filter((r) => !removedIds.has(r.id)).map((r) => changedById.get(r.id) ?? r), ...added]);
+    if (cloudUid) {
+      syncCourseToCloud(cloudUid, conv.course).catch((e) => console.warn('Course mode sync error:', e));
+      deleteRevisionsFromCloud(cloudUid, [...removedIds]).catch((e) => console.warn('Course mode delete sync error:', e));
+      syncRevisionsBatchToCloud(cloudUid, [...conv.changed, ...added]).catch((e) => console.warn('Course mode revisions sync error:', e));
+    }
+
+    const undo = () => {
+      const originalById = new Map(originals.map((r) => [r.id, r]));
+      setCourses((prev) => prev.map((c) => (c.id === before.id ? before : c)));
+      setSelectedCourseForDetail((prev) => (prev && prev.id === before.id ? before : prev));
+      setRevisions((prev) => [...prev.filter((r) => !addedIds.has(r.id)).map((r) => originalById.get(r.id) ?? r), ...conv.removed]);
+      if (cloudUid) {
+        syncCourseToCloud(cloudUid, before).catch((e) => console.warn('Undo course mode sync error:', e));
+        deleteRevisionsFromCloud(cloudUid, [...addedIds]).catch((e) => console.warn('Undo course mode delete sync error:', e));
+        syncRevisionsBatchToCloud(cloudUid, [...originals, ...conv.removed]).catch((e) =>
+          console.warn('Undo course mode revisions sync error:', e)
+        );
+      }
+    };
+    notify({ title, description, type: 'success', action: { label: t('Annuler'), onClick: undo } });
+  };
+
+  const handleConvertCourseToJ = (courseId: string, j0Date: string, jList: number[]) => {
+    const course = courses.find((c) => c.id === courseId);
+    if (!course) return;
+    const conv = convertCourseToJ(course, revisions, j0Date, jList, settings);
+    applyConversion(
+      course,
+      conv,
+      t('Cours passé en méthode des J'),
+      t('{n} J programmés à partir du {date}.', { n: conv.added.length, date: formatFrenchDate(j0Date) })
+    );
+  };
+
+  const handleConvertCourseToFree = (courseId: string) => {
+    const course = courses.find((c) => c.id === courseId);
+    if (!course) return;
+    const conv = convertCourseToFree(course, revisions);
+    applyConversion(
+      course,
+      conv,
+      t('Cours passé en révision libre'),
+      plural(conv.removed.length, '{n} J à faire retiré, les révisions faites sont gardées.', '{n} J à faire retirés, les révisions faites sont gardées.')
+    );
+  };
+
   return {
     handleSaveNewCourse,
+    handleAddReview,
+    handleDeleteReview,
+    handleConvertCourseToJ,
+    handleConvertCourseToFree,
     handleConfirmShift,
     handleApplyShifts,
     handleConfirmComplete,

@@ -11,7 +11,7 @@ import {
   parseTime,
   resolveDayLayout,
 } from './dayLayout';
-import { applyCascadeShift } from './jMethod';
+import { applyCascadeShift, isRReview, revLabel } from './jMethod';
 
 type DaySettings = Parameters<typeof analyzeDay>[2];
 export type SmoothingSettings = DaySettings & { autoCascadeShift?: boolean };
@@ -30,6 +30,12 @@ export function maxDelayDays(jIndex: number): number {
   if (jIndex <= 3) return 2;
   return 3;
 }
+
+/**
+ * Souplesse d'un créneau pour le lissage : son J, ou pour une révision R (sans intervalle à respecter) la plus grande,
+ * comme un J lointain. Sert à l'ordre (le plus souple part d'abord) et au retard maximal.
+ */
+const flexRank = (rev: RevisionItem): number => (isRReview(rev) ? Number.MAX_SAFE_INTEGER : rev.jIndex);
 
 export interface ShiftedSlot {
   revisionId: string;
@@ -51,6 +57,8 @@ export interface Proposal {
   revisionId: string;
   courseId: string;
   jIndex: number;
+  /** Étiquette affichée : « J3 » ou « R2 ». */
+  label: string;
   fromDate: string;
   toDate: string;
   /** Remontée dans la journée (même `fromDate` et `toDate`) : heure actuelle et nouvelle heure `HH:MM`. */
@@ -261,6 +269,7 @@ function toProposal(kind: Proposal['kind'], rev: RevisionItem, ev: Evaluation, t
     revisionId: rev.id,
     courseId: rev.courseId,
     jIndex: rev.jIndex,
+    label: revLabel(rev),
     fromDate: rev.scheduledDate,
     toDate,
     cascade: ev.slots.filter((s) => s.revisionId !== rev.id),
@@ -362,6 +371,7 @@ export function planSmoothing(revisions: RevisionItem[], settings: SmoothingSett
           revisionId: retime.rev.id,
           courseId: retime.rev.courseId,
           jIndex: retime.rev.jIndex,
+          label: revLabel(retime.rev),
           fromDate: date,
           toDate: date,
           fromStart: retime.fromStart,
@@ -374,11 +384,11 @@ export function planSmoothing(revisions: RevisionItem[], settings: SmoothingSett
 
       const candidates = byDate(work, date)
         .filter((r) => !r.completed)
-        .sort((a, b) => b.jIndex - a.jIndex || b.slotOrder - a.slotOrder);
+        .sort((a, b) => flexRank(b) - flexRank(a) || b.slotOrder - a.slotOrder);
 
       let moved = false;
       search: for (const rev of candidates) {
-        for (let delta = 1; delta <= maxDelayDays(rev.jIndex); delta++) {
+        for (let delta = 1; delta <= maxDelayDays(flexRank(rev)); delta++) {
           const toDate = addDays(date, delta);
           const ev = applyMove(work, rev.id, toDate, autoCascade, todayIso, settings);
           if (!ev) continue;

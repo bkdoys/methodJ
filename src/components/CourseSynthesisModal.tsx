@@ -5,6 +5,7 @@ import { MasteryStars } from './MasteryStars';
 import { RevisionNotesJournal } from './RevisionNotesJournal';
 import { Check, CopyPlus, NotebookPen, X } from 'lucide-react';
 import { appendNoteEntry, formatSlotNoteEntry, hasNoteEntry, MAX_NOTES_LENGTH } from '../utils/notes';
+import { revLabel } from '../utils/jMethod';
 import { getCourseEffectiveColor } from '../utils/colorUtils';
 import { t } from '../i18n';
 
@@ -42,7 +43,7 @@ export const CourseSynthesisModal: React.FC<CourseSynthesisModalProps> = ({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const entryFor = (r: RevisionItem) => formatSlotNoteEntry(r.jIndex, r.completedDate || r.scheduledDate, r.notes ?? '');
+  const entryFor = (r: RevisionItem) => formatSlotNoteEntry(revLabel(r), r.completedDate || r.scheduledDate, r.notes ?? '');
 
   const addToCourseNotes = (r: RevisionItem) => {
     if (!onUpdateCourseNotes) return;
@@ -144,7 +145,7 @@ export const CourseSynthesisModal: React.FC<CourseSynthesisModalProps> = ({
                           type="button"
                           onClick={() => addToCourseNotes(r)}
                           title={t('Ajouter aux notes du cours')}
-                          aria-label={t('Ajouter la note de J{n} aux notes du cours', { n: r.jIndex })}
+                          aria-label={t('Ajouter la note de {label} aux notes du cours', { label: revLabel(r) })}
                           className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
                           style={{ color }}
                         >

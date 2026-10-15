@@ -13,6 +13,7 @@ import { defaultDayWindowStrings, getBlockDetails, getMultiDayCount, MULTI_DAY_M
 import { customWindowsFromSettings, slotDurationsFromSettings, weekdayLabels } from '../../utils/planningSettings';
 import { SettingsSection } from './SettingsSection';
 import { X, Plus, Layers } from 'lucide-react';
+import { getFreeAlertDays } from '../../utils/freeAlerts';
 
 /**
  * Valeurs saisies dans l'onglet Planning. L'état vit dans la fenêtre des réglages (le hook y est appelé) :
@@ -30,6 +31,7 @@ export function usePlanningDraft(settings: AppSettings) {
   const [autoCascade, setAutoCascade] = useState<boolean>(settings.autoCascadeShift);
   const [dailyTargetHours, setDailyTargetHours] = useState<number>(settings.dailyTargetHours);
   const [examDate, setExamDate] = useState<string>(settings.examDate ?? '');
+  const [freeAlertDays, setFreeAlertDays] = useState<number>(getFreeAlertDays(settings));
   const [dayStartTime, setDayStartTime] = useState<string>(settings.dayStartTime);
   const [timelineStartHour, setTimelineStartHour] = useState<number>(getTimelineConfig(settings).startHour);
   const [timelineEndHour, setTimelineEndHour] = useState<number>(getTimelineConfig(settings).endHour);
@@ -49,6 +51,7 @@ export function usePlanningDraft(settings: AppSettings) {
     setAutoCascade(s.autoCascadeShift);
     setDailyTargetHours(s.dailyTargetHours);
     setExamDate(s.examDate ?? '');
+    setFreeAlertDays(getFreeAlertDays(s));
     setDayStartTime(s.dayStartTime);
     const tl = getTimelineConfig(s);
     setTimelineStartHour(tl.startHour);
@@ -61,7 +64,7 @@ export function usePlanningDraft(settings: AppSettings) {
   };
 
   const values: PlanningValues = {
-    defaultPattern, jPool, slotDefault, slotByJ, autoCascade, dailyTargetHours, examDate, dayStartTime,
+    defaultPattern, jPool, slotDefault, slotByJ, autoCascade, dailyTargetHours, examDate, freeAlertDays, dayStartTime,
     timelineStartHour, timelineEndHour, timelineStepMinutes, customWindows, breaks, multiDayCount, blockDetails,
   };
 
@@ -69,7 +72,7 @@ export function usePlanningDraft(settings: AppSettings) {
     defaultPattern, setDefaultPattern, jPool, setJPool, slotDefault, setSlotDefault, slotByJ, setSlotByJ,
     newSlotJ, setNewSlotJ, isAddingException, setIsAddingException, newSlotMinutes, setNewSlotMinutes,
     jToRemove, setJToRemove, autoCascade, setAutoCascade, dailyTargetHours, setDailyTargetHours,
-    examDate, setExamDate, dayStartTime, setDayStartTime, timelineStartHour, setTimelineStartHour, timelineEndHour, setTimelineEndHour,
+    examDate, setExamDate, freeAlertDays, setFreeAlertDays, dayStartTime, setDayStartTime, timelineStartHour, setTimelineStartHour, timelineEndHour, setTimelineEndHour,
     timelineStepMinutes, setTimelineStepMinutes, customWindows, setCustomWindows, breaks, setBreaks,
     multiDayCount, setMultiDayCount, blockDetails, setBlockDetails, values, reset,
   };
@@ -79,7 +82,7 @@ export type PlanningDraft = ReturnType<typeof usePlanningDraft>;
 
 /** Onglet Planning : répétitions, créneaux, journée de travail, affichage du planning. */
 export const PlanningTab: React.FC<{ draft: PlanningDraft; courses: Course[] }> = ({ draft, courses }) => {
-  const { defaultPattern, setDefaultPattern, jPool, setJPool, slotDefault, setSlotDefault, slotByJ, setSlotByJ, setNewSlotJ, setIsAddingException, setNewSlotMinutes, setJToRemove, autoCascade, setAutoCascade, dailyTargetHours, setDailyTargetHours, examDate, setExamDate, dayStartTime, setDayStartTime, timelineStartHour, setTimelineStartHour, timelineEndHour, setTimelineEndHour, timelineStepMinutes, setTimelineStepMinutes, customWindows, setCustomWindows, breaks, setBreaks, multiDayCount, setMultiDayCount, blockDetails, setBlockDetails } = draft;
+  const { defaultPattern, setDefaultPattern, jPool, setJPool, slotDefault, setSlotDefault, slotByJ, setSlotByJ, setNewSlotJ, setIsAddingException, setNewSlotMinutes, setJToRemove, autoCascade, setAutoCascade, dailyTargetHours, setDailyTargetHours, examDate, setExamDate, freeAlertDays, setFreeAlertDays, dayStartTime, setDayStartTime, timelineStartHour, setTimelineStartHour, timelineEndHour, setTimelineEndHour, timelineStepMinutes, setTimelineStepMinutes, customWindows, setCustomWindows, breaks, setBreaks, multiDayCount, setMultiDayCount, blockDetails, setBlockDetails } = draft;
 
   // J toggle handlers
   const toggleJ = (val: number) => {
@@ -372,6 +375,27 @@ export const PlanningTab: React.FC<{ draft: PlanningDraft; courses: Course[] }> 
         </div>
         <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
           {t('Active une projection dans Statistiques : à ce rythme, tous les cours seront-ils commencés à temps ? Sans date, rien n\'est affiché.')}
+        </p>
+      </div>
+
+      <div className="pt-1">
+        <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1" htmlFor="free-alert-days">
+          {t('Cours en révision libre : alerte après')}
+        </label>
+        <div className="flex items-center gap-2">
+          <input
+            id="free-alert-days"
+            type="number"
+            min={0}
+            max={365}
+            value={freeAlertDays}
+            onChange={(e) => setFreeAlertDays(Number(e.target.value))}
+            className="w-20 px-3 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-lg font-mono dark:bg-slate-800 dark:text-white"
+          />
+          <span className="text-xs text-slate-600 dark:text-slate-400">{t('jours sans révision ni R planifiée (0 = jamais)')}</span>
+        </div>
+        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+          {t('Le cours apparaît dans le tableau de bord. Chaque report y est deux fois plus court que le précédent, jusqu\'à 1 jour ; ensuite il faut planifier une R.')}
         </p>
       </div>
 

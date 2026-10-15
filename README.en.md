@@ -2,7 +2,7 @@
 
 [🇫🇷 Français](README.md) · 🇬🇧 English
 
-methodJ schedules your revisions with the **"J method"** (spaced repetition): for each course, review slots are placed at J0, J1, J3, J7, J15, J30, J60… (J = *jour*, day). You stay in control: drag and drop, cascading reschedule, timer, statistics. The interface is available in French and English (follows your browser on first launch, then adjustable in Preferences > Display > Language).
+methodJ schedules your revisions with the **"J method"** (spaced repetition): for each course, review slots are placed at J0, J1, J3, J7, J15, J30, J60… (J = *jour*, day). You stay in control: drag and drop, cascading reschedule, touch gestures (swipe to change day, pinch to zoom), timer, statistics. A course can also be in **free review** (no J scheduled): you add reviews (R) to it whenever you like, and switch it to the J method later if needed; the dashboard flags a free course left aside. A card can also be created without a course: it waits in “Cards to sort” until you file it. The interface is available in French and English (follows your browser on first launch, then adjustable in Preferences > Display > Language).
 
 > ⚠️ methodJ is a study-organisation tool. It provides no medical content and no medical advice.
 

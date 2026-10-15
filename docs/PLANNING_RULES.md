@@ -29,7 +29,7 @@ ni les autres jours ni la cascade. Si le jour est seulement au-dessus de l'objec
 **Ensuite, on cherche un créneau non validé à repousser de quelques jours** :
 
 1. On essaie d'abord les J les plus élevés (plus de marge qu'un J0 ou un J1) ; un créneau validé n'est jamais touché.
-2. Retard maximal accepté selon le J : **1 jour** pour J0 et J1, **2 jours** pour J2 et J3, **3 jours** au-delà.
+2. Retard maximal accepté selon le J : **1 jour** pour J0 et J1, **2 jours** pour J2 et J3, **3 jours** au-delà. Une révision R (cours en révision libre) n'a pas d'intervalle à respecter : elle est essayée en premier, jusqu'à **3 jours**, et ne décale jamais d'autres créneaux.
 3. Un créneau repoussé est **replacé à la première place libre de son nouveau jour** (comme lors d'un déplacement à la main) : le jour d'arrivée est
    jugé avec cette heure, pas avec l'ancienne. Un créneau qui garderait une heure débordant aussi là-bas n'est donc plus refusé s'il y a de la place plus tôt.
 4. Un déplacement n'est retenu que s'il **allège** le jour de départ (moins de créneaux hors plage, ou moins de minutes au-dessus de l'objectif)

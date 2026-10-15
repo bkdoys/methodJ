@@ -7,6 +7,7 @@ import { RichTextEditor } from './RichTextEditor';
 import confetti from 'canvas-confetti';
 import { plural, t } from '../i18n';
 import { formatMinutes } from '../utils/dateUtils';
+import { revLabel } from '../utils/jMethod';
 
 interface CompleteRevisionModalProps {
   revision: RevisionItem;
@@ -81,7 +82,7 @@ export const CompleteRevisionModal: React.FC<CompleteRevisionModalProps> = ({
               </div>
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  {revision.completed ? t('Révision') : t('Valider la révision')} J{revision.jIndex}{revision.completed ? t(' · Fait ✓') : ''}
+                  {revision.completed ? t('Révision') : t('Valider la révision')} {revLabel(revision)}{revision.completed ? t(' · Fait ✓') : ''}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">{course.title}</p>
               </div>

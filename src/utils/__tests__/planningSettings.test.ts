@@ -20,6 +20,7 @@ const values = (over: Partial<PlanningValues> = {}): PlanningValues => ({
   autoCascade: true,
   dailyTargetHours: 6,
   examDate: '',
+  freeAlertDays: 15,
   dayStartTime: '08:00',
   timelineStartHour: 7,
   timelineEndHour: 22,
@@ -114,5 +115,12 @@ describe('exam date', () => {
     expect(planningSettingsFromValues(values({ examDate: '2027-05-20' })).examDate).toBe('2027-05-20');
     expect(planningSettingsFromValues(values({ examDate: '' })).examDate).toBeUndefined();
     expect(planningSettingsFromValues(values({ examDate: '20/05/2027' })).examDate).toBeUndefined();
+  });
+
+  it("borne le délai d'alerte des cours libres entre 0 (jamais) et 365 jours", () => {
+    expect(planningSettingsFromValues(values({ freeAlertDays: 10 })).freeAlertDays).toBe(10);
+    expect(planningSettingsFromValues(values({ freeAlertDays: 0 })).freeAlertDays).toBe(0);
+    expect(planningSettingsFromValues(values({ freeAlertDays: -4 })).freeAlertDays).toBe(0);
+    expect(planningSettingsFromValues(values({ freeAlertDays: 900 })).freeAlertDays).toBe(365);
   });
 });

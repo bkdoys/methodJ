@@ -28,7 +28,7 @@ other day and no cascade. If the day is only over the target, moving up changes 
 **Then it looks for a non-completed slot to push back by a few days**:
 
 1. The highest Js are tried first (more slack than a J0 or J1); a completed slot is never touched.
-2. Maximum delay accepted by J: **1 day** for J0 and J1, **2 days** for J2 and J3, **3 days** beyond.
+2. Maximum delay accepted by J: **1 day** for J0 and J1, **2 days** for J2 and J3, **3 days** beyond. An R review (course in free review) has no interval to respect: it is tried first, up to **3 days**, and never shifts other slots.
 3. A slot pushed back is **placed at the first free place of its new day** (as when you move it by hand): the arrival day is judged with that
    time, not with the old one. A slot that would keep an hour that also overflows there is therefore no longer refused when there is room earlier.
 4. A move is kept only if it **relieves** the starting day (fewer slots outside the window, or fewer minutes above the target) and

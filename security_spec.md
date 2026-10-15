@@ -9,6 +9,8 @@
 6. **Slot start time**: the optional `startTime` on a revision must be a string matching `HH:MM` (00:00–23:59); any other shape is rejected.
 6b. **Original date**: the optional `originalDate` on a revision (frozen when the course's J0 is validated) must be a string of at most 20 characters.
 6c. **Card review log**: `users/{uid}/cardLogs/{AAAA-MM-JJ}` accepts only `id`, `userId`, `entries` (list of at most 3000) and a server `syncedAt`; the document id must be a date and equal `id`.
+6d. **Free courses and R reviews**: the optional `mode` on a course can only be `'free'` (course with no J), and the optional `kind` on a revision can only be `'R'` (review added by hand); any other value is rejected.
+6e. **Inbox course**: the optional `inbox` on a course can only be `true` (hidden « Cartes à trier » course).
 
 ## The "Dirty Dozen" Payloads Tested
 1. **Unauthenticated Read**: Attempting to read `/users/user_123/courses` without authentication -> DENIED.

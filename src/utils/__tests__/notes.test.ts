@@ -3,11 +3,11 @@ import { MAX_NOTES_LENGTH, appendNoteEntry, formatSlotNoteEntry, hasNoteEntry } 
 
 describe('formatSlotNoteEntry', () => {
   it('prefixes the J step and the short date, and trims the note', () => {
-    expect(formatSlotNoteEntry(3, '2026-10-12', '  Troponine H0 et H3  ')).toBe('[J3 · 12 oct.] Troponine H0 et H3');
+    expect(formatSlotNoteEntry('J3', '2026-10-12', '  Troponine H0 et H3  ')).toBe('[J3 · 12 oct.] Troponine H0 et H3');
   });
 
   it('keeps multi-line notes intact', () => {
-    expect(formatSlotNoteEntry(0, '2026-01-05', 'a\nb')).toBe('[J0 · 5 janv.] a\nb');
+    expect(formatSlotNoteEntry('J0', '2026-01-05', 'a\nb')).toBe('[J0 · 5 janv.] a\nb');
   });
 });
 

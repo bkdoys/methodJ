@@ -64,7 +64,7 @@ export const DayTimeline: React.FC<DayTimelineProps> = ({
         </div>
         <ForceDayToggle date={date} settings={settings} onToggle={onToggleForcedDay} showLabel />
       </div>
-      <div className="relative mt-3 mb-2" style={{ height: totalHeight }} aria-label={t('Journée du {date}', { date })}>
+      <div data-hour-grid className="relative mt-3 mb-2" style={{ height: totalHeight }} aria-label={t('Journée du {date}', { date })}>
         <TimelineScale displayStart={displayStart} displayEnd={displayEnd} pxPerMin={pxPerMin} />
         <div className={`absolute top-0 bottom-0 ${SCALE_WIDTH_CLASS} right-0`}>
           <DayColumn

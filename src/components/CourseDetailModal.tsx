@@ -10,6 +10,8 @@ import { useOutsideClick } from '../hooks/useOutsideClick';
 import { DurationSelect } from './DurationSelect';
 import { formatTime, getDayBreaks, getDayWindow, resolveDayLayout } from '../utils/dayLayout';
 import { formatFrenchDate, formatMinutes, getTodayIso } from '../utils/dateUtils';
+import { compareCourseRevisions, getJPool, isFreeCourse, isRReview, revLabel } from '../utils/jMethod';
+import { FreeCourseBadge } from './FreeCourseBadge';
 import {
   X,
   Edit2,
@@ -25,6 +27,8 @@ import {
   Check,
   Plus,
   Layers,
+  CalendarOff,
+  CalendarPlus,
 } from 'lucide-react';
 import { PRESET_COURSE_COLORS, getSubjectBadgeStyle } from '../utils/colorUtils';
 import { getFolderColor } from '../utils/folderColors';
@@ -56,6 +60,8 @@ interface CourseDetailModalProps {
       customColor?: string;
       notes?: string;
       mastery?: MasteryLevel;
+      createdAt?: string;
+      j0Date?: string;
     }
   ) => void;
   onOpenQuickShift: (revision: RevisionItem) => void;
@@ -73,6 +79,12 @@ interface CourseDetailModalProps {
   onOpenDeck?: () => void;
   /** Révise toutes les cartes du cours. */
   onPlayCards?: () => void;
+  /** Cours sans J : ajoute une révision R au jour choisi, ou en retire une. */
+  onAddReview?: (courseId: string, date: string) => void;
+  onDeleteReview?: (revisionId: string) => void;
+  /** Changement de mode : libre → méthode des J (J0 et liste de J), ou l'inverse. */
+  onConvertToJ?: (courseId: string, j0Date: string, jList: number[]) => void;
+  onConvertToFree?: (courseId: string) => void;
 }
 
 export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
@@ -95,6 +107,10 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
   cardCount = 0,
   onOpenDeck,
   onPlayCards,
+  onAddReview,
+  onDeleteReview,
+  onConvertToJ,
+  onConvertToFree,
 }) => {
   const confirm = useConfirm();
   const [isEditing, setIsEditing] = useState(false);
@@ -104,7 +120,14 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
   const [folderId, setFolderId] = useState<string | undefined>(course?.folderId);
   const [customColor, setCustomColor] = useState<string | undefined>(course?.customColor);
   const [notes, setNotes] = useState(course?.notes || '');
+  // Cours en révision libre : date de départ modifiable (cours commencé avant d'être saisi)
+  const [createdAt, setCreatedAt] = useState(course?.createdAt ?? '');
   const [showColorPicker, setShowColorPicker] = useState(false);
+  // Cours libre : jour de la prochaine révision R, et formulaire de passage en méthode des J
+  const [reviewDate, setReviewDate] = useState(getTodayIso());
+  const [toJOpen, setToJOpen] = useState(false);
+  const [toJDate, setToJDate] = useState(getTodayIso());
+  const [toJList, setToJList] = useState<number[]>(settings.defaultJPattern);
 
   useEffect(() => {
     if (course) {
@@ -114,8 +137,10 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
       setFolderId(course.folderId);
       setCustomColor(course.customColor);
       setNotes(course.notes || '');
+      setCreatedAt(course.createdAt);
       setIsEditing(false);
       setShowColorPicker(false);
+      setToJOpen(false);
     }
   }, [course?.id, course?.customColor]);
 
@@ -131,6 +156,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
         subjectId === course.subjectId &&
         folderId === course.folderId &&
         customColor === course.customColor &&
+        createdAt === course.createdAt &&
         notes.trim() === (course.notes ?? '').trim();
       if (unchanged) setIsEditing(false);
     },
@@ -145,9 +171,10 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
   // Couleur du cours : la sienne, sinon celle de son dossier (choisie ou nuance automatique), sinon celle de la discipline
   const effectiveColor = customColor || getFolderColor(currentSubject, shownFolderId) || currentSubject.color;
   const pathLabel = formatCoursePath(currentSubject, shownFolderId);
+  const free = isFreeCourse(course);
   const courseRevisions = revisions
     .filter((r) => r.courseId === course.id)
-    .sort((a, b) => a.jIndex - b.jIndex);
+    .sort(compareCourseRevisions);
 
   const completedCount = courseRevisions.filter((r) => r.completed).length;
 
@@ -169,13 +196,18 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
       folderId,
       customColor: customColor || undefined,
       notes: notes.trim(),
+      ...(isFreeCourse(course) && /^\d{4}-\d{2}-\d{2}$/.test(createdAt) && createdAt !== course.createdAt
+        ? { createdAt, j0Date: createdAt }
+        : {}),
     });
     setIsEditing(false);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 dark:bg-black/70 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-fit min-w-[min(28rem,100%)] max-w-[min(92vw,48rem)] my-6 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    // Centrée par des marges automatiques (et non items-center) : plus haute que l'écran (mode édition), la fiche
+    // défile depuis son haut au lieu de déborder au-dessus de l'écran, hors d'atteinte
+    <div className="fixed inset-0 z-50 flex justify-center p-3 sm:p-4 bg-slate-900/60 dark:bg-black/70 backdrop-blur-xs overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-fit min-w-[min(28rem,100%)] max-w-[min(92vw,48rem)] my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Top Subject / Course Color Bar */}
         <div className="h-2 w-full" style={{ backgroundColor: effectiveColor }} />
         {onBackToSlot && (
@@ -212,9 +244,23 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
                   {course.itemCode}
                 </span>
                 <span className="text-xs text-slate-400 dark:text-slate-500">·</span>
-                <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-                  J0 : {formatFrenchDate(course.j0Date)}
-                </span>
+                {free ? (
+                  <>
+                    <FreeCourseBadge />
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(true)}
+                      title={t('Modifier la date de création')}
+                      className="text-xs text-slate-500 dark:text-slate-400 font-mono hover:text-teal-600 dark:hover:text-teal-400 hover:underline"
+                    >
+                      {t('créé le {date}', { date: formatFrenchDate(course.createdAt) })}
+                    </button>
+                  </>
+                ) : (
+                  <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                    J0 : {formatFrenchDate(course.j0Date)}
+                  </span>
+                )}
               </div>
 
               {!isEditing ? (
@@ -238,6 +284,18 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
                       className="px-2.5 py-1 text-xs font-mono border border-slate-300 dark:border-slate-700 rounded-lg dark:bg-slate-800 dark:text-white"
                       placeholder={t('Code (EDN-103)')}
                     />
+                    {isFreeCourse(course) && (
+                      <label className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 min-w-0">
+                        <span className="shrink-0">{t('Créé le')}</span>
+                        <input
+                          type="date"
+                          value={createdAt}
+                          max={todayIso}
+                          onChange={(e) => e.target.value && setCreatedAt(e.target.value)}
+                          className="min-w-0 flex-1 px-2 py-1 text-xs font-mono border border-slate-300 dark:border-slate-700 rounded-lg dark:bg-slate-800 dark:text-white"
+                        />
+                      </label>
+                    )}
                   </div>
                   <FolderTreePicker
                     subjects={subjects}
@@ -299,10 +357,12 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
             <span className="text-[11px] text-slate-500 dark:text-slate-400 min-w-[4.5rem]">{MASTERY_CONFIG[course.mastery]?.shortLabel}</span>
           </div>
 
-          {/* Progression dans le temps (largeur proportionnelle aux jours) */}
+          {/* Progression dans le temps (largeur proportionnelle aux jours) : seulement s'il y a des J */}
+          {courseRevisions.some((r) => !isRReview(r)) && (
           <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-800">
             <RetentionTimeline course={course} revisions={revisions} />
           </div>
+          )}
 
           {/* Notes & Key Points */}
           <div data-edit-zone>
@@ -350,21 +410,142 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4 text-teal-600" />
-                  <span>{t('Planning des répétitions (Méthode des J)')}</span>
+                  <Calendar className={`w-4 h-4 ${free ? 'text-violet-600 dark:text-violet-400' : 'text-teal-600'}`} />
+                  <span>{free ? t('Révisions libres (R)') : t('Planning des répétitions (Méthode des J)')}</span>
                 </h3>
                 <span className="text-xs text-slate-500 dark:text-slate-400">
                   {t('{done} sur {total} créneaux validés', { done: completedCount, total: courseRevisions.length })}
                 </span>
               </div>
+              {free && onConvertToJ && !toJOpen && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setToJDate(getTodayIso());
+                    setToJList(settings.defaultJPattern);
+                    setToJOpen(true);
+                  }}
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold rounded-lg text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-950/60"
+                >
+                  <Calendar className="w-3.5 h-3.5" />
+                  {t('Passer en méthode des J')}
+                </button>
+              )}
+              {!free && onConvertToFree && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const pending = courseRevisions.filter((r) => !r.completed && !isRReview(r)).length;
+                    if (
+                      await confirm({
+                        title: t('Passer ce cours en révision libre ?'),
+                        message: plural(
+                          pending,
+                          'Le J à faire sera retiré. Les révisions déjà faites restent dans l\'historique, et vous ajouterez ensuite des révisions (R) à la main.',
+                          'Les {n} J à faire seront retirés. Les révisions déjà faites restent dans l\'historique, et vous ajouterez ensuite des révisions (R) à la main.'
+                        ),
+                        confirmLabel: t('Passer en révision libre'),
+                        tone: 'danger',
+                      })
+                    ) {
+                      onConvertToFree(course.id);
+                    }
+                  }}
+                  title={t('Ne plus programmer de J : vous ajouterez des révisions (R) à la main')}
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold rounded-lg text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:text-violet-700 dark:hover:text-violet-300 hover:border-violet-300 dark:hover:border-violet-700"
+                >
+                  <CalendarOff className="w-3.5 h-3.5" />
+                  {t('Passer en révision libre')}
+                </button>
+              )}
             </div>
+
+            {/* Cours libre : ajouter une révision R au jour choisi */}
+            {free && onAddReview && !toJOpen && (
+              <div className="flex items-center gap-2 flex-wrap p-2.5 rounded-xl border border-dashed border-violet-300 dark:border-violet-700 bg-violet-50/50 dark:bg-violet-950/20">
+                <input
+                  type="date"
+                  value={reviewDate}
+                  onChange={(e) => e.target.value && setReviewDate(e.target.value)}
+                  aria-label={t('Jour de la révision')}
+                  className="px-2.5 py-1.5 text-xs font-mono border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => onAddReview(course.id, reviewDate)}
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg text-white bg-violet-600 hover:bg-violet-700 shadow-xs"
+                >
+                  <CalendarPlus className="w-3.5 h-3.5" />
+                  {t('Ajouter une révision')}
+                </button>
+              </div>
+            )}
+
+            {/* Cours libre → méthode des J : date du J0 et liste des J */}
+            {free && toJOpen && onConvertToJ && (
+              <div className="space-y-2.5 p-3 rounded-xl border border-teal-200 dark:border-teal-800 bg-teal-50/50 dark:bg-teal-950/20">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{t('Date du J0')}</span>
+                  <input
+                    type="date"
+                    value={toJDate}
+                    onChange={(e) => e.target.value && setToJDate(e.target.value)}
+                    className="px-2.5 py-1.5 text-xs font-mono border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {[...new Set([...getJPool(settings), ...toJList])].sort((a, b) => a - b).map((j) => {
+                    const on = j === 0 || toJList.includes(j);
+                    return (
+                      <button
+                        key={j}
+                        type="button"
+                        disabled={j === 0}
+                        aria-pressed={on}
+                        onClick={() => setToJList((prev) => (prev.includes(j) ? prev.filter((x) => x !== j) : [...prev, j].sort((a, b) => a - b)))}
+                        className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-colors ${
+                          on
+                            ? 'bg-teal-600 border-teal-600 text-white'
+                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        J{j}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  {t('Les révisions déjà faites restent dans l\'historique ; celles qui restaient à faire sont remplacées par les J.')}
+                </p>
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setToJOpen(false)}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  >
+                    {t('Annuler')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onConvertToJ(course.id, toJDate, toJList);
+                      setToJOpen(false);
+                    }}
+                    className="px-3 py-1.5 text-xs font-bold rounded-lg text-white bg-teal-600 hover:bg-teal-700 shadow-xs"
+                  >
+                    {t('Programmer les J')}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* List of slots */}
             <div className="space-y-2">
               {courseRevisions.map((rev) => {
                 const isPastDue = !rev.completed && rev.scheduledDate < todayIso;
                 const isToday = rev.scheduledDate === todayIso;
-                const isJ0orJ1 = rev.jIndex === 0 || rev.jIndex === 1;
+                const isR = isRReview(rev);
+                const isJ0orJ1 = !isR && (rev.jIndex === 0 || rev.jIndex === 1);
 
                 return (
                   <div
@@ -402,12 +583,14 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
                             onClick={() => onOpenSlot?.(rev)}
                             title={t('Ouvrir ce créneau')}
                             className={`font-bold text-xs px-2 py-0.5 rounded ${onOpenSlot ? 'hover:brightness-95 cursor-pointer' : 'cursor-default'} ${
-                              isJ0orJ1
+                              isR
+                                ? 'bg-violet-100 text-violet-900 border border-dashed border-violet-400 dark:bg-violet-900/40 dark:text-violet-300 dark:border-violet-600'
+                                : isJ0orJ1
                                 ? 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-300'
                                 : 'bg-teal-100 text-teal-900 dark:bg-teal-900/40 dark:text-teal-300'
                             }`}
                           >
-                            J{rev.jIndex}
+                            {revLabel(rev)}
                           </button>
                           <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200">
                             {formatFrenchDate(rev.scheduledDate)}
@@ -437,7 +620,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
                               <DurationSelect
                                 value={rev.durationMinutes}
                                 onChange={(m) => onResizeSlot(rev.id, m)}
-                                label={t('Durée du créneau J{n}', { n: rev.jIndex })}
+                                label={t('Durée du créneau {label}', { label: revLabel(rev) })}
                                 className="!py-0.5 !px-1 !text-[11px]"
                               />
                             </>
@@ -487,6 +670,29 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
                         >
                           <Play className="w-3 h-3 fill-current" />
                           <span>{t('Lancer')}</span>
+                        </button>
+                      )}
+
+                      {isR && onDeleteReview && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (
+                              await confirm({
+                                title: t('Supprimer cette révision ?'),
+                                message: t('{label} du {date} sera retirée du planning.', { label: revLabel(rev), date: formatFrenchDate(rev.scheduledDate) }),
+                                confirmLabel: t('Supprimer'),
+                                tone: 'danger',
+                              })
+                            ) {
+                              onDeleteReview(rev.id);
+                            }
+                          }}
+                          title={t('Supprimer cette révision')}
+                          aria-label={t('Supprimer cette révision')}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>

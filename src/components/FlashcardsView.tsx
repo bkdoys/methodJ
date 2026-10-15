@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, FileUp, Folder, Image as ImageIcon, List, ListTree, Pencil, Play, Plus, Search, Shuffle } from 'lucide-react';
+import { ChevronDown, ChevronRight, FileUp, Folder, Image as ImageIcon, Inbox, List, ListTree, Pencil, Play, Plus, Search, Shuffle } from 'lucide-react';
 import { AppSettings, Course, Deck, Flashcard, Subject } from '../types';
 import { CardCounts, courseCardCounts, getNewCardsPerDay, newCardsRoom, NEW_CARDS_PER_DAY_CHOICES } from '../utils/cardSession';
-import { DeckScope, searchCards } from '../utils/flashcards';
+import { DeckScope, liveCards, searchCards } from '../utils/flashcards';
+import { INBOX_COURSE_ID } from '../utils/inbox';
 import { formatCoursePath, getChildFolders, resolveCourseFolderId } from '../utils/folders';
 import { getFolderColor } from '../utils/folderColors';
 import { getCourseEffectiveColor } from '../utils/colorUtils';
@@ -342,6 +343,9 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
   };
 
   const totalToday = todayCount(counts);
+  // Cartes créées sans cours (« Cartes à trier ») : hors de l'arbre, rappelées ici tant qu'il en reste
+  const inboxDeck = courses.some((c) => c.id === INBOX_COURSE_ID) ? decks[INBOX_COURSE_ID] : undefined;
+  const inboxCards = inboxDeck ? liveCards(inboxDeck).length : 0;
 
   return (
     <div className="min-w-0 grid gap-4 lg:grid-cols-[minmax(17rem,21rem)_minmax(0,1fr)] items-start">
@@ -388,6 +392,33 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
             ))}
           </select>
         </label>
+        {inboxCards > 0 && (
+          <div className="flex items-center gap-2 p-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+            <Inbox className="w-4 h-4 shrink-0 text-slate-500 dark:text-slate-400" />
+            <span className="flex-1 min-w-0 text-xs text-slate-700 dark:text-slate-300">
+              <span className="font-bold text-slate-900 dark:text-white">{t('Cartes à trier')}</span>
+              {' · '}
+              {plural(inboxCards, '{n} carte', '{n} cartes')}
+            </span>
+            <button
+              type="button"
+              onClick={() => onPlay({ kind: 'course', courseId: INBOX_COURSE_ID }, 'all', cram)}
+              title={t('Réviser les cartes à trier')}
+              aria-label={t('Réviser les cartes à trier')}
+              className="p-1.5 rounded-lg text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950/40"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onOpenDeck(INBOX_COURSE_ID)}
+              title={t('Ranger ces cartes dans un cours')}
+              className="px-2 py-1 text-[11px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700"
+            >
+              {t('Trier')}
+            </button>
+          </div>
+        )}
         <div className="flex items-center gap-1.5 pt-1 border-t border-slate-100 dark:border-slate-800">
           <button
             type="button"

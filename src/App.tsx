@@ -38,6 +38,8 @@ import {
 } from './lazyViews';
 import { SyncData, getSyncMeta } from './utils/cloudSync';
 import { computeDashboard, countAlerts } from './utils/dashboard';
+import { FreeCourseAlert, findFreeCourseAlerts, snoozeFreeAlert } from './utils/freeAlerts';
+import { INBOX_COURSE_ID, isInboxCourse, makeInboxCourse, withoutInbox } from './utils/inbox';
 import { findAlertDays } from './utils/dayLoad';
 import { ToastBanner } from './components/ToastBanner';
 import { useCloudSync } from './hooks/useCloudSync';
@@ -109,9 +111,12 @@ export default function App() {
   const [deckCourseId, setDeckCourseId] = useState<string | null>(null);
   // Carte à ouvrir en modification dans l'éditeur (résultat de recherche de la vue Cartes)
   const [deckCardId, setDeckCardId] = useState<string | null>(null);
+  // « Cartes à trier » ouvertes pour ranger (et non pour ajouter une carte) : « Ranger » est mis en évidence
+  const [deckFiling, setDeckFiling] = useState(false);
   const openDeck = (courseId: string, cardId?: string) => {
     setDeckCardId(cardId ?? null);
     setDeckCourseId(courseId);
+    setDeckFiling(courseId === INBOX_COURSE_ID && !cardId);
   };
   // Choix du cours pour « Ajouter une carte » depuis la vue Cartes
   const [pickingCardCourse, setPickingCardCourse] = useState(false);
@@ -272,6 +277,10 @@ export default function App() {
   // Actions sur cours, créneaux et matières (voir hooks/useStudyData.ts)
   const {
     handleSaveNewCourse,
+    handleAddReview,
+    handleDeleteReview,
+    handleConvertCourseToJ,
+    handleConvertCourseToFree,
     handleConfirmShift,
     handleApplyShifts,
     handleConfirmComplete,
@@ -485,6 +494,22 @@ export default function App() {
     // todayIso : recalcul au changement de jour
   }, [decks, courses, settings, todayIso]);
 
+  // Les cours sans la boîte « Cartes à trier » : c'est ce que voient le catalogue, le planning, les stats et le tableau
+  // de bord. La boîte n'apparaît que dans la vue Cartes et comme rappel sur le tableau de bord (voir utils/inbox.ts).
+  const studyCourses = useMemo(() => withoutInbox(courses), [courses]);
+  const inboxCards = useMemo(
+    () => (courses.some(isInboxCourse) ? liveCards(decks[INBOX_COURSE_ID]).length : 0),
+    [courses, decks]
+  );
+  // Carte sans cours : la boîte est créée à la première, puis réutilisée
+  const openInbox = () => {
+    if (!courses.some((c) => c.id === INBOX_COURSE_ID)) setCourses((prev) => [makeInboxCourse(todayIso), ...prev]);
+    openDeck(INBOX_COURSE_ID);
+    setDeckFiling(false);
+  };
+  const handleSnoozeFreeAlert = (alert: FreeCourseAlert) =>
+    setSettings((prev) => ({ ...prev, freeAlertSnooze: snoozeFreeAlert(alert, prev, todayIso) }));
+
 
   // Calculate today's workload for TopNav
   const todayRevisions = useMemo(
@@ -504,11 +529,13 @@ export default function App() {
   const dashboardAlerts = useMemo(
     () =>
       countAlerts({
-        overdue: computeDashboard(courses, revisions, todayIso).stats.overdue.length,
+        overdue: computeDashboard(studyCourses, revisions, todayIso).stats.overdue.length,
         syncConflict: syncStatus === 'conflict',
         overloadedDays: findAlertDays(revisions, settings, todayIso).length,
+        freeCourses: findFreeCourseAlerts(studyCourses, revisions, settings, todayIso).length,
+        inboxCards,
       }),
-    [courses, revisions, settings, todayIso, syncStatus]
+    [courses, studyCourses, revisions, settings, todayIso, syncStatus, inboxCards]
   );
   // Date de la dernière synchro de ce compte sur cet appareil (conservée hors de l'état React)
   const lastSyncedAt = useMemo(
@@ -591,7 +618,7 @@ export default function App() {
   const renderPlanning = (split: boolean) => (
     <CalendarPlanningView
       revisions={revisions}
-      courses={courses}
+      courses={studyCourses}
       subjects={subjects}
       settings={settings}
       isSplitView={split || undefined}
@@ -611,7 +638,7 @@ export default function App() {
   );
   const renderCatalog = (compact: boolean) => (
     <CourseCatalogView
-      courses={courses}
+      courses={studyCourses}
       revisions={revisions}
       subjects={subjects}
       settings={settings}
@@ -633,7 +660,7 @@ export default function App() {
     <StudySessionTimer
       linkTypes={getLinkTypes(settings)}
       revisions={revisions}
-      courses={courses}
+      courses={studyCourses}
       subjects={subjects}
       activeRevisionId={activeSessionRevisionId}
       onSelectRevision={setActiveSessionRevisionId}
@@ -734,7 +761,7 @@ export default function App() {
               renderCatalog(false)
             ) : currentView === 'dashboard' ? (
               <DashboardView
-                courses={courses}
+                courses={studyCourses}
                 revisions={revisions}
                 subjects={subjects}
                 settings={settings}
@@ -758,6 +785,9 @@ export default function App() {
                 cardsToday={cardsToday}
                 onPlayCards={() => playScope({ kind: 'all' }, 'today', false)}
                 onOpenCards={() => setCurrentView('cards')}
+                inboxCards={inboxCards}
+                onOpenInbox={() => openDeck(INBOX_COURSE_ID)}
+                onSnoozeFreeAlert={handleSnoozeFreeAlert}
               />
             ) : currentView === 'session' ? (
               renderTimer()
@@ -775,7 +805,7 @@ export default function App() {
               />
             ) : (
               <StatsProgressView
-                courses={courses}
+                courses={studyCourses}
                 revisions={revisions}
                 subjects={subjects}
                 decks={decks}
@@ -820,7 +850,7 @@ export default function App() {
         onChangeLinkTypes={handleChangeLinkTypes}
         onResolveSubjectCourses={handleResolveSubjectCourses}
         cloudAvailable={isCloudConfigured}
-        courses={courses}
+        courses={studyCourses}
         revisions={revisions}
         onExportBackup={handleExportBackup}
         onImportBackup={handleImportBackup}
@@ -874,6 +904,10 @@ export default function App() {
           cardCount={cardCount(selectedCourseForDetail.id)}
           onOpenDeck={() => openDeck(selectedCourseForDetail.id)}
           onPlayCards={() => playCourseCards(selectedCourseForDetail.id)}
+          onAddReview={handleAddReview}
+          onDeleteReview={handleDeleteReview}
+          onConvertToJ={handleConvertCourseToJ}
+          onConvertToFree={handleConvertCourseToFree}
         />
       )}
 
@@ -884,6 +918,7 @@ export default function App() {
           deck={decks[deckCourse.id]}
           onChange={(change) => updateDeck(deckCourse.id, change)}
           initialCardId={deckCardId ?? undefined}
+          highlightFiling={deckFiling}
           onClose={() => {
             setDeckCourseId(null);
             setDeckCardId(null);
@@ -897,7 +932,7 @@ export default function App() {
 
       {pickingCardCourse && (
         <CardCoursePicker
-          courses={courses}
+          courses={studyCourses}
           subjects={subjects}
           defaultCourseId={lastCardCourseId ?? deckCourseId ?? undefined}
           onPick={(id) => {
@@ -905,13 +940,17 @@ export default function App() {
             setPickingCardCourse(false);
             openDeck(id);
           }}
+          onPickInbox={() => {
+            setPickingCardCourse(false);
+            openInbox();
+          }}
           onClose={() => setPickingCardCourse(false)}
         />
       )}
 
       {cardsImport && (
         <CardsImportModal
-          courses={courses}
+          courses={studyCourses}
           subjects={subjects}
           decks={decks}
           defaultCourseId={cardsImport.defaultCourseId}

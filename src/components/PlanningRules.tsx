@@ -16,6 +16,7 @@ export const PlanningRules: React.FC<{ kind: 'smooth' | 'catchup' }> = ({ kind }
             c: maxDelayDays(7),
           })}
         </li>
+        <li>{t('Une révision R (cours en révision libre) n\'a pas d\'intervalle à respecter : elle est essayée en premier, jusqu\'à {c} jours, et ne décale jamais d\'autres créneaux.', { c: maxDelayDays(7) })}</li>
         <li>{t('Un créneau repoussé est replacé à la première place libre de son nouveau jour : le jour d\'arrivée est jugé avec cette heure, pas avec l\'ancienne.')}</li>
         <li>{t('Un déplacement n\'est proposé que s\'il allège le jour sans en surcharger un autre, cascade des J suivants comprise.')}</li>
         <li>{t('Sinon on le dit : aucune solution simple. Rien n\'est déplacé sans votre accord, et tout s\'annule d\'un clic.')}</li>

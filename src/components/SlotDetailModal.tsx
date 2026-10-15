@@ -12,6 +12,7 @@ import { getCourseEffectiveColor, getSubjectBadgeStyle } from '../utils/colorUti
 import { CourseLinkIcons } from './CourseLinkIcons';
 import { getLinkTypes } from '../utils/courseLinks';
 import { t } from '../i18n';
+import { revLabel } from '../utils/jMethod';
 
 interface SlotDetailModalProps {
   revision: RevisionItem;
@@ -77,7 +78,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
     >
       <div
         role="dialog"
-        aria-label={t('Créneau J{n}', { n: rev.jIndex })}
+        aria-label={t('Créneau {label}', { label: revLabel(rev) })}
         className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-fit min-w-[min(28rem,100%)] max-w-[min(92vw,48rem)] my-6 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
       >
         <div className="h-2 w-full" style={{ backgroundColor: color }} />
@@ -86,7 +87,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
           <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-bold text-sm px-2 py-0.5 rounded bg-teal-100 text-teal-900 dark:bg-teal-900/40 dark:text-teal-300">
-                J{rev.jIndex}
+                {revLabel(rev)}
               </span>
               {subject && (
                 <span className="subject-badge px-2 py-0.5 rounded-md text-xs font-bold" style={getSubjectBadgeStyle(course, subject)}>
@@ -142,7 +143,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                 <DurationSelect
                   value={rev.durationMinutes}
                   onChange={(m) => onResizeSlot(rev.id, m)}
-                  label={t('Durée du créneau J{n}', { n: rev.jIndex })}
+                  label={t('Durée du créneau {label}', { label: revLabel(rev) })}
                 />
               </>
             )}

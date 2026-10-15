@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AppSettings, Course, RevisionItem, Subject } from '../types';
 import {
   addDays,
@@ -42,7 +42,8 @@ import {
 import { CalendarExportModal } from './CalendarExportModal';
 import { analyzeDay } from '../utils/dayLoad';
 import { plural, t } from '../i18n';
-import { getSlotDurationMinutes } from '../utils/jMethod';
+import { getSlotDurationMinutes, revLabel } from '../utils/jMethod';
+import { usePlanningGestures } from '../hooks/usePlanningGestures';
 
 /** Hauteur d'une heure choisie avec − / + : un confort d'affichage propre à l'appareil (iPad ≠ ordinateur). */
 const HOUR_HEIGHT_KEY = 'medj_timeline_hour_height_v1';
@@ -130,8 +131,20 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
       forcedDates: current.includes(date) ? current.filter((d) => d !== date) : [...current, date].sort(),
     });
   };
-  const changeHourHeight = (direction: -1 | 1) => {
-    const next = stepHourHeight(hourHeight, direction);
+  // Valeur courante sans attendre le rendu : un pincement peut enchaîner plusieurs paliers d'affilée
+  const hourHeightRef = useRef(hourHeight);
+  hourHeightRef.current = hourHeight;
+  /** Heure gardée sous les doigts pendant un pincement : position dans la grille (0-1) et y à l'écran. */
+  const zoomAnchor = useRef<{ fraction: number; clientY: number } | null>(null);
+  const changeHourHeight = (direction: number, anchorY?: number) => {
+    let next = hourHeightRef.current;
+    for (let i = 0; i < Math.abs(direction); i++) next = stepHourHeight(next, direction < 0 ? -1 : 1);
+    if (next === hourHeightRef.current) return;
+    if (anchorY !== undefined && !zoomAnchor.current) {
+      const grid = contentRef.current?.querySelector<HTMLElement>('[data-hour-grid]')?.getBoundingClientRect();
+      if (grid && grid.height > 0) zoomAnchor.current = { fraction: (anchorY - grid.top) / grid.height, clientY: anchorY };
+    }
+    hourHeightRef.current = next;
     setHourHeight(next);
     try {
       localStorage.setItem(HOUR_HEIGHT_KEY, String(next));
@@ -139,6 +152,13 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
       // stockage indisponible : le réglage reste actif pour cette session
     }
   };
+  // Après le nouveau rendu, on fait défiler la page pour que l'heure pincée reste sous les doigts
+  useLayoutEffect(() => {
+    const anchor = zoomAnchor.current;
+    zoomAnchor.current = null;
+    const grid = anchor && contentRef.current?.querySelector<HTMLElement>('[data-hour-grid]')?.getBoundingClientRect();
+    if (anchor && grid) window.scrollBy({ top: grid.top + anchor.fraction * grid.height - anchor.clientY });
+  }, [hourHeight]);
 
   const getCourse = (courseId: string): Course | undefined => {
     return courses.find((c) => c.id === courseId);
@@ -188,6 +208,27 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
   };
 
   const handleJumpToday = () => onSelectDate(todayIso);
+
+  // Le champ de date s'allume un instant quand le jour change (balayage, ‹ ›…) : on voit où l'on est arrivé
+  const [dateFlash, setDateFlash] = useState(false);
+  const shownDate = useRef(selectedDate);
+  useEffect(() => {
+    if (shownDate.current === selectedDate) return;
+    shownDate.current = selectedDate;
+    setDateFlash(true);
+    const id = setTimeout(() => setDateFlash(false), 600);
+    return () => clearTimeout(id);
+  }, [selectedDate]);
+
+  // Tactile : balayer = ‹ / ›, pincer la chronologie = − / +
+  const contentRef = useRef<HTMLDivElement>(null);
+  const pinchEnabled = subView !== 'month';
+  usePlanningGestures(rootRef, {
+    contentRef,
+    pinchEnabled,
+    onSwipe: (direction) => (direction === 'next' ? handleNext() : handlePrev()),
+    onPinch: (steps, clientY) => changeHourHeight(steps, clientY),
+  });
 
   // Week View calculation
   const weekDays = getWeekDays(selectedDate);
@@ -258,7 +299,11 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
               type="date"
               value={selectedDate}
               onChange={(e) => e.target.value && onSelectDate(e.target.value)}
-              className="text-xs phone:text-[11px] font-mono font-bold px-2.5 phone:px-1.5 py-1.5 min-w-0 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-white bg-slate-50 dark:bg-slate-800 focus:ring-1 focus:ring-teal-500"
+              className={`text-xs phone:text-[11px] font-mono font-bold px-2.5 phone:px-1.5 py-1.5 min-w-0 border rounded-lg text-slate-800 dark:text-white focus:ring-1 focus:ring-teal-500 transition-colors duration-500 ${
+                dateFlash
+                  ? 'border-teal-400 dark:border-teal-600 bg-teal-50 dark:bg-teal-950/60'
+                  : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800'
+              }`}
             />
 
             <button
@@ -346,6 +391,8 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
         )}
       </div>
 
+      {/* Zone des gestes : suit le doigt pendant un balayage ; ici le pincement change l'échelle, pas la page */}
+      <div ref={contentRef} style={pinchEnabled ? { touchAction: 'pan-x pan-y' } : undefined}>
       {/* ========================================================= */}
       {/* 1. SEMAINE ou N JOURS : échelle horaire commune aux colonnes */}
       {/* ========================================================= */}
@@ -572,10 +619,10 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
                               background: gradientStyle.background,
                               color: gradientStyle.color,
                             }}
-                            title={`J${r.jIndex} · ${course.title}`}
+                            title={`${revLabel(r)} · ${course.title}`}
                           >
                             <RatingFx rev={r} />
-                            <span className="font-extrabold text-[9px] opacity-90">J{r.jIndex}</span>
+                            <span className="font-extrabold text-[9px] opacity-90">{revLabel(r)}</span>
                             <span className="truncate">{course.title}</span>
                           </div>
                         );
@@ -593,6 +640,7 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
           </div>
         </div>
       )}
+      </div>
 
       {exportOpen && (
         <CalendarExportModal

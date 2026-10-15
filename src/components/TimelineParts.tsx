@@ -24,6 +24,7 @@ import { ArrowRightLeft, CheckCircle2, Circle, GripVertical, Lock, LockOpen, Min
 import { stepHourHeight, normalizeHourHeight } from '../utils/dayLayout';
 import { t } from '../i18n';
 import { formatMinutes } from '../utils/dateUtils';
+import { isRReview, revLabel } from '../utils/jMethod';
 
 /** Largeur de la colonne des heures (w-12). */
 export const SCALE_WIDTH_CLASS = 'left-12';
@@ -609,6 +610,7 @@ export const DayColumn: React.FC<DayColumnProps> = ({
           <button
             type="button"
             onPointerDown={(e) => armDrag(e, p, rev, true)}
+            data-no-swipe
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => {
               if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
@@ -679,6 +681,9 @@ export const DayColumn: React.FC<DayColumnProps> = ({
             </button>
           </div>
         );
+
+        // Révision R (cours sans J) : étiquette en pointillés, pour la distinguer d'un J au premier coup d'œil
+        const labelBorder: React.CSSProperties = isRReview(rev) ? { border: `1px dashed ${g.badgeText}` } : {};
 
         const stars = hasRating && (
           <span className="flex gap-px" aria-label={t('Note de ce créneau : {n} sur 4', { n: rev.rating ?? 0 })}>
@@ -761,9 +766,9 @@ export const DayColumn: React.FC<DayColumnProps> = ({
                   )}
                   <span
                     className="px-1 py-0.5 rounded shadow-2xs"
-                    style={{ backgroundColor: g.badgeBg, color: g.badgeText }}
+                    style={{ backgroundColor: g.badgeBg, color: g.badgeText, ...labelBorder }}
                   >
-                    J{rev.jIndex}
+                    {revLabel(rev)}
                   </span>
                   {stars}
                 </div>
@@ -802,9 +807,9 @@ export const DayColumn: React.FC<DayColumnProps> = ({
                   )}
                   <span
                     className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-extrabold shadow-2xs"
-                    style={{ backgroundColor: g.badgeBg, color: g.badgeText }}
+                    style={{ backgroundColor: g.badgeBg, color: g.badgeText, ...labelBorder }}
                   >
-                    J{rev.jIndex}
+                    {revLabel(rev)}
                     <span className="opacity-80 font-mono font-normal">({formatMinutes(rev.durationMinutes)})</span>
                   </span>
                   {details.subject !== 'none' && (

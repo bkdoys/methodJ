@@ -1,5 +1,6 @@
 import { AppSettings, Course, RevisionItem, Subject } from '../types';
 import { t } from '../i18n';
+import { revLabel } from './jMethod';
 
 /** Données applicatives telles que synchronisées (même forme que AppDataState). */
 export interface SyncData {
@@ -299,7 +300,7 @@ export function diffData(local: SyncData, cloud: SyncData): DataDiff {
   const courseTitle = new Map([...local.courses, ...cloud.courses].map((c) => [c.id, c.title]));
   return {
     courses: diffCollection(local.courses, cloud.courses, (c) => c.title),
-    revisions: diffCollection(local.revisions, cloud.revisions, (r) => `${courseTitle.get(r.courseId) ?? t('Cours')} · J${r.jIndex}`),
+    revisions: diffCollection(local.revisions, cloud.revisions, (r) => `${courseTitle.get(r.courseId) ?? t('Cours')} · ${revLabel(r)}`),
     subjectsDiffer: canon([...local.subjects].sort(byId)) !== canon([...cloud.subjects].sort(byId)),
     settingsDiffer: canon(local.settings) !== canon(cloud.settings),
   };

@@ -2,7 +2,7 @@
 
 🇫🇷 Français · [🇬🇧 English](README.en.md)
 
-methodJ planifie vos révisions selon la **méthode des J** (répétition espacée) : à chaque cours, des créneaux de révision sont placés à J0, J1, J3, J7, J15, J30, J60… Vous gardez la main : glisser-déposer, décalage en cascade, chronomètre, statistiques.
+methodJ planifie vos révisions selon la **méthode des J** (répétition espacée) : à chaque cours, des créneaux de révision sont placés à J0, J1, J3, J7, J15, J30, J60… Vous gardez la main : glisser-déposer, décalage en cascade, gestes tactiles (balayer pour changer de jour, pincer pour zoomer), chronomètre, statistiques. Un cours peut aussi être en **révision libre** (sans J programmé) : vous lui ajoutez des révisions (R) quand vous le souhaitez, et vous le passez en méthode des J plus tard si besoin ; le tableau de bord vous signale un cours libre laissé de côté. Une carte peut aussi être créée sans cours : elle attend dans « Cartes à trier » que vous la rangiez.
 
 > ⚠️ methodJ est un outil d'organisation du travail. Il ne fournit aucun contenu médical ni avis médical.
 

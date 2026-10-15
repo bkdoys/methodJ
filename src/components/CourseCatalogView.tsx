@@ -38,11 +38,15 @@ import {
   clampPanelWidth,
   parseStoredPanelWidth,
 } from '../utils/panelWidth';
+import { compareCourseRevisions, isFreeCourse, isRReview, revLabel } from '../utils/jMethod';
+import { FreeCourseBadge } from './FreeCourseBadge';
 
 
 const SORT_STORAGE_KEY = 'medj_catalog_sort_v1';
 const TREE_OPEN_STORAGE_KEY = 'medj_catalog_tree_v1';
 const TREE_WIDTH_STORAGE_KEY = 'medj_catalog_tree_width_v1';
+/** Types de cours affichés (pastilles J / R) : « J », « R », ou absent = les deux. */
+const TYPES_STORAGE_KEY = 'medj_catalog_types_v1';
 /** Cartes dessinées par tranche (la suivante s'ajoute au défilement). */
 const CARDS_PER_PAGE = 30;
 
@@ -171,9 +175,37 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
       if (list) list.push(r);
       else map.set(r.courseId, [r]);
     });
-    map.forEach((list) => list.sort((a, b) => a.jIndex - b.jIndex));
+    map.forEach((list) => list.sort(compareCourseRevisions));
     return map;
   }, [revisions]);
+
+  // Type de cours : « R » = cours sans J, ou qui a au moins une révision R ; « J » = les autres.
+  // Deux pastilles, toutes deux actives par défaut (= tous) ; on en désactive une, jamais les deux.
+  // Le filtre n'apparaît que s'il existe au moins un cours R.
+  const [shownTypes, setShownTypes] = useState(() => {
+    try {
+      const saved = localStorage.getItem(TYPES_STORAGE_KEY);
+      return { J: saved !== 'R', R: saved !== 'J' };
+    } catch {
+      return { J: true, R: true };
+    }
+  });
+  const isRCourse = (course: Course) =>
+    isFreeCourse(course) || (revisionsByCourse.get(course.id) ?? []).some(isRReview);
+  const rCourseCount = courses.filter(isRCourse).length;
+  const typeFilterOn = rCourseCount > 0 && !(shownTypes.J && shownTypes.R);
+  const toggleType = (type: 'J' | 'R') =>
+    setShownTypes((prev) => {
+      const next = { ...prev, [type]: !prev[type] };
+      if (!next.J && !next.R) return prev;
+      try {
+        if (next.J && next.R) localStorage.removeItem(TYPES_STORAGE_KEY);
+        else localStorage.setItem(TYPES_STORAGE_KEY, next.J ? 'J' : 'R');
+      } catch {
+        // stockage indisponible : le choix reste actif pour cette session
+      }
+      return next;
+    });
 
   // Filtered courses
   const query = searchQuery.toLowerCase();
@@ -186,7 +218,9 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
 
     const matchesSubject = !treeOpen || !activeSelection || courseInNode(course, activeSelection, subjects);
 
-    return matchesSearch && matchesSubject;
+    const matchesType = !typeFilterOn || shownTypes[isRCourse(course) ? 'R' : 'J'];
+
+    return matchesSearch && matchesSubject && matchesType;
   });
   const filteredCourses = sortCourses(matchingCourses, revisions, subjects, sortMode);
 
@@ -195,7 +229,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
   const [visibleCount, setVisibleCount] = useState(CARDS_PER_PAGE);
   useEffect(() => {
     setVisibleCount(CARDS_PER_PAGE);
-  }, [searchQuery, activeSelection?.subjectId, activeSelection?.folderId, treeOpen, sortMode]);
+  }, [searchQuery, activeSelection?.subjectId, activeSelection?.folderId, treeOpen, sortMode, typeFilterOn, shownTypes]);
   const visibleCourses = filteredCourses.slice(0, visibleCount);
   const hasMore = filteredCourses.length > visibleCount;
   const showMore = useCallback(() => setVisibleCount((n) => n + CARDS_PER_PAGE), []);
@@ -255,8 +289,9 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
             />
           </div>
 
-          {/* Tri */}
-          <div className="relative">
+          {/* Tri, et filtre J / R quand au moins un cours a des révisions R */}
+          <div className="flex items-center gap-1.5">
+          <div className="relative flex-1 min-w-0">
             <ArrowUpDown className="w-4 h-4 text-slate-400 absolute left-3 top-2 pointer-events-none" />
             <select
               value={sortMode}
@@ -271,6 +306,35 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                 </option>
               ))}
             </select>
+          </div>
+          {rCourseCount > 0 && (
+            <div className="flex items-center gap-1 shrink-0" role="group" aria-label={t('Type de cours')}>
+              {(['J', 'R'] as const).map((type) => {
+                const on = shownTypes[type];
+                const r = type === 'R';
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => toggleType(type)}
+                    title={r ? t('Cours en révision libre ({n})', { n: rCourseCount }) : t('Cours en méthode des J')}
+                    className={`w-7 h-7 text-xs font-extrabold rounded-lg border transition-colors ${
+                      on
+                        ? r
+                          ? 'bg-violet-600 border-violet-600 text-white'
+                          : 'bg-teal-600 border-teal-600 text-white'
+                        : r
+                        ? 'bg-white dark:bg-slate-800 border-dashed border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950/40'
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    {type}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           </div>
         </div>
       </div>
@@ -458,10 +522,14 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
 
                         <span className="text-xs text-slate-400">·</span>
 
-                        {/* J0 date */}
-                        <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-                          {t('J0 commencé le {date}', { date: formatFrenchDate(course.j0Date) })}
-                        </span>
+                        {/* J0 date, ou marque « Sans J » d'un cours libre */}
+                        {isFreeCourse(course) ? (
+                          <FreeCourseBadge />
+                        ) : (
+                          <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                            {t('J0 commencé le {date}', { date: formatFrenchDate(course.j0Date) })}
+                          </span>
+                        )}
                         <CourseLinkIcons links={course.links} linkTypes={getLinkTypes(settings)} className="ml-1" />
                       </div>
 
@@ -561,14 +629,14 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5 text-teal-600" />
-                        <span>{t('Cycle de répétitions espacées')}</span>
+                        <span>{isFreeCourse(course) ? t('Révisions libres') : t('Cycle de répétitions espacées')}</span>
                         <span className="text-[11px] font-normal text-slate-500 dark:text-slate-400">
                           {t('({done}/{total} révisions faites)', { done: completedCount, total: courseRevisions.length })}
                         </span>
                       </span>
 
                       <span className="text-[11px] text-slate-400">
-                        {t('Cliquez sur un J pour décaler ou valider')}
+                        {isFreeCourse(course) ? t('Ajoutez une révision depuis la fiche du cours') : t('Cliquez sur un J pour décaler ou valider')}
                       </span>
                     </div>
 
@@ -577,7 +645,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                       {courseRevisions.map((rev) => {
                         const isPastDue = !rev.completed && rev.scheduledDate < todayIso;
                         const isToday = rev.scheduledDate === todayIso;
-                        const isJ0orJ1 = rev.jIndex === 0 || rev.jIndex === 1;
+                        const isJ0orJ1 = !isRReview(rev) && (rev.jIndex === 0 || rev.jIndex === 1);
 
                         return (
                           <div
@@ -601,7 +669,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                                 title={t('Voir ce jour dans le planning')}
                                 className="font-bold hover:underline hover:text-teal-600 dark:hover:text-teal-400 cursor-pointer"
                               >
-                                J{rev.jIndex}
+                                {revLabel(rev)}
                               </button>
                               <span className="text-[10px] font-mono opacity-75">
                                 {isJ0orJ1 ? '1h30' : '1h00'}

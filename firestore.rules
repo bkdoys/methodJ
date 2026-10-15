@@ -12,8 +12,10 @@ service cloud.firestore {
     }
 
     function validCourse(d, userId) {
-      return d.keys().hasOnly(['id', 'userId', 'title', 'itemCode', 'subjectId', 'folderId', 'links', 'customColor', 'j0Date', 'activeJList', 'mastery', 'notes', 'createdAt', 'updatedAt'])
+      return d.keys().hasOnly(['id', 'userId', 'title', 'itemCode', 'subjectId', 'folderId', 'links', 'customColor', 'j0Date', 'activeJList', 'mode', 'inbox', 'mastery', 'notes', 'createdAt', 'updatedAt'])
         && d.userId == userId
+        && (!('mode' in d) || d.mode == 'free')
+        && (!('inbox' in d) || d.inbox == true)
         && d.title is string && d.title.size() <= 200
         && d.subjectId is string && d.subjectId.size() <= 64
         && (!('folderId' in d) || (d.folderId is string && d.folderId.size() <= 64))
@@ -23,8 +25,9 @@ service cloud.firestore {
     }
 
     function validRevision(d, userId) {
-      return d.keys().hasOnly(['id', 'userId', 'courseId', 'jIndex', 'scheduledDate', 'durationMinutes', 'completed', 'completedDate', 'rating', 'notes', 'slotOrder', 'startTime', 'originalDate', 'updatedAt'])
+      return d.keys().hasOnly(['id', 'userId', 'courseId', 'jIndex', 'scheduledDate', 'durationMinutes', 'completed', 'completedDate', 'rating', 'notes', 'slotOrder', 'startTime', 'originalDate', 'kind', 'updatedAt'])
         && d.userId == userId
+        && (!('kind' in d) || d.kind == 'R')
         && d.courseId is string && d.courseId.size() <= 128
         && d.jIndex is int && d.jIndex >= 0
         && d.scheduledDate is string && d.scheduledDate.size() <= 20

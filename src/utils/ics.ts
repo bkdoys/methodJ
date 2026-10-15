@@ -5,6 +5,7 @@ import { getDayBreaks, getDayWindow, resolveDayLayout } from './dayLayout';
 import { formatCoursePath } from './folders';
 import { getLinkTypes, linkTypeName, resolveLinkType } from './courseLinks';
 import { t } from '../i18n';
+import { revLabel } from './jMethod';
 
 export interface IcsOptions {
   /** Premier jour exporté (AAAA-MM-JJ) et dernier (inclus) ; absent = sans limite. */
@@ -130,7 +131,7 @@ export function buildSlotEvents(data: IcsData, opts: Pick<IcsOptions, 'fromIso' 
     return {
       revisionId: rev.id,
       // Un créneau validé reste visible dans l'agenda, repéré par le ✓ devant son titre
-      title: `${rev.completed ? '✓ ' : ''}J${rev.jIndex} · ${course.title}`,
+      title: `${rev.completed ? '✓ ' : ''}${revLabel(rev)} · ${course.title}`,
       completed: rev.completed,
       description: desc.join('\n'),
       category: subject?.name,

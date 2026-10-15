@@ -171,7 +171,10 @@ export const HelpTab: React.FC<{ courses: Course[] }> = ({ courses }) => {
         <h4 className="text-xs font-bold text-slate-900 dark:text-white">{t('Astuces')}</h4>
         <ul className="list-disc pl-4 space-y-1 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
           <li>{t('Glissez-déposez un créneau d\'un jour à l\'autre dans la vue Semaine pour le décaler en cascade.')}</li>
+          <li>{t('Sur écran tactile, balayez le planning vers la gauche ou la droite pour passer au jour, à la semaine ou au mois suivant ou précédent, et pincez la chronologie à deux doigts pour agrandir ou réduire les heures.')}</li>
           <li>{t('Cliquez sur un cours pour ouvrir sa fiche : notes, couleur, planning et progression.')}</li>
+          <li>{t('Un cours « Libre » n\'a pas de cycle programmé : ajoutez-lui des révisions (R) au fil du temps depuis sa fiche, et passez-le en méthode des J quand vous voulez (ou l\'inverse).')}</li>
+          <li>{t('Une carte sans cours (« Ajouter une carte » › « Sans cours pour l\'instant ») va dans « Cartes à trier » : le tableau de bord vous rappelle de la ranger dans un cours.')}</li>
           <li>{t('Importez vos matières depuis l\'onglet « Disciplines & Couleurs » (JSON ou texte).')}</li>
           <li>{t('Exportez régulièrement une sauvegarde JSON, même avec la synchronisation Cloud active.')}</li>
         </ul>

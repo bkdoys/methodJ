@@ -8,6 +8,7 @@ import { getCourseEffectiveColor, getCourseGradientStyle, getSubject } from '../
 import { formatTime } from '../utils/dayLayout';
 import { CrossDayHover, DayColumn, ForceDayToggle, HourZoomControl, SCALE_WIDTH_CLASS, TimelineScale } from './TimelineParts';
 import { t } from '../i18n';
+import { revLabel } from '../utils/jMethod';
 
 const NO_REVISIONS: RevisionItem[] = [];
 
@@ -171,7 +172,7 @@ export const MultiDayTimeline: React.FC<MultiDayTimelineProps> = ({
           </div>
         </div>
 
-        <div className="relative mt-3 mb-2" style={{ height: totalHeight }}>
+        <div data-hour-grid className="relative mt-3 mb-2" style={{ height: totalHeight }}>
           <TimelineScale displayStart={displayStart} displayEnd={displayEnd} pxPerMin={pxPerMin} />
           <div
             ref={gridRef}
@@ -224,7 +225,7 @@ export const MultiDayTimeline: React.FC<MultiDayTimelineProps> = ({
                       aria-hidden="true"
                     >
                       <div className="p-1.5 text-[11px] font-bold leading-tight">
-                        <span className="font-mono">{formatTime(hover.start)}</span> · J{dragged.jIndex}
+                        <span className="font-mono">{formatTime(hover.start)}</span> · {revLabel(dragged)}
                         <span className="block font-semibold line-clamp-2">{course.title}</span>
                       </div>
                     </div>

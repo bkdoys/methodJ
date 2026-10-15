@@ -3,10 +3,10 @@ import { parseIsoDate } from './dateUtils';
 /** Limite appliquée par firestore.rules sur `notes` (cours et créneaux). */
 export const MAX_NOTES_LENGTH = 5000;
 
-/** « [J3 · 12 oct.] texte de la note » : repère le J et la date d'origine dans les notes du cours. */
-export function formatSlotNoteEntry(jIndex: number, dateIso: string, note: string): string {
+/** « [J3 · 12 oct.] texte de la note » : repère le créneau (J3, R2…) et la date d'origine dans les notes du cours. */
+export function formatSlotNoteEntry(label: string, dateIso: string, note: string): string {
   const day = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' }).format(parseIsoDate(dateIso));
-  return `[J${jIndex} · ${day}] ${note.trim()}`;
+  return `[${label} · ${day}] ${note.trim()}`;
 }
 
 export type AppendNoteResult =

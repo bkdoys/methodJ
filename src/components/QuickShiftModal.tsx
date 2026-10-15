@@ -3,6 +3,7 @@ import { Course, RevisionItem } from '../types';
 import { addDays, diffInDays, formatFrenchDate } from '../utils/dateUtils';
 import { Calendar, ArrowRight, X } from 'lucide-react';
 import { t } from '../i18n';
+import { revLabel } from '../utils/jMethod';
 
 interface QuickShiftModalProps {
   revision: RevisionItem;
@@ -57,7 +58,7 @@ export const QuickShiftModal: React.FC<QuickShiftModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                {t('Décaler la révision J{n}', { n: revision.jIndex })}
+                {t('Décaler la révision {label}', { label: revLabel(revision) })}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">{course.title}</p>
             </div>
@@ -76,7 +77,7 @@ export const QuickShiftModal: React.FC<QuickShiftModalProps> = ({
           {/* Current vs New Date comparison */}
           <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-800">
             <div>
-              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">{t('Date initiale (J{n})', { n: revision.jIndex })}</span>
+              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">{t('Date initiale ({label})', { label: revLabel(revision) })}</span>
               <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 capitalize">
                 {formatFrenchDate(revision.scheduledDate)}
               </span>
@@ -151,7 +152,7 @@ export const QuickShiftModal: React.FC<QuickShiftModalProps> = ({
 
             <p className="text-xs text-teal-900 dark:text-teal-300 leading-relaxed pl-6">
               {t('Maintient les intervalles optimaux de répétition espacée. Si vous décalez ce')}{' '}
-              <strong className="font-bold">J{revision.jIndex}</strong> {t('de')}{' '}
+              <strong className="font-bold">{revLabel(revision)}</strong> {t('de')}{' '}
               <strong className="font-mono font-bold">{currentDelta >= 0 ? `+${currentDelta}` : currentDelta} {t('j')}</strong>{t(', tous les créneaux suivants non faits seront décalés du même nombre de jours.')}
             </p>
 
@@ -163,7 +164,7 @@ export const QuickShiftModal: React.FC<QuickShiftModalProps> = ({
                 <ul className="space-y-0.5 font-mono text-[11px]">
                   {subsequentRevisions.slice(0, 3).map((sub) => (
                     <li key={sub.id} className="flex items-center gap-1.5">
-                      <span className="font-bold">J{sub.jIndex}</span> : {sub.scheduledDate} ➔{' '}
+                      <span className="font-bold">{revLabel(sub)}</span> : {sub.scheduledDate} ➔{' '}
                       <span className="font-bold text-teal-700 dark:text-teal-400">
                         {addDays(sub.scheduledDate, currentDelta)}
                       </span>

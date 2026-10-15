@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { plural, t } from '../i18n';
+import { isRReview, revLabel } from '../utils/jMethod';
 
 interface StudySessionTimerProps {
   revisions: RevisionItem[];
@@ -301,7 +302,7 @@ export const StudySessionTimer: React.FC<StudySessionTimerProps> = ({
                 </span>
                 {currentRevision && (
                   <span className="px-2 py-0.5 rounded text-xs font-bold bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
-                    J{currentRevision.jIndex} ({formatMinutes(currentRevision.durationMinutes)})
+                    {revLabel(currentRevision)} ({formatMinutes(currentRevision.durationMinutes)})
                   </span>
                 )}
               </div>
@@ -322,7 +323,7 @@ export const StudySessionTimer: React.FC<StudySessionTimerProps> = ({
                   const c = courses.find((course) => course.id === r.courseId);
                   return (
                     <option key={r.id} value={r.id}>
-                      J{r.jIndex} ({formatMinutes(r.durationMinutes)}) · {c?.title}
+                      {revLabel(r)} ({formatMinutes(r.durationMinutes)}) · {c?.title}
                     </option>
                   );
                 })}
@@ -335,7 +336,7 @@ export const StudySessionTimer: React.FC<StudySessionTimerProps> = ({
                     const c = courses.find((course) => course.id === r.courseId);
                     return (
                       <option key={r.id} value={r.id}>
-                        J{r.jIndex} ({r.scheduledDate}) · {c?.title}
+                        {revLabel(r)} ({r.scheduledDate}) · {c?.title}
                       </option>
                     );
                   })}
@@ -358,7 +359,7 @@ export const StudySessionTimer: React.FC<StudySessionTimerProps> = ({
         {/* Course Header in Focus */}
         <div className="space-y-1">
           <span className="text-xs font-mono font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-            {currentRevision?.jIndex === 0 || currentRevision?.jIndex === 1
+            {currentRevision && !isRReview(currentRevision) && (currentRevision.jIndex === 0 || currentRevision.jIndex === 1)
               ? t('Séance approfondie (créneau {d})', { d: formatMinutes(currentRevision.durationMinutes) })
               : currentRevision
               ? t('Rappel actif espacé (créneau {d})', { d: formatMinutes(currentRevision.durationMinutes) })

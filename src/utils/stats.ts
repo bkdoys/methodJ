@@ -1,6 +1,7 @@
 import { Course, MasteryLevel, RevisionItem, Subject } from '../types';
 import { addDays, diffInDays } from './dateUtils';
 import { t } from '../i18n';
+import { isRReview } from './jMethod';
 
 export interface DayActivity {
   date: string;
@@ -113,7 +114,7 @@ export function computeStudyStats(
   // Auto-évaluation moyenne par étape J : montre où la mémorisation décroche
   const ratedByJ = new Map<number, number[]>();
   done.forEach((r) => {
-    if (r.rating === undefined) return;
+    if (r.rating === undefined || isRReview(r)) return;
     ratedByJ.set(r.jIndex, [...(ratedByJ.get(r.jIndex) ?? []), r.rating]);
   });
   const retentionByJ = [...ratedByJ.entries()]
@@ -190,9 +191,32 @@ export function forecastLoad(revisions: RevisionItem[], todayIso: string, days: 
   });
 }
 
-/** Un cours est « commencé » quand son J0 est validé. */
+/**
+ * Date de départ de chaque cours commencé : celle de son J0 validé, sinon (cours libre) celle de sa première
+ * révision R faite.
+ */
+export function courseStartDates(revisions: RevisionItem[]): Map<string, string> {
+  const j0 = new Map<string, string>();
+  const firstR = new Map<string, string>();
+  revisions.forEach((r) => {
+    if (!r.completed) return;
+    const date = r.completedDate ?? r.scheduledDate;
+    if (isRReview(r)) {
+      const cur = firstR.get(r.courseId);
+      if (!cur || date < cur) firstR.set(r.courseId, date);
+    } else if (r.jIndex === 0) {
+      j0.set(r.courseId, date);
+    }
+  });
+  firstR.forEach((date, id) => {
+    if (!j0.has(id)) j0.set(id, date);
+  });
+  return j0;
+}
+
+/** Un cours est « commencé » quand son J0 est validé, ou (cours libre) dès sa première révision R faite. */
 export function startedCourseIds(revisions: RevisionItem[]): Set<string> {
-  return new Set(revisions.filter((r) => r.completed && r.jIndex === 0).map((r) => r.courseId));
+  return new Set(courseStartDates(revisions).keys());
 }
 
 export interface Coverage {
@@ -205,12 +229,12 @@ export interface Coverage {
 export function computeCoverage(courses: Course[], revisions: RevisionItem[], todayIso: string): Coverage {
   const known = new Set(courses.map((c) => c.id));
   const from = addDays(todayIso, -27);
-  const j0 = revisions.filter((r) => r.completed && r.jIndex === 0 && known.has(r.courseId));
-  const recent = j0.filter((r) => r.completedDate && r.completedDate >= from && r.completedDate <= todayIso);
+  const starts = [...courseStartDates(revisions)].filter(([id]) => known.has(id));
+  const recent = starts.filter(([, date]) => date >= from && date <= todayIso);
   return {
-    started: new Set(j0.map((r) => r.courseId)).size,
+    started: starts.length,
     total: courses.length,
-    perWeek: Math.round((new Set(recent.map((r) => r.courseId)).size / 4) * 10) / 10,
+    perWeek: Math.round((recent.length / 4) * 10) / 10,
   };
 }
 

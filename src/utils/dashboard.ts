@@ -1,5 +1,6 @@
 import { Course, RevisionItem } from '../types';
 import { computeStudyStats, StudyStats } from './stats';
+import { isFreeCourse } from './jMethod';
 
 export interface DashboardData {
   stats: StudyStats;
@@ -10,7 +11,10 @@ export interface DashboardData {
   todayDoneMinutes: number;
   /** Premier créneau non validé à partir d'aujourd'hui (aujourd'hui compris). */
   next?: RevisionItem;
-  /** Cours qui n'ont plus aucun créneau à faire (cycle terminé, ou rien de prévu), le plus récemment terminé d'abord. */
+  /**
+   * Cours qui n'ont plus aucun créneau à faire (cycle terminé, ou rien de prévu), le plus récemment terminé d'abord.
+   * Un cours libre (sans J) n'y est jamais : être sans révision prévue est son état normal.
+   */
   idleCourses: Course[];
 }
 
@@ -27,7 +31,7 @@ export function findIdleCourses(courses: Course[], revisions: RevisionItem[]): C
     if (!cur || r.scheduledDate > cur) last.set(r.courseId, r.scheduledDate);
   });
   return courses
-    .filter((c) => !open.has(c.id))
+    .filter((c) => !open.has(c.id) && !isFreeCourse(c))
     .sort((a, b) => (last.get(b.id) ?? '').localeCompare(last.get(a.id) ?? ''));
 }
 
@@ -54,6 +58,20 @@ export function computeDashboard(courses: Course[], revisions: RevisionItem[], t
  * Nombre d'éléments qui demandent une action (pastille de l'onglet) :
  * créneaux en retard, conflit de synchro et, plus tard, jours surchargés.
  */
-export function countAlerts(parts: { overdue: number; syncConflict: boolean; overloadedDays?: number }): number {
-  return parts.overdue + (parts.syncConflict ? 1 : 0) + (parts.overloadedDays ?? 0);
+export function countAlerts(parts: {
+  overdue: number;
+  syncConflict: boolean;
+  overloadedDays?: number;
+  /** Cours en révision libre laissés de côté. */
+  freeCourses?: number;
+  /** Une boîte « Cartes à trier » non vide compte pour une alerte. */
+  inboxCards?: number;
+}): number {
+  return (
+    parts.overdue +
+    (parts.syncConflict ? 1 : 0) +
+    (parts.overloadedDays ?? 0) +
+    (parts.freeCourses ?? 0) +
+    ((parts.inboxCards ?? 0) > 0 ? 1 : 0)
+  );
 }
