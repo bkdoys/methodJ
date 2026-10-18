@@ -270,25 +270,17 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
             </h2>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto shrink-0">
-            {onOpenRevisionPeriod && courses.length > 0 && (
-              <button
-                type="button"
-                onClick={onOpenRevisionPeriod}
-                className="flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-bold text-teal-700 dark:text-teal-300 bg-white dark:bg-slate-800 border border-teal-200 dark:border-teal-800 hover:bg-teal-50 dark:hover:bg-teal-950/40 rounded-xl transition-colors"
-              >
-                <CalendarRange className="w-4 h-4" />
-                <span>{t('Période de révision')}</span>
-              </button>
-            )}
+          {/* « Nouveau cours » est dans la barre du haut, sur toutes les vues : pas de doublon ici */}
+          {onOpenRevisionPeriod && courses.length > 0 && (
             <button
-              onClick={onOpenNewCourseModal}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-xl shadow-xs transition-colors"
+              type="button"
+              onClick={onOpenRevisionPeriod}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-bold text-teal-700 dark:text-teal-300 bg-white dark:bg-slate-800 border border-teal-200 dark:border-teal-800 hover:bg-teal-50 dark:hover:bg-teal-950/40 rounded-xl transition-colors self-start sm:self-auto shrink-0"
             >
-              <Plus className="w-4 h-4" />
-              <span>{t('Ajouter un cours (J0)')}</span>
+              <CalendarRange className="w-4 h-4" />
+              <span>{t('Période de révision')}</span>
             </button>
-          </div>
+          )}
         </div>
 
         {/* Search & Filter Bar */}
@@ -452,12 +444,29 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
       {filteredCourses.length === 0 ? (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-12 text-center space-y-3">
           <BookOpen className="w-10 h-10 text-slate-400 mx-auto" />
-          <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-            {t('Aucun cours ne correspond aux critères')}
-          </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            {t('Modifiez votre recherche ou ajoutez un nouveau cours à réviser.')}
-          </p>
+          {courses.length === 0 ? (
+            <>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">{t('Aucun cours pour l\'instant')}</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {t('Ajoutez un cours : ses révisions (J0, J1, J3…) se placent automatiquement dans le planning.')}
+              </p>
+              <button
+                type="button"
+                onClick={onOpenNewCourseModal}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-xl shadow-xs transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                {t('Ajouter un premier cours')}
+              </button>
+            </>
+          ) : (
+            <>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">{t('Aucun cours ne correspond aux critères')}</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {t('Modifiez votre recherche ou ajoutez un nouveau cours à réviser.')}
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <div className="space-y-3">

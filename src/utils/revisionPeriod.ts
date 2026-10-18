@@ -1,5 +1,5 @@
 import { AppSettings, Course, MasteryLevel, RevisionItem, RevisionPeriod, Subject } from '../types';
-import { addDays } from './dateUtils';
+import { addDays, diffInDays } from './dateUtils';
 import { assignStartTimes, formatTime, getDailyTargetHours, getDayBreaks, getDayWindow, parseTime, weekdayIndex } from './dayLayout';
 import { analyzeDay, DayLoad } from './dayLoad';
 import { CourseConversion, convertCourseToFree, isFreeCourse, isRReview } from './jMethod';
@@ -393,4 +393,43 @@ export function netWindowMinutes(win: { start: string; end: string }, breaks: { 
   const e = win.end === '23:59' ? 24 * 60 : parseTime(win.end) ?? 0;
   const bs = breaks.map((b) => ({ start: parseTime(b.start) ?? 0, end: b.end === '23:59' ? 24 * 60 : parseTime(b.end) ?? 0 }));
   return Math.max(0, e - s - breakMinutesWithin({ start: s, end: e }, bs));
+}
+
+// ---------------------------------------------------------------------------------------------
+// Quand proposer la période (Préférences › Examen)
+// ---------------------------------------------------------------------------------------------
+
+export type PeriodPrompt = NonNullable<AppSettings['periodPrompt']>;
+export const PERIOD_PROMPT_DEFAULT_WEEKS = 8;
+export const PERIOD_PROMPT_MAX_WEEKS = 26;
+
+/** Réglage de la proposition, ramené à des valeurs valides (réglages anciens ou cloud sans ces champs). */
+export function getPeriodPrompt(settings: Partial<Pick<AppSettings, 'periodPrompt' | 'periodPromptWeeks'>>): { mode: PeriodPrompt; weeks: number } {
+  const mode: PeriodPrompt = settings.periodPrompt === 'always' || settings.periodPrompt === 'never' ? settings.periodPrompt : 'auto';
+  const w = settings.periodPromptWeeks;
+  const weeks = typeof w === 'number' && Number.isFinite(w) ? Math.min(PERIOD_PROMPT_MAX_WEEKS, Math.max(1, Math.round(w))) : PERIOD_PROMPT_DEFAULT_WEEKS;
+  return { mode, weeks };
+}
+
+/** Jours restants avant l'examen ; null sans date valide, ou si l'examen est aujourd'hui ou passé. */
+export function daysToExam(settings: Pick<AppSettings, 'examDate'>, todayIso: string): number | null {
+  const d = settings.examDate;
+  if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return null;
+  const n = diffInDays(d, todayIso);
+  return n > 0 ? n : null;
+}
+
+/**
+ * Faut-il proposer la période de révision (carte « Planifier une période » du Tableau de bord, bouton de la vue Cours) ?
+ * Une période déjà en cours garde sa carte de progression quel que soit ce réglage.
+ */
+export function shouldOfferPeriod(
+  settings: Pick<AppSettings, 'examDate'> & Partial<Pick<AppSettings, 'periodPrompt' | 'periodPromptWeeks'>>,
+  todayIso: string
+): boolean {
+  const { mode, weeks } = getPeriodPrompt(settings);
+  if (mode === 'always') return true;
+  if (mode === 'never') return false;
+  const days = daysToExam(settings, todayIso);
+  return days !== null && days <= weeks * 7;
 }

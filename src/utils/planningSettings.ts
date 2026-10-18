@@ -74,8 +74,6 @@ export interface PlanningValues {
   slotByJ: Record<string, number>;
   autoCascade: boolean;
   dailyTargetHours: number;
-  /** AAAA-MM-JJ, ou vide : pas d'examen. */
-  examDate: string;
   /** Alerte des cours en révision libre laissés de côté, en jours (0 = jamais). */
   freeAlertDays: number;
   dayStartTime: string;
@@ -124,7 +122,6 @@ export function planningSettingsFromValues(v: PlanningValues): Partial<AppSettin
     slotDurationJ0J1: clampSlot(v.slotByJ['0'] ?? v.slotDefault),
     autoCascadeShift: v.autoCascade,
     dailyTargetHours: Number(v.dailyTargetHours),
-    examDate: /^\d{4}-\d{2}-\d{2}$/.test(v.examDate) ? v.examDate : undefined,
     freeAlertDays: Math.min(365, Math.max(0, Math.round(Number(v.freeAlertDays) || 0))),
     dayStartTime: v.dayStartTime,
     timelineStartHour: timeline.startHour,

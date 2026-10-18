@@ -105,6 +105,13 @@ export interface AppSettings {
   dailyTargetHours: number;
   /** Date de l'examen (AAAA-MM-JJ, facultative) : sans elle, la vue Statistiques n'affiche aucune projection. */
   examDate?: string;
+  /**
+   * Quand proposer la période de révision (carte du Tableau de bord, bouton de la vue Cours) : `auto` (défaut) = à
+   * `periodPromptWeeks` semaines ou moins de la date d'examen, `always` = toujours, `never` = jamais.
+   */
+  periodPrompt?: 'auto' | 'always' | 'never';
+  /** Semaines avant l'examen à partir desquelles `auto` propose la période ; absent = 8 (1 à 26). */
+  periodPromptWeeks?: number;
   slotDurationJ0J1: number;    // default 90 minutes
   slotDurationOthers: number;  // default 60 minutes
   /** Durée par défaut d'un créneau (minutes) ; absent = `slotDurationOthers`. */

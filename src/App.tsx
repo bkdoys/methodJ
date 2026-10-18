@@ -56,6 +56,7 @@ import { getLinkTypes } from './utils/courseLinks';
 import { addCard, CardInput, courseIdsInScope, DeckScope, deleteCard, describeScope, liveCards, newCardId } from './utils/flashcards';
 import { courseCardCounts, dueToday, getNewCardsPerDay, newCardsRoom, shuffle, SessionItem, subCardItems } from './utils/cardSession';
 import { formatIsoDate } from './utils/dateUtils';
+import { shouldOfferPeriod } from './utils/revisionPeriod';
 import type { PlayKind } from './components/FlashcardsView';
 import { getCourseEffectiveColor } from './utils/colorUtils';
 import type { PlayMode } from './components/FlashcardPlayer';
@@ -91,7 +92,7 @@ export default function App() {
   // Modals state
   const [isNewCourseOpen, setIsNewCourseOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<'subjects' | 'planning' | 'preferences' | 'backup' | 'help'>('subjects');
+  const [settingsTab, setSettingsTab] = useState<'subjects' | 'planning' | 'exam' | 'preferences' | 'backup' | 'help'>('subjects');
   const [shiftingRevision, setShiftingRevision] = useState<RevisionItem | null>(null);
   const [completingRevision, setCompletingRevision] = useState<RevisionItem | null>(null);
   const [selectedCourseForDetail, setSelectedCourseForDetail] = useState<Course | null>(null);
@@ -379,7 +380,7 @@ export default function App() {
   // Handler: Open Settings modal with specific tab
   const handleOpenSettingsModal = (defaultTab?: string) => {
     if (defaultTab && ['subjects', 'planning', 'preferences', 'backup', 'help'].includes(defaultTab)) {
-      setSettingsTab(defaultTab as 'subjects' | 'planning' | 'preferences' | 'backup' | 'help');
+      setSettingsTab(defaultTab as 'subjects' | 'planning' | 'exam' | 'preferences' | 'backup' | 'help');
     }
     setIsSettingsOpen(true);
   };
@@ -664,7 +665,8 @@ export default function App() {
       onMoveCourse={handleMoveCourse}
       onResetCourseColors={handleResetCourseColors}
       onUpdateSubjectFolders={handleUpdateSubjectFolders}
-      onOpenRevisionPeriod={() => setIsPeriodOpen(true)}
+      // Le bouton ne s'affiche que si Préférences › Examen le demande (examen proche, toujours, jamais)
+      onOpenRevisionPeriod={shouldOfferPeriod(settings, todayIso) ? () => setIsPeriodOpen(true) : undefined}
     />
   );
   const renderTimer = () => (
@@ -800,6 +802,7 @@ export default function App() {
                 onOpenInbox={() => openDeck(INBOX_COURSE_ID)}
                 onSnoozeFreeAlert={handleSnoozeFreeAlert}
                 onOpenRevisionPeriod={() => setIsPeriodOpen(true)}
+                onOpenExamSettings={() => handleOpenSettingsModal('exam')}
               />
             ) : currentView === 'session' ? (
               renderTimer()
@@ -861,6 +864,7 @@ export default function App() {
         onSaveSubjects={handleSaveSubjects}
         onChangeLinkTypes={handleChangeLinkTypes}
         onDeleteRevisionPeriod={handleDeleteRevisionPeriod}
+        onNewRevisionPeriod={() => setIsPeriodOpen(true)}
         onResolveSubjectCourses={handleResolveSubjectCourses}
         cloudAvailable={isCloudConfigured}
         courses={studyCourses}

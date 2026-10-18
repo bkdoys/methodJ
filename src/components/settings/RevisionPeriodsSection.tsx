@@ -12,15 +12,13 @@ interface Props {
   onDelete: (periodId: string, removePendingReviews: boolean) => void;
 }
 
-/** Réglages › Planning : les périodes de révision enregistrées ; supprimer une période rend les réglages habituels. */
+/** Réglages › Examen : les périodes de révision enregistrées ; supprimer une période rend les réglages habituels. */
 export const RevisionPeriodsSection: React.FC<Props> = ({ periods, revisions, todayIso, onDelete }) => {
   const confirm = useConfirm();
 
   if (periods.length === 0) {
     return (
-      <p className="text-xs text-slate-500 dark:text-slate-400">
-        {t('Aucune période. Créez-en une depuis le Tableau de bord ou la vue Cours (« Période de révision »).')}
-      </p>
+      <p className="text-xs text-slate-500 dark:text-slate-400">{t('Aucune période pour l\'instant.')}</p>
     );
   }
 

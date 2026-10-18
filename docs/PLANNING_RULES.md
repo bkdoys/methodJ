@@ -58,7 +58,7 @@ la première place libre.
 
 ## La période de révision
 
-Avant un examen, l'assistant « Période de révision » (Tableau de bord ou vue Cours) répartit des révisions sur une plage de dates.
+Avant un examen, l'assistant « Période de révision » (Tableau de bord et vue Cours quand l'examen approche, ou Préférences › Examen) répartit des révisions sur une plage de dates.
 
 1. Les cours choisis qui suivent la méthode des J passent en **révision libre** : leurs J à venir sont retirés, les révisions faites
    restent. Après la période, ils restent libres.

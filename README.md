@@ -43,7 +43,7 @@ Tout ce qui demande une action au même endroit : retards, jours au-dessus de vo
 
 Un cours peut être en **révision libre** (sans J programmé) : vous lui ajoutez des révisions (R) quand vous le souhaitez, et vous le repassez en méthode des J plus tard si besoin ; le tableau de bord signale un cours libre laissé de côté.
 
-Avant un examen, la **période de révision** organise un tour complet : cochez des cours (arbre discipline › dossier › cours) et choisissez des dates. methodJ passe ces cours en révision libre et répartit leurs révisions sur la période : un nombre de passages selon la maîtrise de chaque cours, régulièrement espacés, le dernier près de l'examen, les disciplines alternées (jamais toute une discipline le même jour) et la charge lissée. La période a ses propres horaires, pauses et objectif quotidien, qui remplacent les vôtres pendant ces dates ; si ça ne rentre pas, methodJ propose des journées plus longues, puis une période plus longue. Tout est un **aperçu** (planning simulé, charge jour par jour, passages par cours) : rien n'est modifié avant « Planifier », « Autre répartition » tire un autre agencement, et l'ensemble s'annule d'un clic. Voir [les règles](docs/PLANNING_RULES.md#la-période-de-révision).
+Avant un examen, la **période de révision** organise un tour complet : cochez des cours (arbre discipline › dossier › cours) et choisissez des dates. methodJ passe ces cours en révision libre et répartit leurs révisions sur la période : un nombre de passages selon la maîtrise de chaque cours, régulièrement espacés, le dernier près de l'examen, les disciplines alternées (jamais toute une discipline le même jour) et la charge lissée. La période a ses propres horaires, pauses et objectif quotidien, qui remplacent les vôtres pendant ces dates ; si ça ne rentre pas, methodJ propose des journées plus longues, puis une période plus longue. Tout est un **aperçu** (planning simulé, charge jour par jour, passages par cours) : rien n'est modifié avant « Planifier », « Autre répartition » tire un autre agencement, et l'ensemble s'annule d'un clic. methodJ vous la propose quand l'examen approche (réglable, ou toujours / jamais, dans Préférences > Examen). Voir [les règles](docs/PLANNING_RULES.md#la-période-de-révision).
 
 ![Période de révision : aperçu de la répartition](docs/screenshots/periode.jpg)
 
@@ -61,7 +61,7 @@ Le lecteur plein écran note chaque réponse (Encore, Difficile, Bien, Facile) e
 
 ### Statistiques
 
-Progression du programme (cours commencés, rythme), 7 derniers jours comparés aux 7 d'avant, charge à venir sur 14, 30 ou 60 jours, mémorisation selon l'étape J, **écart au planning d'origine** (la date prévue de chaque J est figée à la validation du J0 ; repousser un créneau ne la change pas) et, si vous saisissez une **date d'examen** (Préférences > Planning), une projection du rythme nécessaire ; sans date, rien n'est affiché.
+Progression du programme (cours commencés, rythme), 7 derniers jours comparés aux 7 d'avant, charge à venir sur 14, 30 ou 60 jours, mémorisation selon l'étape J, **écart au planning d'origine** (la date prévue de chaque J est figée à la validation du J0 ; repousser un créneau ne la change pas) et, si vous saisissez une **date d'examen** (Préférences > Examen), une projection du rythme nécessaire ; sans date, rien n'est affiché.
 
 ![Statistiques : progression, charge à venir, écart au planning d'origine](docs/screenshots/stats.jpg)
 

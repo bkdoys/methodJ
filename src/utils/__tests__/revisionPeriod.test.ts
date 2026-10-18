@@ -6,13 +6,16 @@ import { getDailyTargetHours, getDayBreaks, getDayWindow } from '../dayLayout';
 import { analyzeDay } from '../dayLoad';
 import { generateRevisionsForCourse } from '../jMethod';
 import {
+  daysToExam,
   defaultPasses,
   estimateNeed,
+  getPeriodPrompt,
   interleaveCourses,
   MAX_PERIOD_HOURS,
   overlappingPeriods,
   PeriodInput,
   planRevisionPeriod,
+  shouldOfferPeriod,
 } from '../revisionPeriod';
 
 const TODAY = '2026-11-02'; // un lundi
@@ -206,5 +209,43 @@ describe('interleaveCourses', () => {
   it('alternates disciplines', () => {
     const order = interleaveCourses(courses, 0).map((c) => c.subjectId);
     for (let i = 1; i < order.length; i++) expect(order[i]).not.toBe(order[i - 1]);
+  });
+});
+
+describe('when to offer the period', () => {
+  const at = (days: number) => addDays(TODAY, days);
+
+  it('counts the days to the exam, null without a valid future date', () => {
+    expect(daysToExam({ examDate: at(20) }, TODAY)).toBe(20);
+    expect(daysToExam({ examDate: undefined }, TODAY)).toBeNull();
+    expect(daysToExam({ examDate: '20/05/2027' }, TODAY)).toBeNull();
+    expect(daysToExam({ examDate: TODAY }, TODAY)).toBeNull();
+    expect(daysToExam({ examDate: at(-3) }, TODAY)).toBeNull();
+  });
+
+  it('normalises the prompt settings', () => {
+    expect(getPeriodPrompt({})).toEqual({ mode: 'auto', weeks: 8 });
+    expect(getPeriodPrompt({ periodPrompt: 'always', periodPromptWeeks: 12 })).toEqual({ mode: 'always', weeks: 12 });
+    expect(getPeriodPrompt({ periodPrompt: 'nope' as never, periodPromptWeeks: 0 })).toEqual({ mode: 'auto', weeks: 1 });
+    expect(getPeriodPrompt({ periodPromptWeeks: 99 }).weeks).toBe(26);
+    expect(getPeriodPrompt({ periodPromptWeeks: NaN }).weeks).toBe(8);
+  });
+
+  it('auto: offers it only within the lead time before the exam', () => {
+    expect(shouldOfferPeriod({ examDate: undefined }, TODAY)).toBe(false);
+    expect(shouldOfferPeriod({ examDate: at(20) }, TODAY)).toBe(true);
+    expect(shouldOfferPeriod({ examDate: at(56) }, TODAY)).toBe(true);
+    expect(shouldOfferPeriod({ examDate: at(57) }, TODAY)).toBe(false);
+    expect(shouldOfferPeriod({ examDate: at(100) }, TODAY)).toBe(false);
+    expect(shouldOfferPeriod({ examDate: TODAY }, TODAY)).toBe(false);
+    expect(shouldOfferPeriod({ examDate: at(-5) }, TODAY)).toBe(false);
+    expect(shouldOfferPeriod({ examDate: at(80), periodPromptWeeks: 12 }, TODAY)).toBe(true);
+    expect(shouldOfferPeriod({ examDate: at(85), periodPromptWeeks: 12 }, TODAY)).toBe(false);
+  });
+
+  it('always / never ignore the exam date', () => {
+    expect(shouldOfferPeriod({ examDate: undefined, periodPrompt: 'always' }, TODAY)).toBe(true);
+    expect(shouldOfferPeriod({ examDate: at(300), periodPrompt: 'always' }, TODAY)).toBe(true);
+    expect(shouldOfferPeriod({ examDate: at(5), periodPrompt: 'never' }, TODAY)).toBe(false);
   });
 });

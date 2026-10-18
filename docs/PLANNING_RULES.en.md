@@ -56,7 +56,7 @@ free place.
 
 ## Revision period
 
-Before an exam, the “Revision period” wizard (Dashboard or Courses view) spreads reviews over a date range.
+Before an exam, the “Revision period” wizard (Dashboard and Courses view when the exam gets close, or Preferences › Exam) spreads reviews over a date range.
 
 1. Chosen courses on the J method switch to **free review**: their upcoming J are removed, done reviews stay. After the period they stay
    free.

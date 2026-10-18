@@ -19,6 +19,7 @@ import { Card } from './Card';
 import { computeDashboard } from '../utils/dashboard';
 import { describeDayAlert, findAlertDays } from '../utils/dayLoad';
 import { getDailyTargetHours } from '../utils/dayLayout';
+import { daysToExam, shouldOfferPeriod } from '../utils/revisionPeriod';
 import { CATCH_UP_HORIZON_DAYS, Plan, PlannedMove, Proposal, planCatchUp, planSmoothing, selectMoves } from '../utils/smoothing';
 import { PlanningRules } from './PlanningRules';
 import { CalendarExportModal } from './CalendarExportModal';
@@ -73,6 +74,8 @@ interface DashboardViewProps {
   onSnoozeFreeAlert?: (alert: FreeCourseAlert) => void;
   /** Ouvre l'assistant « Période de révision ». */
   onOpenRevisionPeriod?: () => void;
+  /** Ouvre Préférences › Examen (date d'examen, quand proposer la période). */
+  onOpenExamSettings?: () => void;
 }
 
 const SYNC_LABEL: Record<SyncStatus, () => string> = {
@@ -116,6 +119,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenInbox,
   onSnoozeFreeAlert,
   onOpenRevisionPeriod,
+  onOpenExamSettings,
 }) => {
   const todayIso = getTodayIso();
   const data = useMemo(() => computeDashboard(courses, revisions, todayIso), [courses, revisions, todayIso]);
@@ -600,12 +604,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       )
     : [];
   const periodDone = periodRevs.filter((r) => r.completed).length;
-  const cardPeriod = onOpenRevisionPeriod && courses.length > 0 ? (
+  // Sans période : l'invitation ne s'affiche que selon Préférences › Examen (examen proche, toujours, jamais)
+  const offerPeriod = shouldOfferPeriod(settings, todayIso);
+  const examDays = daysToExam(settings, todayIso);
+  const cardPeriod = onOpenRevisionPeriod && courses.length > 0 && (period || offerPeriod) ? (
   <Card
     title={period ? period.name : t('Période de révision')}
     hint={
       period
         ? t('Du {start} au {end}', { start: formatFrenchDate(period.start), end: formatFrenchDate(period.end) })
+        : examDays !== null
+        ? plural(
+            examDays,
+            'Examen dans {n} jour : répartissez vos révisions sur la période.',
+            'Examen dans {n} jours : répartissez vos révisions sur la période.'
+          )
         : t('Avant un examen : choisissez des cours et l\'app répartit leurs révisions sur la période.')
     }
     aside={<CalendarRange className="w-4 h-4 text-teal-600 shrink-0" />}
@@ -624,9 +637,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </p>
       </div>
     )}
-    <button type="button" onClick={onOpenRevisionPeriod} className={ghostBtn}>
-      {period ? t('Nouvelle période') : t('Planifier une période')}
-    </button>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <button type="button" onClick={onOpenRevisionPeriod} className={ghostBtn}>
+        {period ? t('Nouvelle période') : t('Planifier une période')}
+      </button>
+      {onOpenExamSettings && (
+        <button
+          type="button"
+          onClick={onOpenExamSettings}
+          className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:text-teal-700 dark:hover:text-teal-400 underline-offset-2 hover:underline"
+        >
+          {t('Réglages de l\'examen')}
+        </button>
+      )}
+    </div>
   </Card>
   ) : null;
 

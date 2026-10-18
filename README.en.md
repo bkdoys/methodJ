@@ -43,7 +43,7 @@ Everything that needs an action in one place: overdue slots, days above your tar
 
 A course can be in **free review** (no J scheduled): you add reviews (R) to it whenever you like, and switch it back to the J method later if needed; the dashboard flags a free course left aside.
 
-Before an exam, the **revision period** organises a full pass: tick courses (subject › folder › course tree) and pick dates. methodJ switches those courses to free review and spreads their reviews over the period: a number of passes based on each course's mastery, evenly spaced, the last one near the exam, disciplines alternating (never a whole discipline on the same day) and the load smoothed. The period has its own hours, breaks and daily target, which replace yours on those dates; if it doesn't fit, methodJ suggests longer days, then a longer period. Everything is a **preview** (simulated planner, load day by day, passes per course): nothing changes before “Plan”, “Another spread” draws another arrangement, and the whole thing can be undone in one click. See [the rules](docs/PLANNING_RULES.en.md#revision-period).
+Before an exam, the **revision period** organises a full pass: tick courses (subject › folder › course tree) and pick dates. methodJ switches those courses to free review and spreads their reviews over the period: a number of passes based on each course's mastery, evenly spaced, the last one near the exam, disciplines alternating (never a whole discipline on the same day) and the load smoothed. The period has its own hours, breaks and daily target, which replace yours on those dates; if it doesn't fit, methodJ suggests longer days, then a longer period. Everything is a **preview** (simulated planner, load day by day, passes per course): nothing changes before “Plan”, “Another spread” draws another arrangement, and the whole thing can be undone in one click. methodJ offers it when the exam gets close (adjustable, or always / never, in Preferences > Exam). See [the rules](docs/PLANNING_RULES.en.md#revision-period).
 
 ![Revision period: spread preview](docs/screenshots/periode.jpg)
 
@@ -61,7 +61,7 @@ The full-screen player grades each answer (Again, Hard, Good, Easy) and shows th
 
 ### Statistics
 
-Progress through the syllabus (courses started, pace), the last 7 days against the 7 before, upcoming load over 14, 30 or 60 days, memorisation per J step, **gap to the original plan** (each J's planned date is frozen when J0 is completed; postponing a slot does not change it) and, if you enter an **exam date** (Preferences > Planning), a projection of the pace you need; without a date, nothing is shown.
+Progress through the syllabus (courses started, pace), the last 7 days against the 7 before, upcoming load over 14, 30 or 60 days, memorisation per J step, **gap to the original plan** (each J's planned date is frozen when J0 is completed; postponing a slot does not change it) and, if you enter an **exam date** (Preferences > Exam), a projection of the pace you need; without a date, nothing is shown.
 
 ![Statistics: progress, upcoming load, gap to the original plan](docs/screenshots/stats.jpg)
 

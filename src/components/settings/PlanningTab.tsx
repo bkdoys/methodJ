@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { AppSettings, Course, RevisionItem, RevisionPeriod } from '../../types';
+import type { AppSettings, Course } from '../../types';
 import type { BlockDetails, SubjectDisplay } from '../../utils/dayLayout';
 import type { BreaksValue, PlanningValues } from '../../utils/planningSettings';
 import { DEFAULT_J_PATTERNS, getJPool } from '../../utils/jMethod';
@@ -12,7 +12,6 @@ import { JIntervalAdder } from '../JIntervalAdder';
 import { defaultDayWindowStrings, getBlockDetails, getMultiDayCount, MULTI_DAY_MAX, MULTI_DAY_MIN, getTimelineConfig, parseTime, STEP_OPTIONS } from '../../utils/dayLayout';
 import { customWindowsFromSettings, slotDurationsFromSettings, weekdayLabels } from '../../utils/planningSettings';
 import { SettingsSection } from './SettingsSection';
-import { RevisionPeriodsSection } from './RevisionPeriodsSection';
 import { X, Plus, Layers } from 'lucide-react';
 import { getFreeAlertDays } from '../../utils/freeAlerts';
 
@@ -31,7 +30,6 @@ export function usePlanningDraft(settings: AppSettings) {
   const [jToRemove, setJToRemove] = useState<{ val: number; used: number } | null>(null);
   const [autoCascade, setAutoCascade] = useState<boolean>(settings.autoCascadeShift);
   const [dailyTargetHours, setDailyTargetHours] = useState<number>(settings.dailyTargetHours);
-  const [examDate, setExamDate] = useState<string>(settings.examDate ?? '');
   const [freeAlertDays, setFreeAlertDays] = useState<number>(getFreeAlertDays(settings));
   const [dayStartTime, setDayStartTime] = useState<string>(settings.dayStartTime);
   const [timelineStartHour, setTimelineStartHour] = useState<number>(getTimelineConfig(settings).startHour);
@@ -51,7 +49,6 @@ export function usePlanningDraft(settings: AppSettings) {
     setSlotByJ(slots.byJ);
     setAutoCascade(s.autoCascadeShift);
     setDailyTargetHours(s.dailyTargetHours);
-    setExamDate(s.examDate ?? '');
     setFreeAlertDays(getFreeAlertDays(s));
     setDayStartTime(s.dayStartTime);
     const tl = getTimelineConfig(s);
@@ -65,7 +62,7 @@ export function usePlanningDraft(settings: AppSettings) {
   };
 
   const values: PlanningValues = {
-    defaultPattern, jPool, slotDefault, slotByJ, autoCascade, dailyTargetHours, examDate, freeAlertDays, dayStartTime,
+    defaultPattern, jPool, slotDefault, slotByJ, autoCascade, dailyTargetHours, freeAlertDays, dayStartTime,
     timelineStartHour, timelineEndHour, timelineStepMinutes, customWindows, breaks, multiDayCount, blockDetails,
   };
 
@@ -73,7 +70,7 @@ export function usePlanningDraft(settings: AppSettings) {
     defaultPattern, setDefaultPattern, jPool, setJPool, slotDefault, setSlotDefault, slotByJ, setSlotByJ,
     newSlotJ, setNewSlotJ, isAddingException, setIsAddingException, newSlotMinutes, setNewSlotMinutes,
     jToRemove, setJToRemove, autoCascade, setAutoCascade, dailyTargetHours, setDailyTargetHours,
-    examDate, setExamDate, freeAlertDays, setFreeAlertDays, dayStartTime, setDayStartTime, timelineStartHour, setTimelineStartHour, timelineEndHour, setTimelineEndHour,
+    freeAlertDays, setFreeAlertDays, dayStartTime, setDayStartTime, timelineStartHour, setTimelineStartHour, timelineEndHour, setTimelineEndHour,
     timelineStepMinutes, setTimelineStepMinutes, customWindows, setCustomWindows, breaks, setBreaks,
     multiDayCount, setMultiDayCount, blockDetails, setBlockDetails, values, reset,
   };
@@ -82,13 +79,8 @@ export function usePlanningDraft(settings: AppSettings) {
 export type PlanningDraft = ReturnType<typeof usePlanningDraft>;
 
 /** Onglet Planning : répétitions, créneaux, journée de travail, affichage du planning. */
-export const PlanningTab: React.FC<{
-  draft: PlanningDraft;
-  courses: Course[];
-  /** Périodes de révision (supprimées tout de suite, hors du bouton Enregistrer). */
-  periods?: { list: RevisionPeriod[]; revisions: RevisionItem[]; todayIso: string; onDelete: (id: string, removePending: boolean) => void };
-}> = ({ draft, courses, periods }) => {
-  const { defaultPattern, setDefaultPattern, jPool, setJPool, slotDefault, setSlotDefault, slotByJ, setSlotByJ, setNewSlotJ, setIsAddingException, setNewSlotMinutes, setJToRemove, autoCascade, setAutoCascade, dailyTargetHours, setDailyTargetHours, examDate, setExamDate, freeAlertDays, setFreeAlertDays, dayStartTime, setDayStartTime, timelineStartHour, setTimelineStartHour, timelineEndHour, setTimelineEndHour, timelineStepMinutes, setTimelineStepMinutes, customWindows, setCustomWindows, breaks, setBreaks, multiDayCount, setMultiDayCount, blockDetails, setBlockDetails } = draft;
+export const PlanningTab: React.FC<{ draft: PlanningDraft; courses: Course[] }> = ({ draft, courses }) => {
+  const { defaultPattern, setDefaultPattern, jPool, setJPool, slotDefault, setSlotDefault, slotByJ, setSlotByJ, setNewSlotJ, setIsAddingException, setNewSlotMinutes, setJToRemove, autoCascade, setAutoCascade, dailyTargetHours, setDailyTargetHours, freeAlertDays, setFreeAlertDays, dayStartTime, setDayStartTime, timelineStartHour, setTimelineStartHour, timelineEndHour, setTimelineEndHour, timelineStepMinutes, setTimelineStepMinutes, customWindows, setCustomWindows, breaks, setBreaks, multiDayCount, setMultiDayCount, blockDetails, setBlockDetails } = draft;
 
   // J toggle handlers
   const toggleJ = (val: number) => {
@@ -363,28 +355,6 @@ export const PlanningTab: React.FC<{
       </div>
 
       <div className="pt-1">
-        <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
-          {t('Date d\'examen (facultatif)')}
-        </label>
-        <div className="flex items-center gap-2 flex-wrap">
-          <input
-            type="date"
-            value={examDate}
-            onChange={(e) => setExamDate(e.target.value)}
-            className="px-3 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-lg font-mono dark:bg-slate-800 dark:text-white"
-          />
-          {examDate && (
-            <button type="button" onClick={() => setExamDate('')} className="text-xs font-semibold text-slate-500 hover:text-rose-600">
-              {t('Effacer')}
-            </button>
-          )}
-        </div>
-        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-          {t('Active une projection dans Statistiques : à ce rythme, tous les cours seront-ils commencés à temps ? Sans date, rien n\'est affiché.')}
-        </p>
-      </div>
-
-      <div className="pt-1">
         <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1" htmlFor="free-alert-days">
           {t('Cours en révision libre : alerte après')}
         </label>
@@ -612,12 +582,6 @@ export const PlanningTab: React.FC<{
         </div>
       </div>
       </SettingsSection>
-
-      {periods && (
-        <SettingsSection title={t('Périodes de révision')}>
-          <RevisionPeriodsSection periods={periods.list} revisions={periods.revisions} todayIso={periods.todayIso} onDelete={periods.onDelete} />
-        </SettingsSection>
-      )}
     </div>
   );
 };

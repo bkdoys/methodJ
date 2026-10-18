@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Settings, Save, X, Palette, Layers, Clock, Cloud, HelpCircle } from 'lucide-react';
+import { Settings, Save, X, Palette, Layers, Clock, Cloud, HelpCircle, GraduationCap } from 'lucide-react';
 import type { AppSettings, Course, LinkType, RevisionItem, Subject } from '../types';
 import { t } from '../i18n';
 import { APP_NAME } from '../appInfo';
 import { planningSettingsFromValues } from '../utils/planningSettings';
-import { getTodayIso } from '../utils/dateUtils';
+import { examSettingsFromValues } from '../utils/examSettings';
 import { PlanningDialogs, PlanningTab, usePlanningDraft } from './settings/PlanningTab';
 import { SubjectDeleteDialog, SubjectsTab, useSubjectsDraft } from './settings/SubjectsTab';
+import { ExamTab, useExamDraft } from './settings/ExamTab';
 import { DisplayTab, useDisplayDraft } from './settings/DisplayTab';
 import { CloudTab, useEmailLoginForm } from './settings/CloudTab';
 import { HelpTab } from './settings/HelpTab';
@@ -20,6 +21,8 @@ export interface SettingsModalProps {
   onChangeLinkTypes: (types: LinkType[]) => void;
   /** Supprime une période de révision (tout de suite), avec ou sans ses R à venir. */
   onDeleteRevisionPeriod?: (periodId: string, removePendingReviews: boolean) => void;
+  /** Ouvre l'assistant « Période de révision » par-dessus les réglages (qui restent ouverts). */
+  onNewRevisionPeriod?: () => void;
   /** Faux sans configuration Firebase : l'onglet Cloud explique comment la brancher. */
   cloudAvailable?: boolean;
   subjects: Subject[];
@@ -48,7 +51,7 @@ export interface SettingsModalProps {
   /** Versions mises de côté avant un écrasement local/cloud (la plus récente d'abord). */
   safetyBackups?: { at: string; reason: string; courses: number; revisions: number }[];
   onRestoreSafetyBackup?: (index: number) => void;
-  initialTab?: 'subjects' | 'planning' | 'preferences' | 'backup' | 'help';
+  initialTab?: 'subjects' | 'planning' | 'exam' | 'preferences' | 'backup' | 'help';
   authError?: { code?: string; message: string; resolution?: string } | null;
   onClearAuthError?: () => void;
 }
@@ -65,6 +68,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSaveSettings,
   onChangeLinkTypes,
   onDeleteRevisionPeriod,
+  onNewRevisionPeriod,
   cloudAvailable = true,
   subjects,
   onSaveSubjects,
@@ -89,13 +93,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClearAuthError,
 }) => {
   const planning = usePlanningDraft(settings);
+  const exam = useExamDraft(settings);
   const subjectsDraft = useSubjectsDraft(subjects);
   const display = useDisplayDraft(settings);
   const login = useEmailLoginForm();
   const { localSubjects } = subjectsDraft;
 
   // Active tab in settings modal
-  const [activeTab, setActiveTab] = useState<'subjects' | 'planning' | 'preferences' | 'backup' | 'help'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'subjects' | 'planning' | 'exam' | 'preferences' | 'backup' | 'help'>(initialTab);
 
   useEffect(() => {
     if (isOpen && initialTab) {
@@ -110,6 +115,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   useEffect(() => {
     if (isOpen && !wasOpenRef.current) {
       planning.reset(settings);
+      exam.reset(settings);
       display.reset(settings);
     }
     wasOpenRef.current = isOpen;
@@ -128,6 +134,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     onSaveSettings({
       ...settings,
       ...planningSettingsFromValues(planning.values),
+      ...examSettingsFromValues(exam.values),
       theme: display.theme,
       language: display.language,
     });
@@ -164,12 +171,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
 
           {/* Navigation Tabs in Modal : tous les onglets visibles, sans défilement horizontal */}
-          <div className="grid grid-cols-5 gap-1 px-3 sm:px-6 pt-3 border-b border-slate-100 dark:border-slate-800 text-[11px] sm:text-xs font-bold">
+          <div className="grid grid-cols-6 gap-1 px-3 sm:px-6 pt-3 border-b border-slate-100 dark:border-slate-800 text-[10px] sm:text-xs font-bold">
             {(
               [
                 { id: 'preferences', icon: Layers, label: t('Affichage'), title: t('Langue, thème, types de liens') },
                 { id: 'subjects', icon: Palette, label: t('Disciplines'), title: t('Disciplines & Couleurs ({n})', { n: localSubjects.length }) },
                 { id: 'planning', icon: Clock, label: t('Planning'), title: t('Répétitions, créneaux, journée de travail') },
+                { id: 'exam', icon: GraduationCap, label: t('Examen'), title: t('Date d\'examen, période de révision') },
                 { id: 'backup', icon: Cloud, label: t('Cloud'), title: t('Cloud & Sauvegardes') },
                 { id: 'help', icon: HelpCircle, label: t('Aide'), title: t('Aide') },
               ] as const
@@ -180,7 +188,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 title={title}
                 aria-label={title}
                 onClick={() => setActiveTab(id)}
-                className={`pb-2.5 px-1 border-b-2 transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 text-center leading-tight ${
+                className={`pb-2.5 px-0 sm:px-1 border-b-2 transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 text-center leading-tight ${
                   activeTab === id
                     ? 'border-teal-600 text-teal-700 dark:text-teal-400'
                     : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-white'
@@ -197,13 +205,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             {activeTab === 'subjects' && (
               <SubjectsTab draft={subjectsDraft} courses={courses} onSaveSubjects={onSaveSubjects} />
             )}
-            {activeTab === 'planning' && (
-              <PlanningTab
-                draft={planning}
-                courses={courses}
-                periods={
-                  onDeleteRevisionPeriod
-                    ? { list: settings.revisionPeriods ?? [], revisions, todayIso: getTodayIso(), onDelete: onDeleteRevisionPeriod }
+            {activeTab === 'planning' && <PlanningTab draft={planning} courses={courses} />}
+            {activeTab === 'exam' && (
+              <ExamTab
+                draft={exam}
+                settings={settings}
+                revisions={revisions}
+                onDeletePeriod={onDeleteRevisionPeriod}
+                onNewPeriod={
+                  onNewRevisionPeriod
+                    ? (values) => {
+                        // L'assistant lit la date d'examen enregistrée : on garde d'abord ce qui vient d'être saisi ici
+                        onSaveSettings({ ...settings, ...examSettingsFromValues(values) });
+                        onNewRevisionPeriod();
+                      }
                     : undefined
                 }
               />
