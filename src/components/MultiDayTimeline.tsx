@@ -160,7 +160,7 @@ export const MultiDayTimeline: React.FC<MultiDayTimelineProps> = ({
                     {formatFrenchDayShort(dayIso)}
                   </span>
                   <span
-                    className={`inline-flex items-center gap-1 text-[10px] font-mono ${
+                    className={`inline-flex items-center gap-1 text-[0.625rem] font-mono ${
                       load.alert ? 'font-bold text-amber-700 dark:text-amber-400' : 'text-teal-700 dark:text-teal-400'
                     }`}
                     title={load.alert ? describeDayAlert(load) : undefined}
@@ -232,7 +232,7 @@ export const MultiDayTimeline: React.FC<MultiDayTimelineProps> = ({
                       }}
                       aria-hidden="true"
                     >
-                      <div className="p-1.5 text-[11px] font-bold leading-tight">
+                      <div className="p-1.5 text-[0.6875rem] font-bold leading-tight">
                         <span className="font-mono">{formatTime(hover.start)}</span> · {revLabel(dragged)}
                         <span className="block font-semibold line-clamp-2">{course.title}</span>
                       </div>

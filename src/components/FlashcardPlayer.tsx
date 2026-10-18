@@ -190,7 +190,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{title}</p>
           {mode === 'cram' && (
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">{t('Révision libre : la programmation des cartes ne change pas')}</p>
+            <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">{t('Révision libre : la programmation des cartes ne change pas')}</p>
           )}
         </div>
         {!finished && (
@@ -314,7 +314,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                       className={`flex flex-col items-center justify-center min-h-14 py-2.5 rounded-xl text-white font-bold shadow-xs transition-colors ${GRADE_STYLE[g]}`}
                     >
                       <span className="text-sm">{gradeLabel(g)}</span>
-                      {intervals && <span className="text-[11px] font-medium opacity-90">{formatInterval(intervals[g])}</span>}
+                      {intervals && <span className="text-[0.6875rem] font-medium opacity-90">{formatInterval(intervals[g])}</span>}
                     </button>
                   ))}
                 </div>
@@ -327,7 +327,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                   {t('Afficher la réponse')}
                 </button>
               )}
-              <div className="flex items-center justify-between h-9 text-[11px] text-slate-400 dark:text-slate-500">
+              <div className="flex items-center justify-between h-9 text-[0.6875rem] text-slate-400 dark:text-slate-500">
                 <span className="hidden sm:inline">
                   {revealed ? t('Touches 1 à 4 pour noter') : t('Espace pour afficher la réponse')}
                 </span>

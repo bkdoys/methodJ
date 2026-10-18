@@ -177,7 +177,7 @@ export const RevisionPeriodModal: React.FC<RevisionPeriodModalProps> = ({ course
           <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: node.color }} />
           <span className="min-w-0 flex-1 break-words text-sm text-slate-900 dark:text-slate-100">{node.label}</span>
           {c && isFreeCourse(c) && <FreeCourseBadge />}
-          {c && c.mastery > 0 && <span className="text-[11px] text-amber-500 shrink-0">{'★'.repeat(c.mastery)}</span>}
+          {c && c.mastery > 0 && <span className="text-[0.6875rem] text-amber-500 shrink-0">{'★'.repeat(c.mastery)}</span>}
         </label>
       );
     }
@@ -212,7 +212,7 @@ export const RevisionPeriodModal: React.FC<RevisionPeriodModalProps> = ({ course
             <span className={`min-w-0 flex-1 break-words text-sm text-slate-900 dark:text-slate-100 ${node.kind === 'subject' ? 'font-bold' : 'font-semibold'}`}>
               {node.label}
             </span>
-            <span className="text-[11px] font-mono text-slate-400 shrink-0">
+            <span className="text-[0.6875rem] font-mono text-slate-400 shrink-0">
               {count > 0 ? `${count}/${ids.length}` : ids.length}
             </span>
           </label>
@@ -338,7 +338,7 @@ export const RevisionPeriodModal: React.FC<RevisionPeriodModalProps> = ({ course
 
       <section className="space-y-2">
         <h3 className="text-xs font-bold text-slate-900 dark:text-white">{t('Horaires pendant la période')}</h3>
-        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+        <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
           {t('Ils remplacent vos horaires habituels pendant ces dates seulement ; après la période, tout redevient comme avant.')}
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
@@ -358,7 +358,7 @@ export const RevisionPeriodModal: React.FC<RevisionPeriodModalProps> = ({ course
                 onChange={(e) => e.target.value && setWindows((p) => ({ ...p, [w]: { ...p[w], end: e.target.value } }))}
                 className={inputCls}
               />
-              <span className="text-[11px] font-mono text-slate-400">{formatMinutes(netWindowMinutes(windows[w], breaks))}</span>
+              <span className="text-[0.6875rem] font-mono text-slate-400">{formatMinutes(netWindowMinutes(windows[w], breaks))}</span>
             </div>
           ))}
         </div>
@@ -369,7 +369,7 @@ export const RevisionPeriodModal: React.FC<RevisionPeriodModalProps> = ({ course
 
       <section className="space-y-2">
         <h3 className="text-xs font-bold text-slate-900 dark:text-white">{t('Pauses')}</h3>
-        {breaks.length === 0 && <p className="text-[11px] text-slate-500 dark:text-slate-400">{t('Aucune pause.')}</p>}
+        {breaks.length === 0 && <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">{t('Aucune pause.')}</p>}
         {breaks.map((b, i) => (
           <div key={i} className="flex items-center gap-2 text-xs">
             <input
@@ -479,7 +479,7 @@ export const RevisionPeriodModal: React.FC<RevisionPeriodModalProps> = ({ course
         ].map((x) => (
           <div key={x.l} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
             <span className="block text-xl font-bold text-slate-900 dark:text-white font-mono">{x.v}</span>
-            <span className="block text-[11px] text-slate-500 dark:text-slate-400">{x.l}</span>
+            <span className="block text-[0.6875rem] text-slate-500 dark:text-slate-400">{x.l}</span>
           </div>
         ))}
       </div>
@@ -533,13 +533,13 @@ export const RevisionPeriodModal: React.FC<RevisionPeriodModalProps> = ({ course
           </div>
           <div className="flex gap-1 mt-1" style={{ minWidth: plan.days.length * 22 }}>
             {plan.days.map((d) => (
-              <span key={d.date} className="flex-1 min-w-[18px] text-center text-[9px] font-mono text-slate-400">
+              <span key={d.date} className="flex-1 min-w-[18px] text-center text-[0.5625rem] font-mono text-slate-400">
                 {weekdayIndex(d.date) === 0 || d.date === plan.days[0].date ? d.date.slice(8) : ''}
               </span>
             ))}
           </div>
         </div>
-        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-600 dark:text-slate-400">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[0.6875rem] text-slate-600 dark:text-slate-400">
           {subjectOrder.map((s) => (
             <span key={s.id} className="inline-flex items-center gap-1">
               <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: s.color }} />
@@ -604,7 +604,7 @@ export const RevisionPeriodModal: React.FC<RevisionPeriodModalProps> = ({ course
               <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-800/40">
                 <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.color }} />
                 <span className="text-xs font-bold text-slate-900 dark:text-white flex-1">{s.name}</span>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                <span className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
                   {plural(total, '{n} révision', '{n} révisions')} · {t('au plus {n} par jour', { n: perDay })}
                 </span>
               </div>
@@ -617,7 +617,7 @@ export const RevisionPeriodModal: React.FC<RevisionPeriodModalProps> = ({ course
                       <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: getCourseEffectiveColor(c, s) }} />
                       <span className="text-sm text-slate-900 dark:text-slate-100 min-w-0 flex-1 break-words">
                         {c.title}
-                        {c.mastery > 0 && <span className="ml-1.5 text-[11px] text-amber-500">{'★'.repeat(c.mastery)}</span>}
+                        {c.mastery > 0 && <span className="ml-1.5 text-[0.6875rem] text-amber-500">{'★'.repeat(c.mastery)}</span>}
                       </span>
                       <span className="inline-flex items-center gap-1">
                         <button
@@ -648,7 +648,7 @@ export const RevisionPeriodModal: React.FC<RevisionPeriodModalProps> = ({ course
                             key={`${d}-${i}`}
                             type="button"
                             onClick={() => setWeekStart(d)}
-                            className="px-1.5 py-0.5 rounded-md text-[10px] font-mono bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-teal-50 dark:hover:bg-teal-950/40"
+                            className="px-1.5 py-0.5 rounded-md text-[0.625rem] font-mono bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-teal-50 dark:hover:bg-teal-950/40"
                           >
                             {formatFrenchDayShort(d)}
                           </button>
@@ -692,7 +692,7 @@ export const RevisionPeriodModal: React.FC<RevisionPeriodModalProps> = ({ course
           <CalendarRange className="w-5 h-5 text-teal-600 shrink-0" />
           <div className="flex-1 min-w-0">
             <h2 className="text-sm font-bold text-slate-900 dark:text-white">{t('Période de révision')}</h2>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
               {t('Étape {n} sur 3 · {title}', { n: step, title: titles[step] })}
             </p>
           </div>

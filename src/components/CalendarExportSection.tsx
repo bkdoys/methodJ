@@ -109,7 +109,7 @@ export const CalendarExportSection: React.FC<CalendarExportSectionProps> = ({ co
           <CalendarPlus className="w-4 h-4 text-teal-600" />
           <span>{t('Exporter vers un agenda (.ics)')}</span>
         </span>
-        <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+        <p className="text-[0.6875rem] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
           {t('Crée un fichier à importer dans Google Agenda, Apple Calendrier ou Outlook : un événement par créneau, avec l\'heure du planning et les liens du cours.')}
         </p>
       </div>
@@ -149,7 +149,7 @@ export const CalendarExportSection: React.FC<CalendarExportSectionProps> = ({ co
           <CalendarPlus className="w-3.5 h-3.5" />
           <span>{t('Télécharger le fichier .ics')}</span>
         </button>
-        <span className="text-[11px] text-slate-500 dark:text-slate-400">
+        <span className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
           {count === 0 ? t('Aucun créneau sur cette période.') : plural(count, '{n} créneau', '{n} créneaux')}
         </span>
       </div>
@@ -160,7 +160,7 @@ export const CalendarExportSection: React.FC<CalendarExportSectionProps> = ({ co
             <Send className="w-4 h-4 text-teal-600" />
             <span>{t('Envoyer directement vers Google Agenda')}</span>
           </span>
-          <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+          <p className="text-[0.6875rem] text-slate-600 dark:text-slate-400 leading-relaxed">
             {t('Crée (la première fois) un agenda « {name} » dans votre compte Google et y place les créneaux de la période choisie. Renvoyer met à jour les événements et retire ceux qui n\'existent plus. L\'application ne voit que cet agenda, jamais vos autres agendas.', { name: calendarName })}
           </p>
           <div className="flex items-center gap-3 flex-wrap">
@@ -174,7 +174,7 @@ export const CalendarExportSection: React.FC<CalendarExportSectionProps> = ({ co
               <span>{busy ? t('Envoi en cours…') : t('Envoyer vers Google Agenda')}</span>
             </button>
             {busy && progress && (
-              <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+              <span className="text-[0.6875rem] font-mono text-slate-500 dark:text-slate-400">
                 {progress.done}/{progress.total}
               </span>
             )}
@@ -185,7 +185,7 @@ export const CalendarExportSection: React.FC<CalendarExportSectionProps> = ({ co
       {message && (
         <p
           role={message.type === 'error' ? 'alert' : 'status'}
-          className={`text-[11px] font-medium ${
+          className={`text-[0.6875rem] font-medium ${
             message.type === 'ok' ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
           }`}
         >
@@ -193,7 +193,7 @@ export const CalendarExportSection: React.FC<CalendarExportSectionProps> = ({ co
         </p>
       )}
 
-      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+      <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400 leading-relaxed">
         {t('Dans Google Agenda : créez d\'abord un agenda « {name} » (Autres agendas, Créer un agenda), puis Réglages, Importer et exporter, et choisissez cet agenda à l\'import. Réimporter le fichier devrait mettre à jour les événements au lieu de les dupliquer ; un créneau supprimé dans l\'application reste à retirer à la main (ou en supprimant l\'agenda dédié).', { name: calendarName })}
       </p>
     </div>

@@ -47,7 +47,7 @@ const MaskLayer: React.FC<MaskView> = ({ masks, mode, activeGroup, revealed }) =
       {list.map((m) => {
         if (activeGroup === undefined) {
           return (
-            <MaskLabel key={m.id} mask={m} className="text-[10px] font-bold text-white bg-teal-600 rounded px-1">
+            <MaskLabel key={m.id} mask={m} className="text-[0.625rem] font-bold text-white bg-teal-600 rounded px-1">
               {m.group}
             </MaskLabel>
           );

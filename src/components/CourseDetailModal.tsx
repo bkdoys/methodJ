@@ -285,7 +285,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
                       placeholder={t('Code (EDN-103)')}
                     />
                     {isFreeCourse(course) && (
-                      <label className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 min-w-0">
+                      <label className="flex items-center gap-1.5 text-[0.6875rem] text-slate-500 dark:text-slate-400 min-w-0">
                         <span className="shrink-0">{t('Créé le')}</span>
                         <input
                           type="date"
@@ -354,7 +354,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
               onChange={(newLevel) => onUpdateCourse(course.id, { mastery: newLevel })}
               size={18}
             />
-            <span className="text-[11px] text-slate-500 dark:text-slate-400 min-w-[4.5rem]">{MASTERY_CONFIG[course.mastery]?.shortLabel}</span>
+            <span className="text-[0.6875rem] text-slate-500 dark:text-slate-400 min-w-[4.5rem]">{MASTERY_CONFIG[course.mastery]?.shortLabel}</span>
           </div>
 
           {/* Progression dans le temps (largeur proportionnelle aux jours) : seulement s'il y a des J */}
@@ -371,7 +371,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
                 {t('Notes du cours & Pièges d\'annales EDN')}
               </label>
               {isEditing && (
-                <span className="text-[11px] text-teal-600 font-medium">{t('Mode édition actif')}</span>
+                <span className="text-[0.6875rem] text-teal-600 font-medium">{t('Mode édition actif')}</span>
               )}
             </div>
             {isEditing ? (
@@ -425,7 +425,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
                     setToJList(settings.defaultJPattern);
                     setToJOpen(true);
                   }}
-                  className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold rounded-lg text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-950/60"
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-[0.6875rem] font-bold rounded-lg text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-950/60"
                 >
                   <Calendar className="w-3.5 h-3.5" />
                   {t('Passer en méthode des J')}
@@ -452,7 +452,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
                     }
                   }}
                   title={t('Ne plus programmer de J : vous ajouterez des révisions (R) à la main')}
-                  className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold rounded-lg text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:text-violet-700 dark:hover:text-violet-300 hover:border-violet-300 dark:hover:border-violet-700"
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-[0.6875rem] font-semibold rounded-lg text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:text-violet-700 dark:hover:text-violet-300 hover:border-violet-300 dark:hover:border-violet-700"
                 >
                   <CalendarOff className="w-3.5 h-3.5" />
                   {t('Passer en révision libre')}
@@ -514,7 +514,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
                     );
                   })}
                 </div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
                   {t('Les révisions déjà faites restent dans l\'historique ; celles qui restaient à faire sont remplacées par les J.')}
                 </p>
                 <div className="flex items-center justify-end gap-2">
@@ -601,18 +601,18 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
                             </span>
                           )}
                           {isToday && (
-                            <span className="text-[10px] font-bold text-teal-700 bg-teal-100 dark:bg-teal-900/50 dark:text-teal-300 px-1.5 py-0.2 rounded">
+                            <span className="text-[0.625rem] font-bold text-teal-700 bg-teal-100 dark:bg-teal-900/50 dark:text-teal-300 px-1.5 py-0.2 rounded">
                               {t('Aujourd\'hui')}
                             </span>
                           )}
                           {isPastDue && (
-                            <span className="text-[10px] font-bold text-rose-700 bg-rose-100 dark:bg-rose-900/50 dark:text-rose-300 px-1.5 py-0.2 rounded">
+                            <span className="text-[0.625rem] font-bold text-rose-700 bg-rose-100 dark:bg-rose-900/50 dark:text-rose-300 px-1.5 py-0.2 rounded">
                               {t('En retard')}
                             </span>
                           )}
                         </div>
 
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
+                        <span className="text-[0.6875rem] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
                           <Clock className="w-3 h-3" />
                           {onResizeSlot && !rev.completed ? (
                             <>
@@ -621,7 +621,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
                                 value={rev.durationMinutes}
                                 onChange={(m) => onResizeSlot(rev.id, m)}
                                 label={t('Durée du créneau {label}', { label: revLabel(rev) })}
-                                className="!py-0.5 !px-1 !text-[11px]"
+                                className="!py-0.5 !px-1 !text-[0.6875rem]"
                               />
                             </>
                           ) : (
@@ -717,7 +717,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
                 <button
                   type="button"
                   onClick={onPlayCards}
-                  className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold rounded-lg text-white bg-teal-600 hover:bg-teal-700"
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-[0.6875rem] font-bold rounded-lg text-white bg-teal-600 hover:bg-teal-700"
                 >
                   <Play className="w-3 h-3 fill-current" />
                   {t('Réviser')}
@@ -726,7 +726,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
               <button
                 type="button"
                 onClick={onOpenDeck}
-                className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold rounded-lg text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-500/15 hover:bg-teal-100 dark:hover:bg-teal-500/25"
+                className="flex items-center gap-1 px-2.5 py-1.5 text-[0.6875rem] font-semibold rounded-lg text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-500/15 hover:bg-teal-100 dark:hover:bg-teal-500/25"
               >
                 {cardCount > 0 ? <Edit2 className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
                 {cardCount > 0 ? t('Gérer les cartes') : t('Créer des cartes')}
@@ -770,7 +770,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
                       setCustomColor(undefined);
                       onUpdateCourse(course.id, { customColor: undefined });
                     }}
-                    className="text-[11px] text-slate-500 hover:text-teal-700 dark:hover:text-teal-400 hover:underline"
+                    className="text-[0.6875rem] text-slate-500 hover:text-teal-700 dark:hover:text-teal-400 hover:underline"
                   >
                     {t('Réinitialiser')}
                   </button>
@@ -778,7 +778,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowColorPicker((v) => !v)}
-                  className="text-[11px] font-semibold text-teal-700 dark:text-teal-400 hover:underline"
+                  className="text-[0.6875rem] font-semibold text-teal-700 dark:text-teal-400 hover:underline"
                 >
                   {showColorPicker ? t('Masquer') : t('Modifier')}
                 </button>
@@ -834,18 +834,8 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
         <div className="px-6 py-3.5 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
           <button
             type="button"
-            onClick={async () => {
-              const ok = await confirm({
-                title: t('Supprimer le cours « {title} » ?', { title: course.title }),
-                message: t('Toutes ses révisions planifiées seront supprimées. Cette action est irréversible.'),
-                confirmLabel: t('Supprimer'),
-                tone: 'danger',
-              });
-              if (ok) {
-                onDeleteCourse(course.id);
-                onClose();
-              }
-            }}
+            // La confirmation (et le sort des cartes du cours) est demandée par l'application, qui ferme cette fiche
+            onClick={() => onDeleteCourse(course.id)}
             className="flex items-center gap-1 text-xs text-rose-600 hover:text-rose-700 font-semibold"
           >
             <Trash2 className="w-3.5 h-3.5" />

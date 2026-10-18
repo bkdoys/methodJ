@@ -138,9 +138,9 @@ function pruneTree(nodes: TreeNode[], found: Record<string, unknown>): TreeNode[
 }
 
 const btnToday =
-  'inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold rounded-lg text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors';
+  'inline-flex items-center gap-1 px-2.5 py-1.5 text-[0.6875rem] font-bold rounded-lg text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors';
 const btnAll =
-  'inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors';
+  'inline-flex items-center gap-1 px-2.5 py-1.5 text-[0.6875rem] font-bold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors';
 
 /** Vue « Cartes » : cartes du jour, et révision par discipline, dossier ou cours. */
 export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
@@ -252,7 +252,7 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
         <button
           type="button"
           onClick={() => onOpenDeck(courseId)}
-          className="text-[11px] font-semibold text-teal-700 dark:text-teal-400 hover:underline"
+          className="text-[0.6875rem] font-semibold text-teal-700 dark:text-teal-400 hover:underline"
         >
           {t('+ {n} autres dans ce cours', { n: list.length - MAX_MATCHES })}
         </button>
@@ -307,8 +307,8 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
                 {node.label}
               </button>
             )}
-            {path && <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate">{path}</p>}
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            {path && <p className="text-[0.6875rem] text-slate-400 dark:text-slate-500 truncate">{path}</p>}
+            <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
               {plural(node.counts.total, '{n} carte', '{n} cartes')}
               {node.counts.due > 0 && <> · <span className="text-amber-700 dark:text-amber-400 font-semibold">{t('{n} à revoir', { n: node.counts.due })}</span></>}
               {node.counts.fresh > 0 && <> · {plural(node.counts.fresh, '{n} nouvelle', '{n} nouvelles')}</>}
@@ -413,7 +413,7 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
               type="button"
               onClick={() => onOpenDeck(INBOX_COURSE_ID)}
               title={t('Ranger ces cartes dans un cours')}
-              className="px-2 py-1 text-[11px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700"
+              className="px-2 py-1 text-[0.6875rem] font-bold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700"
             >
               {t('Trier')}
             </button>
@@ -423,7 +423,7 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
           <button
             type="button"
             onClick={onAddCard}
-            className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 text-[11px] font-bold rounded-lg text-white bg-teal-600 hover:bg-teal-700"
+            className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 text-[0.6875rem] font-bold rounded-lg text-white bg-teal-600 hover:bg-teal-700"
           >
             <Plus className="w-3.5 h-3.5" />
             {t('Ajouter une carte')}
@@ -431,7 +431,7 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
           <button
             type="button"
             onClick={onImport}
-            className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 text-[11px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700"
+            className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 text-[0.6875rem] font-bold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700"
           >
             <FileUp className="w-3.5 h-3.5" />
             {t('Importer')}
@@ -487,7 +487,7 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
                     ? t('« Tout » en révision libre : vos réponses ne changent pas la programmation. Touchez pour programmer.')
                     : t('« Tout » programme les prochaines révisions d\'après vos réponses. Touchez pour réviser librement.')
                 }
-                className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-2 text-[11px] font-semibold rounded-lg border ${
+                className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-2 text-[0.6875rem] font-semibold rounded-lg border ${
                   cram
                     ? 'border-teal-600 bg-teal-600 text-white'
                     : 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800'
@@ -498,7 +498,7 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
               </button>
             </div>
             {searching && (
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
                 {matchTotal > 0
                   ? t('{cards} dans {courses}', {
                       cards: plural(matchTotal, '{n} carte trouvée', '{n} cartes trouvées'),

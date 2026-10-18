@@ -80,7 +80,7 @@ export const RevisionNotesJournal: React.FC<RevisionNotesJournalProps> = ({
                 text={r.notes ?? ''}
                 className={`text-slate-700 dark:text-slate-300 ${expanded ? 'text-sm' : ''}`}
               />
-              <span className="text-[10px] text-slate-400 dark:text-slate-500">
+              <span className="text-[0.625rem] text-slate-400 dark:text-slate-500">
                 {formatFrenchDate(r.completedDate || r.scheduledDate)}
               </span>
             </div>

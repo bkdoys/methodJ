@@ -32,7 +32,7 @@ const DiffLine: React.FC<{ label: string; diff: CollectionDiff }> = ({ label, di
     <li className="text-xs text-slate-700 dark:text-slate-300">
       <span className="font-bold">{label} :</span> {parts.join(' · ')}
       {diff.samples.length > 0 && (
-        <span className="block text-[11px] text-slate-500 dark:text-slate-400 truncate">
+        <span className="block text-[0.6875rem] text-slate-500 dark:text-slate-400 truncate">
           {t('ex.')} {diff.samples.join(', ')}
         </span>
       )}
@@ -81,7 +81,7 @@ export const SyncConflictModal: React.FC<SyncConflictModalProps> = ({
               <div className="text-slate-600 dark:text-slate-400">
                 {plural(local.courses.length, '{n} cours', '{n} cours')} · {plural(local.revisions.length, '{n} créneau', '{n} créneaux')}
               </div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-500">{t('Dernière synchro :')} {fmt(localSyncedAt)}</div>
+              <div className="text-[0.6875rem] text-slate-500 dark:text-slate-500">{t('Dernière synchro :')} {fmt(localSyncedAt)}</div>
             </div>
             <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
               <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200 mb-1">
@@ -90,7 +90,7 @@ export const SyncConflictModal: React.FC<SyncConflictModalProps> = ({
               <div className="text-slate-600 dark:text-slate-400">
                 {plural(cloud.courses.length, '{n} cours', '{n} cours')} · {plural(cloud.revisions.length, '{n} créneau', '{n} créneaux')}
               </div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-500">{t('Modifié le :')} {fmt(cloudStamp)}</div>
+              <div className="text-[0.6875rem] text-slate-500 dark:text-slate-500">{t('Modifié le :')} {fmt(cloudStamp)}</div>
             </div>
           </div>
 

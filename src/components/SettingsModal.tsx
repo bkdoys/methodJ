@@ -5,6 +5,7 @@ import { t } from '../i18n';
 import { APP_NAME } from '../appInfo';
 import { planningSettingsFromValues } from '../utils/planningSettings';
 import { examSettingsFromValues } from '../utils/examSettings';
+import { applyTextScale, getTextScale } from '../utils/textScale';
 import { PlanningDialogs, PlanningTab, usePlanningDraft } from './settings/PlanningTab';
 import { SubjectDeleteDialog, SubjectsTab, useSubjectsDraft } from './settings/SubjectsTab';
 import { ExamTab, useExamDraft } from './settings/ExamTab';
@@ -122,6 +123,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     // Les fonctions `reset` ne dépendent que des setters (stables)
   }, [isOpen, settings]);
 
+  // Aperçu en direct de la taille du texte pendant que la fenêtre est ouverte ; à la fermeture, on revient à la taille
+  // enregistrée (déjà à jour si on vient d'enregistrer)
+  const savedSettingsRef = useRef(settings);
+  savedSettingsRef.current = settings;
+  useEffect(() => {
+    if (!isOpen) return;
+    applyTextScale(display.textScale, false);
+    return () => applyTextScale(getTextScale(savedSettingsRef.current), false);
+  }, [isOpen, display.textScale]);
+
   // La liste des disciplines s'enregistre à chaque modification : elle suit simplement la liste enregistrée
   useEffect(() => {
     if (isOpen) subjectsDraft.reset(subjects);
@@ -137,6 +148,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       ...examSettingsFromValues(exam.values),
       theme: display.theme,
       language: display.language,
+      textScale: display.textScale === 'normal' ? undefined : display.textScale,
     });
     onClose();
   };
@@ -171,7 +183,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
 
           {/* Navigation Tabs in Modal : tous les onglets visibles, sans défilement horizontal */}
-          <div className="grid grid-cols-6 gap-1 px-3 sm:px-6 pt-3 border-b border-slate-100 dark:border-slate-800 text-[10px] sm:text-xs font-bold">
+          <div className="grid grid-cols-6 gap-1 px-3 sm:px-6 pt-3 border-b border-slate-100 dark:border-slate-800 text-[0.625rem] sm:text-xs font-bold">
             {(
               [
                 { id: 'preferences', icon: Layers, label: t('Affichage'), title: t('Langue, thème, types de liens') },

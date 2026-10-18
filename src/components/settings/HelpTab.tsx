@@ -11,7 +11,7 @@ export const HelpTab: React.FC<{ courses: Course[] }> = ({ courses }) => {
     <div className="space-y-5">
       <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
         <h4 className="text-xs font-bold text-slate-900 dark:text-white">{t('Application')}</h4>
-        <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+        <p className="text-[0.6875rem] text-slate-600 dark:text-slate-400 leading-relaxed">
           {t('Sur l\'écran d\'accueil (iPad, téléphone), il n\'y a pas de bouton de rechargement : utilisez celui-ci pour récupérer la dernière version.')}
         </p>
         <button
@@ -26,24 +26,24 @@ export const HelpTab: React.FC<{ courses: Course[] }> = ({ courses }) => {
       {/* Surcharge, retards et lissage de charge */}
       <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
         <h4 className="text-xs font-bold text-slate-900 dark:text-white">{t('Surcharge, retards et lissage')}</h4>
-        <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+        <p className="text-[0.6875rem] text-slate-600 dark:text-slate-400 leading-relaxed">
           {t('Un créneau qui ne trouve plus de place n\'est jamais décalé au jour suivant ni supprimé : il s\'empile après la fin de la plage de travail de son jour. L\'application le signale en ambre sur le planning et dans l\'onglet Dashboard, sans rien déplacer toute seule.')}
         </p>
         <div className="space-y-1">
-          <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200">{t('Lissage d\'un jour chargé')}</span>
-          <div className="text-[11px] text-slate-600 dark:text-slate-400">
+          <span className="text-[0.6875rem] font-bold text-slate-800 dark:text-slate-200">{t('Lissage d\'un jour chargé')}</span>
+          <div className="text-[0.6875rem] text-slate-600 dark:text-slate-400">
             <PlanningRules kind="smooth" />
           </div>
         </div>
         <div className="space-y-1">
-          <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200">{t('Rattrapage des retards')}</span>
-          <div className="text-[11px] text-slate-600 dark:text-slate-400">
+          <span className="text-[0.6875rem] font-bold text-slate-800 dark:text-slate-200">{t('Rattrapage des retards')}</span>
+          <div className="text-[0.6875rem] text-slate-600 dark:text-slate-400">
             <PlanningRules kind="catchup" />
           </div>
         </div>
         <div className="space-y-1">
-          <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200">{t('Période de révision')}</span>
-          <div className="text-[11px] text-slate-600 dark:text-slate-400">
+          <span className="text-[0.6875rem] font-bold text-slate-800 dark:text-slate-200">{t('Période de révision')}</span>
+          <div className="text-[0.6875rem] text-slate-600 dark:text-slate-400">
             <PlanningRules kind="period" />
           </div>
         </div>
@@ -66,7 +66,7 @@ export const HelpTab: React.FC<{ courses: Course[] }> = ({ courses }) => {
             <span className="text-xs font-bold text-teal-800 dark:text-teal-300 block">
               {t('1. Encodage Initial : J0 & J1')}
             </span>
-            <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-tight">
+            <p className="text-[0.6875rem] text-slate-600 dark:text-slate-400 leading-tight">
               {t('Créneaux longs pour comprendre la physiopathologie et ancrer les mécanismes avant l\'oubli nocturne.')}
             </p>
           </div>
@@ -74,7 +74,7 @@ export const HelpTab: React.FC<{ courses: Course[] }> = ({ courses }) => {
             <span className="text-xs font-bold text-teal-800 dark:text-teal-300 block">
               {t('2. Rappel Actif : J3, J7, J15')}
             </span>
-            <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-tight">
+            <p className="text-[0.6875rem] text-slate-600 dark:text-slate-400 leading-tight">
               {t('Créneaux plus courts basés sur l\'effort de restitution : QCM, cas cliniques et flashcards sans relire passivement.')}
             </p>
           </div>
@@ -82,7 +82,7 @@ export const HelpTab: React.FC<{ courses: Course[] }> = ({ courses }) => {
             <span className="text-xs font-bold text-teal-800 dark:text-teal-300 block">
               {t('3. Cascade Automatique')}
             </span>
-            <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-tight">
+            <p className="text-[0.6875rem] text-slate-600 dark:text-slate-400 leading-tight">
               {t('Si un J1 est reporté de 2 jours, les J3 et J7 suivants sont automatiquement décalés pour préserver l\'écart mnésique optimal.')}
             </p>
           </div>
@@ -155,7 +155,7 @@ export const HelpTab: React.FC<{ courses: Course[] }> = ({ courses }) => {
                       <span className={`text-xs font-bold block ${cfg.text}`}>
                         {lvl === 0 ? t('Nouveau') : `${lvl} ★`}
                       </span>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate">
+                      <span className="text-[0.625rem] text-slate-500 dark:text-slate-400 block truncate">
                         {cfg.shortLabel}
                       </span>
                     </div>
@@ -163,7 +163,7 @@ export const HelpTab: React.FC<{ courses: Course[] }> = ({ courses }) => {
                       <span className="text-xs font-mono font-bold text-slate-900 dark:text-white block">
                         {count}
                       </span>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{pct}%</span>
+                      <span className="text-[0.625rem] text-slate-400 dark:text-slate-500 font-mono">{pct}%</span>
                     </div>
                   </div>
                 );
@@ -175,7 +175,7 @@ export const HelpTab: React.FC<{ courses: Course[] }> = ({ courses }) => {
       {/* Astuces d'utilisation */}
       <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/40 space-y-2">
         <h4 className="text-xs font-bold text-slate-900 dark:text-white">{t('Astuces')}</h4>
-        <ul className="list-disc pl-4 space-y-1 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+        <ul className="list-disc pl-4 space-y-1 text-[0.6875rem] text-slate-600 dark:text-slate-400 leading-relaxed">
           <li>{t('Glissez-déposez un créneau d\'un jour à l\'autre dans la vue Semaine pour le décaler en cascade.')}</li>
           <li>{t('Sur écran tactile, balayez le planning vers la gauche ou la droite pour passer au jour, à la semaine ou au mois suivant ou précédent, et pincez la chronologie à deux doigts pour agrandir ou réduire les heures.')}</li>
           <li>{t('Cliquez sur un cours pour ouvrir sa fiche : notes, couleur, planning et progression.')}</li>

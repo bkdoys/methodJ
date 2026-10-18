@@ -67,7 +67,7 @@ export const DriveBackupButton: React.FC<Props> = ({ email, buildBackup, setting
       </button>
       {(message || lastSaved) && (
         <p
-          className={`basis-full text-[11px] ${
+          className={`basis-full text-[0.6875rem] ${
             message?.type === 'error' ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'
           }`}
           role={message ? 'status' : undefined}

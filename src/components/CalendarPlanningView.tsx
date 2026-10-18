@@ -301,7 +301,7 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
               type="date"
               value={selectedDate}
               onChange={(e) => e.target.value && onSelectDate(e.target.value)}
-              className={`text-xs phone:text-[11px] font-mono font-bold px-2.5 phone:px-1.5 py-1.5 min-w-0 border rounded-lg text-slate-800 dark:text-white focus:ring-1 focus:ring-teal-500 transition-colors duration-500 ${
+              className={`text-xs phone:text-[0.6875rem] font-mono font-bold px-2.5 phone:px-1.5 py-1.5 min-w-0 border rounded-lg text-slate-800 dark:text-white focus:ring-1 focus:ring-teal-500 transition-colors duration-500 ${
                 dateFlash
                   ? 'border-teal-400 dark:border-teal-600 bg-teal-50 dark:bg-teal-950/60'
                   : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800'
@@ -439,14 +439,14 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
                   {t('Charge du jour : {d} planifiées ({n} créneaux)', { d: formatMinutes(dayTotalMinutes), n: dayRevisions.length })}
                 </h2>
                 {isOverloaded && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold whitespace-nowrap bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[0.6875rem] font-semibold whitespace-nowrap bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                     <AlertTriangle className="w-3 h-3 shrink-0" />
                     {t('Dépasse objectif ({n}h)', { n: targetHours })}
                   </span>
                 )}
                 {dayOverflowCount > 0 && (
                   <span
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold whitespace-nowrap bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[0.6875rem] font-semibold whitespace-nowrap bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
                     title={t('Faute de place, ces créneaux sont empilés après la fin de la plage de travail.')}
                   >
                     <AlertTriangle className="w-3 h-3" />
@@ -479,7 +479,7 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
               />
             </div>
 
-            <div className="mt-2.5 flex phone:hidden items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <div className="mt-2.5 flex phone:hidden items-center justify-between text-[0.6875rem] text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
               <span>
                 {t('Créneaux :')}{' '}
                 <strong className="font-semibold text-slate-700 dark:text-slate-300">
@@ -596,7 +596,7 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
                       {cell.dayNumber}
                     </span>
                     {totalMins > 0 && (
-                      <span className="text-[10px] font-mono font-bold text-teal-700 dark:text-teal-400">
+                      <span className="text-[0.625rem] font-mono font-bold text-teal-700 dark:text-teal-400">
                         {formatMinutes(totalMins)}
                       </span>
                     )}
@@ -614,7 +614,7 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
                         return (
                           <div
                             key={r.id}
-                            className={`relative px-1.5 py-0.5 rounded text-[10px] font-bold truncate flex items-center gap-1 shadow-2xs ${
+                            className={`relative px-1.5 py-0.5 rounded text-[0.625rem] font-bold truncate flex items-center gap-1 shadow-2xs ${
                               r.completed ? 'opacity-65 line-through' : ''
                             }`}
                             style={{
@@ -624,13 +624,13 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
                             title={`${revLabel(r)} · ${course.title}`}
                           >
                             <RatingFx rev={r} />
-                            <span className="font-extrabold text-[9px] opacity-90">{revLabel(r)}</span>
+                            <span className="font-extrabold text-[0.5625rem] opacity-90">{revLabel(r)}</span>
                             <span className="truncate">{course.title}</span>
                           </div>
                         );
                       })}
                       {dayRevs.length > 3 && (
-                        <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 font-mono block pl-0.5">
+                        <span className="text-[0.5625rem] font-bold text-slate-500 dark:text-slate-400 font-mono block pl-0.5">
                           +{dayRevs.length - 3} autre{dayRevs.length - 3 > 1 ? 's' : ''}
                         </span>
                       )}

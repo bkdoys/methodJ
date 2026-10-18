@@ -84,7 +84,7 @@ export const MasteryBadge: React.FC<MasteryBadgeProps> = ({
   const config = MASTERY_CONFIG[level] || MASTERY_CONFIG[0];
 
   const sizeClasses = {
-    sm: 'text-[11px] py-0.5 px-2 gap-1',
+    sm: 'text-[0.6875rem] py-0.5 px-2 gap-1',
     md: 'text-xs py-1 px-2.5 gap-1.5',
     lg: 'text-sm py-1.5 px-3.5 gap-2',
   }[size];

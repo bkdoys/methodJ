@@ -39,7 +39,7 @@ const CLOSE_DISTANCE = 16;
 
 const CORNERS: Corner[] = ['nw', 'ne', 'sw', 'se'];
 const TOOL =
-  'inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-md border disabled:opacity-40 disabled:cursor-not-allowed';
+  'inline-flex items-center gap-1 px-2 py-1 text-[0.6875rem] font-semibold rounded-md border disabled:opacity-40 disabled:cursor-not-allowed';
 const TOOL_OFF = 'text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800';
 const TOOL_ON = 'text-white border-teal-600 bg-teal-600';
 
@@ -260,7 +260,7 @@ export const OcclusionEditor: React.FC<OcclusionEditorProps> = ({ imageId, masks
           <Trash2 className="w-3.5 h-3.5" />
           {t('Supprimer')}
         </button>
-        <span className="ml-auto text-[11px] text-slate-500 dark:text-slate-400">
+        <span className="ml-auto text-[0.6875rem] text-slate-500 dark:text-slate-400">
           {poly.length > 0
             ? t('Touchez le premier point (ou « Terminer ») pour fermer la forme.')
             : groups > 0
@@ -310,7 +310,7 @@ export const OcclusionEditor: React.FC<OcclusionEditorProps> = ({ imageId, masks
               )}
             </MaskCanvas>
             {masks.map((m) => (
-              <MaskLabel key={m.id} mask={m} className={`text-[10px] font-bold text-white rounded px-1 ${selected.has(m.id) ? 'bg-amber-600' : 'bg-teal-700'}`}>
+              <MaskLabel key={m.id} mask={m} className={`text-[0.625rem] font-bold text-white rounded px-1 ${selected.has(m.id) ? 'bg-amber-600' : 'bg-teal-700'}`}>
                 {m.group}
               </MaskLabel>
             ))}

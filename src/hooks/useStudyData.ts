@@ -1,5 +1,6 @@
 import { Dispatch, SetStateAction } from 'react';
-import { AppSettings, Course, CourseLink, LinkType, MasteryLevel, RevisionItem, RevisionPeriod, Subject, ToastMessage } from '../types';
+import { AppSettings, Course, CourseLink, Deck, LinkType, MasteryLevel, RevisionItem, RevisionPeriod, Subject, ToastMessage } from '../types';
+import type { ApplyResult } from '../utils/apkg/apply';
 import type { PeriodPlan } from '../utils/revisionPeriod';
 import {
   clearOriginalDates,
@@ -48,6 +49,10 @@ interface UseStudyDataOptions {
   setSelectedCourseForDetail: Dispatch<SetStateAction<Course | null>>;
   /** Cours supprimés : leurs paquets de cartes partent avec eux. */
   onCoursesDeleted?: (courseIds: string[]) => void;
+  /** Import Anki : remplace le paquet de cartes d'un cours (créé ou complété). */
+  onDeckReplaced?: (courseId: string, deck: Deck) => void;
+  /** Annulation d'un import Anki : retire ces cartes (par cours) des cours qui existaient déjà. */
+  onCardsRemoved?: (idsByCourse: Record<string, string[]>) => void;
 }
 
 /**
@@ -67,6 +72,8 @@ export function useStudyData({
   notify,
   setSelectedCourseForDetail,
   onCoursesDeleted,
+  onDeckReplaced,
+  onCardsRemoved,
 }: UseStudyDataOptions) {
   // Handler: Add new course
   const handleSaveNewCourse = (
@@ -840,7 +847,60 @@ export function useStudyData({
     });
   };
 
+  // Import d'un paquet Anki : disciplines, dossiers et cours en révision libre créés ou complétés, cartes ajoutées.
+  // Un seul changement d'état, des écritures cloud ciblées, et « Annuler » qui remet tout comme avant.
+  const handleImportApkg = (result: ApplyResult, info: { failedImages: number }) => {
+    const subjectsBefore = subjects;
+    const newIds = result.newCourses.map((c) => c.id);
+    const subjectsChanged = result.createdSubjectIds.length > 0 || result.createdFolders.length > 0;
+    if (subjectsChanged) setSubjects(result.subjects);
+    if (result.newCourses.length > 0) setCourses((prev) => [...result.newCourses, ...prev]);
+    Object.entries(result.decks).forEach(([courseId, deck]) => onDeckReplaced?.(courseId, deck));
+    if (cloudUid) {
+      result.newCourses.forEach((c) => syncCourseToCloud(cloudUid, c).catch((e) => console.warn('Import course sync error:', e)));
+    }
+
+    const undo = () => {
+      const createdSubjects = new Set(result.createdSubjectIds);
+      const foldersChanged = new Set(result.createdFolders.map((f) => f.subjectId));
+      if (subjectsChanged) {
+        setSubjects((prev) =>
+          prev
+            .filter((s) => !createdSubjects.has(s.id))
+            .map((s) => {
+              const before = subjectsBefore.find((b) => b.id === s.id);
+              return before && foldersChanged.has(s.id) ? { ...s, folders: before.folders } : s;
+            })
+        );
+        if (cloudUid && createdSubjects.size > 0) {
+          deleteSubjectsFromCloud(cloudUid, [...createdSubjects]).catch((e) => console.warn('Undo import subjects error:', e));
+        }
+      }
+      if (newIds.length > 0) {
+        const gone = new Set(newIds);
+        setCourses((prev) => prev.filter((c) => !gone.has(c.id)));
+        onCoursesDeleted?.(newIds);
+        if (cloudUid) newIds.forEach((id) => deleteCourseFromCloud(cloudUid, id, []).catch((e) => console.warn('Undo import course error:', e)));
+      }
+      if (Object.keys(result.addedToExisting).length > 0) onCardsRemoved?.(result.addedToExisting);
+    };
+
+    const parts = [
+      plural(result.totals.cards, '{n} carte ajoutée', '{n} cartes ajoutées'),
+      ...(result.newCourses.length > 0 ? [plural(result.newCourses.length, '{n} cours créé', '{n} cours créés')] : []),
+      ...(result.totals.duplicates > 0 ? [plural(result.totals.duplicates, '{n} déjà présente', '{n} déjà présentes')] : []),
+      ...(info.failedImages > 0 ? [plural(info.failedImages, '{n} image illisible', '{n} images illisibles')] : []),
+    ];
+    notify({
+      title: t('Paquet Anki importé'),
+      description: parts.join(' · '),
+      type: info.failedImages > 0 ? 'info' : 'success',
+      action: { label: t('Annuler'), onClick: undo },
+    });
+  };
+
   return {
+    handleImportApkg,
     handleApplyRevisionPeriod,
     handleDeleteRevisionPeriod,
     handleSaveNewCourse,

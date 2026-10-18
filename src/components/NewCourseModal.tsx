@@ -221,7 +221,7 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
                     <Calendar className="w-4 h-4 text-teal-600" />
                     <span>{t('Date du premier apprentissage (J0)')}</span>
                   </label>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
                     {t('Point de départ du cycle d\'espacement des révisions')}
                   </p>
                 </div>
@@ -250,32 +250,32 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
                   <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
                     {t('Choix des répétitions (Méthode des J)')}
                   </label>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  <span className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
                     {t('Durées des créneaux réglables dans Préférences, onglet Répétitions')}
                   </span>
                 </div>
 
                 {/* Presets */}
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[11px] text-slate-500">{t('Préréglages :')}</span>
+                  <span className="text-[0.6875rem] text-slate-500">{t('Préréglages :')}</span>
                   <button
                     type="button"
                     onClick={() => handleApplyPreset(DEFAULT_J_PATTERNS.ednClassique)}
-                    className="px-2 py-0.5 text-[11px] font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded text-slate-700 dark:text-slate-300"
+                    className="px-2 py-0.5 text-[0.6875rem] font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded text-slate-700 dark:text-slate-300"
                   >
                     {t('EDN Classique')}
                   </button>
                   <button
                     type="button"
                     onClick={() => handleApplyPreset(DEFAULT_J_PATTERNS.passIntensif)}
-                    className="px-2 py-0.5 text-[11px] font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded text-slate-700 dark:text-slate-300"
+                    className="px-2 py-0.5 text-[0.6875rem] font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded text-slate-700 dark:text-slate-300"
                   >
                     {t('PASS Intensif')}
                   </button>
                   <button
                     type="button"
                     onClick={() => handleApplyPreset(DEFAULT_J_PATTERNS.cycleLong)}
-                    className="px-2 py-0.5 text-[11px] font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded text-slate-700 dark:text-slate-300"
+                    className="px-2 py-0.5 text-[0.6875rem] font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded text-slate-700 dark:text-slate-300"
                   >
                     {t('Cycle Long')}
                   </button>
@@ -299,7 +299,7 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
                       }`}
                     >
                       <span>J{jVal}</span>
-                      <span className="text-[10px] opacity-80 font-normal">
+                      <span className="text-[0.625rem] opacity-80 font-normal">
                         ({formatMinutes(getSlotDurationMinutes(jVal, settings))})
                       </span>
                     </button>
@@ -321,7 +321,7 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
                 <span className="font-bold text-slate-800 dark:text-slate-200">
                   {t('Planning calculé ({n} créneaux · {d} au total)', { n: sortedJ.length, d: formatMinutes(totalMinutes) })}
                 </span>
-                <span className="text-slate-500 dark:text-slate-400 text-[11px]">
+                <span className="text-slate-500 dark:text-slate-400 text-[0.6875rem]">
                   {t('Cycle jusqu\'au {date}', { date: formatFrenchDate(addDays(j0Date, sortedJ[sortedJ.length - 1] || 0)) })}
                 </span>
               </div>
@@ -332,12 +332,12 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
                   return (
                     <div
                       key={jVal}
-                      className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] flex items-center gap-1.5 shadow-2xs"
+                      className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[0.6875rem] flex items-center gap-1.5 shadow-2xs"
                     >
                       <span className="font-bold text-teal-700 dark:text-teal-400">J{jVal}</span>
                       <span className="text-slate-400">·</span>
                       <span className="text-slate-600 dark:text-slate-300 font-mono">{date.slice(5)}</span>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-1 rounded font-medium">
+                      <span className="text-[0.625rem] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-1 rounded font-medium">
                         {formatMinutes(duration)}
                       </span>
                     </div>
@@ -370,7 +370,7 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setCustomColor(undefined)}
-                      className="text-[11px] text-slate-500 hover:text-teal-700 dark:hover:text-teal-400 hover:underline"
+                      className="text-[0.6875rem] text-slate-500 hover:text-teal-700 dark:hover:text-teal-400 hover:underline"
                     >
                       {t('Réinitialiser')}
                     </button>
@@ -378,7 +378,7 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowColorPicker((v) => !v)}
-                    className="text-[11px] font-semibold text-teal-700 dark:text-teal-400 hover:underline"
+                    className="text-[0.6875rem] font-semibold text-teal-700 dark:text-teal-400 hover:underline"
                   >
                     {showColorPicker ? t('Masquer') : t('Modifier')}
                   </button>
@@ -457,7 +457,7 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
             {/* Cours en révision libre (usage occasionnel) : discret, en bas du formulaire */}
             <div className="pt-1">
               <label
-                className="inline-flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 cursor-pointer"
+                className="inline-flex items-center gap-2 text-[0.6875rem] text-slate-500 dark:text-slate-400 cursor-pointer"
                 title={t('Aucune révision programmée : vous ajouterez des révisions (R) au fil du temps depuis la fiche du cours. Vous pourrez le passer en méthode des J plus tard.')}
               >
                 <input
@@ -469,7 +469,7 @@ export const NewCourseModal: React.FC<NewCourseModalProps> = ({
                 {t('Révision libre, sans J programmé')}
               </label>
               {free && (
-                <p className="mt-1 text-[11px] text-violet-700 dark:text-violet-300">
+                <p className="mt-1 text-[0.6875rem] text-violet-700 dark:text-violet-300">
                   {t('Aucune révision programmée : vous ajouterez des révisions (R) au fil du temps depuis la fiche du cours. Vous pourrez le passer en méthode des J plus tard.')}
                 </p>
               )}

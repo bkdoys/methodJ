@@ -20,6 +20,8 @@ interface CardsImportModalProps {
   /** Cours proposé par défaut (import lancé depuis les cartes d'un cours). */
   defaultCourseId?: string;
   onImport: (byCourse: Record<string, CardInput[]>) => void;
+  /** Un paquet Anki (.apkg) a été choisi : l'application ouvre l'import dédié. */
+  onApkg?: (file: File) => void;
   onClose: () => void;
 }
 
@@ -51,6 +53,7 @@ export const CardsImportModal: React.FC<CardsImportModalProps> = ({
   decks,
   defaultCourseId,
   onImport,
+  onApkg,
   onClose,
 }) => {
   const [text, setText] = useState('');
@@ -76,6 +79,10 @@ export const CardsImportModal: React.FC<CardsImportModalProps> = ({
   const onFile = async (file: File | undefined) => {
     if (!file) return;
     setFileError(null);
+    if (onApkg && /\.apkg$/i.test(file.name)) {
+      onApkg(file);
+      return;
+    }
     if (file.size > MAX_FILE_BYTES) {
       setFileError(t('Fichier trop volumineux (10 Mo au plus).'));
       return;
@@ -111,6 +118,28 @@ export const CardsImportModal: React.FC<CardsImportModalProps> = ({
         </div>
 
         <div className="p-5 space-y-4 overflow-y-auto flex-1">
+          {onApkg && (
+            <div className="p-3 rounded-xl border border-teal-200 dark:border-teal-800 bg-teal-50/60 dark:bg-teal-950/30 space-y-2">
+              <p className="text-xs font-bold text-slate-900 dark:text-white">{t('Paquet Anki (.apkg)')}</p>
+              <p className="text-[0.6875rem] text-slate-600 dark:text-slate-400 leading-relaxed">
+                {t('Le plus complet : cartes, images, texte à trous, masques sur image, avancement, et les paquets et sous-paquets deviennent des cours en révision libre. Dans Anki : Fichier › Exporter › « Paquet Anki (*.apkg) », médias inclus.')}
+              </p>
+              <label className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg text-white bg-teal-600 hover:bg-teal-700 cursor-pointer">
+                <Upload className="w-4 h-4" />
+                {t('Choisir un paquet .apkg')}
+                <input
+                  type="file"
+                  accept=".apkg"
+                  className="sr-only"
+                  onChange={(e) => {
+                    onFile(e.target.files?.[0]);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            </div>
+          )}
+
           <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
             {t('Une ligne par carte : recto, verso, et en option le cours (code ou titre). Depuis Anki : Fichier › Exporter › « Notes en texte brut ». Depuis un tableur : enregistrer en CSV. Le texte à trous {{c1::…}} est reconnu.')}
           </p>

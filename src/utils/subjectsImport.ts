@@ -25,7 +25,7 @@ function normalizeHex(value: unknown): string | null {
   return v.toLowerCase();
 }
 
-function deriveCode(name: string): string {
+export function deriveCode(name: string): string {
   const code = name
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')

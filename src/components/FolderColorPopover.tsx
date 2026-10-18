@@ -76,7 +76,7 @@ export const FolderColorPopover: React.FC<FolderColorPopoverProps> = ({ anchor, 
       style={{ position: 'fixed', top: pos?.top ?? -9999, left: pos?.left ?? -9999, width: WIDTH }}
       className="z-[90] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-3 space-y-2.5"
     >
-      <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate">{folderName}</p>
+      <p className="text-[0.6875rem] font-bold text-slate-700 dark:text-slate-200 truncate">{folderName}</p>
       <div className="grid grid-cols-8 gap-1">
         {PRESET_COURSE_COLORS.map((c) => (
           <button
@@ -97,7 +97,7 @@ export const FolderColorPopover: React.FC<FolderColorPopoverProps> = ({ anchor, 
         ))}
       </div>
       <div className="flex items-center gap-2">
-        <label className="flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-300 cursor-pointer">
+        <label className="flex items-center gap-1.5 text-[0.6875rem] text-slate-600 dark:text-slate-300 cursor-pointer">
           <input
             type="color"
             value={current}
@@ -116,7 +116,7 @@ export const FolderColorPopover: React.FC<FolderColorPopoverProps> = ({ anchor, 
             onClose();
           }}
           title={t('Nuance automatique de la couleur de la discipline')}
-          className="ml-auto flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent"
+          className="ml-auto flex items-center gap-1 px-2 py-1 text-[0.6875rem] font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent"
         >
           <Wand2 className="w-3 h-3" />
           {t('Automatique')}
@@ -129,14 +129,14 @@ export const FolderColorPopover: React.FC<FolderColorPopoverProps> = ({ anchor, 
             onApplyToChildren();
             onClose();
           }}
-          className="w-full px-2 py-1.5 text-[11px] font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"
+          className="w-full px-2 py-1.5 text-[0.6875rem] font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"
         >
           {plural(childFolderCount, 'Même couleur pour le sous-dossier', 'Même couleur pour les {n} sous-dossiers')}
         </button>
       )}
       {personalColorCount > 0 && (
         <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+          <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400 leading-snug">
             {plural(
               personalColorCount,
               '{n} cours de ce dossier a sa propre couleur : elle remplace celle du dossier.',
@@ -149,7 +149,7 @@ export const FolderColorPopover: React.FC<FolderColorPopoverProps> = ({ anchor, 
               onUseFolderColor();
               onClose();
             }}
-            className="w-full px-2 py-1.5 text-[11px] font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-800 rounded-lg hover:bg-teal-100 dark:hover:bg-teal-900/50"
+            className="w-full px-2 py-1.5 text-[0.6875rem] font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-800 rounded-lg hover:bg-teal-100 dark:hover:bg-teal-900/50"
           >
             {t('Utiliser la couleur du dossier pour tous')}
           </button>

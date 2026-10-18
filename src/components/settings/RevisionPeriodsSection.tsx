@@ -54,7 +54,7 @@ export const RevisionPeriodsSection: React.FC<Props> = ({ periods, revisions, to
             <CalendarRange className="w-4 h-4 text-teal-600 shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-bold text-slate-900 dark:text-white break-words">{p.name}</p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
                 {t('Du {start} au {end}', { start: formatFrenchDate(p.start), end: formatFrenchDate(p.end) })}
                 {' · '}
                 {plural(p.courseIds.length, '{n} cours', '{n} cours')}

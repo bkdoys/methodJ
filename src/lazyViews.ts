@@ -19,6 +19,7 @@ const loaders = {
   CardsImportModal: () => import('./components/CardsImportModal').then((m) => ({ default: m.CardsImportModal })),
   CardCoursePicker: () => import('./components/CardCoursePicker').then((m) => ({ default: m.CardCoursePicker })),
   RevisionPeriodModal: () => import('./components/RevisionPeriodModal').then((m) => ({ default: m.RevisionPeriodModal })),
+  ApkgImportModal: () => import('./components/ApkgImportModal').then((m) => ({ default: m.ApkgImportModal })),
 };
 
 export const SettingsModal = lazy(loaders.SettingsModal);
@@ -37,6 +38,7 @@ export const FlashcardsView = lazy(loaders.FlashcardsView);
 export const CardsImportModal = lazy(loaders.CardsImportModal);
 export const CardCoursePicker = lazy(loaders.CardCoursePicker);
 export const RevisionPeriodModal = lazy(loaders.RevisionPeriodModal);
+export const ApkgImportModal = lazy(loaders.ApkgImportModal);
 
 /**
  * Précharge tous les morceaux après le démarrage, quand le navigateur est libre : l'ouverture d'une vue

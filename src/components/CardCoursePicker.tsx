@@ -120,7 +120,7 @@ export const CardCoursePicker: React.FC<CardCoursePickerProps> = ({ courses, sub
           <Plus className="w-5 h-5 text-teal-600 shrink-0" />
           <div className="flex-1 min-w-0">
             <h2 className="text-sm font-bold text-slate-900 dark:text-white">{title ?? t('Ajouter une carte')}</h2>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">{subtitle ?? t('Dans quel cours ?')}</p>
+            <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">{subtitle ?? t('Dans quel cours ?')}</p>
           </div>
           <button
             type="button"
@@ -142,7 +142,7 @@ export const CardCoursePicker: React.FC<CardCoursePickerProps> = ({ courses, sub
               <Inbox className="w-4 h-4 shrink-0 text-slate-500 dark:text-slate-400" />
               <span className="min-w-0">
                 <span className="block text-sm font-semibold text-slate-900 dark:text-slate-100">{t('Sans cours pour l\'instant')}</span>
-                <span className="block text-[11px] text-slate-500 dark:text-slate-400">{t('Dans « Cartes à trier », à ranger plus tard dans un cours')}</span>
+                <span className="block text-[0.6875rem] text-slate-500 dark:text-slate-400">{t('Dans « Cartes à trier », à ranger plus tard dans un cours')}</span>
               </span>
             </button>
           </div>

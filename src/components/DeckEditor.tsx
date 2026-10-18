@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowRightLeft, Check, EyeOff, FileUp, FolderInput, Layers, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
+import { ArrowRightLeft, Check, Eye, EyeOff, FileUp, FolderInput, Layers, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import { Course, Deck, Flashcard, FlashcardKind, OcclusionMask, OcclusionMode, Subject } from '../types';
 import {
   addCard,
@@ -13,7 +13,9 @@ import {
   validateCard,
   wrapCloze,
 } from '../utils/flashcards';
+import { AutoTextarea } from './AutoTextarea';
 import { CardImage } from './CardImage';
+import { CardPreview } from './CardPreview';
 import { ImagePickerField, storeImageFile } from './ImagePickerField';
 import { OcclusionEditor } from './OcclusionEditor';
 import { getCourseEffectiveColor } from '../utils/colorUtils';
@@ -74,6 +76,7 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
   // Cartes cochées pour un déplacement vers un autre cours
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [moveTo, setMoveTo] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
   const frontRef = useRef<HTMLTextAreaElement>(null);
 
   const cards = liveCards(deck);
@@ -260,7 +263,7 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
           <Layers className="w-5 h-5 shrink-0" style={{ color }} />
           <div className="flex-1 min-w-0">
             <h2 className="text-sm font-bold text-slate-900 dark:text-white truncate">{t('Cartes · {title}', { title: course.title })}</h2>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
               {plural(cards.length, '{n} carte', '{n} cartes')}
             </p>
           </div>
@@ -281,7 +284,7 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
             <button
               type="button"
               onClick={onImport}
-              className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold rounded-lg text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+              className="flex items-center gap-1 px-2.5 py-1.5 text-[0.6875rem] font-semibold rounded-lg text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
             >
               <FileUp className="w-3.5 h-3.5" />
               {t('Importer')}
@@ -329,7 +332,7 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
                 ))}
               </div>
               {editingId && (
-                <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">{t('Modification d\'une carte')}</span>
+                <span className="text-[0.6875rem] font-semibold text-amber-700 dark:text-amber-400">{t('Modification d\'une carte')}</span>
               )}
             </div>
 
@@ -374,14 +377,14 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
                     onMouseDown={(e) => e.preventDefault()}
                     onPointerDown={(e) => e.preventDefault()}
                     onClick={hideSelection}
-                    className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-md text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-500/15 hover:bg-teal-100 dark:hover:bg-teal-500/25"
+                    className="flex items-center gap-1 px-2 py-1 text-[0.6875rem] font-semibold rounded-md text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-500/15 hover:bg-teal-100 dark:hover:bg-teal-500/25"
                   >
                     <EyeOff className="w-3.5 h-3.5" />
                     {t('Cacher la sélection')}
                   </button>
                 )}
               </div>
-              <textarea
+              <AutoTextarea
                 id="deck-front"
                 ref={frontRef}
                 value={front}
@@ -391,7 +394,7 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
                 }}
                 onSelect={rememberSelection}
                 maxLength={MAX_CARD_TEXT}
-                rows={kind === 'occlusion' ? 1 : 3}
+                minRows={kind === 'occlusion' ? 1 : 4}
                 className={FIELD}
                 placeholder={
                   kind === 'cloze'
@@ -403,7 +406,7 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
               />
               {kind !== 'occlusion' && <ImagePickerField value={frontImage} onChange={setFrontImage} label={t('Image du recto')} />}
               {kind === 'cloze' && (
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
                   {gaps > 0 ? (
                     <>
                       <FlashcardText text={front} cloze className="text-slate-700 dark:text-slate-300" />
@@ -422,16 +425,18 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
               <label htmlFor="deck-back" className="text-xs font-bold text-slate-700 dark:text-slate-300">
                 {kind === 'basic' ? t('Verso (réponse)') : t('Remarque (facultative, montrée avec la réponse)')}
               </label>
-              <textarea
+              <AutoTextarea
                 id="deck-back"
                 value={back}
                 onChange={(e) => setBack(e.target.value)}
                 maxLength={MAX_CARD_TEXT}
-                rows={kind === 'basic' ? 3 : 2}
+                minRows={kind === 'basic' ? 4 : 2}
                 className={FIELD}
               />
               {kind !== 'occlusion' && <ImagePickerField value={backImage} onChange={setBackImage} label={t('Image du verso')} />}
             </div>
+
+            {showPreview && <CardPreview card={input} onClose={() => setShowPreview(false)} />}
 
             {pasteError && <p className="text-xs font-semibold text-rose-600 dark:text-rose-400">{pasteError}</p>}
 
@@ -442,10 +447,23 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
             )}
 
             <div className="flex items-center justify-between gap-2 flex-wrap">
-              <span className="text-[11px] text-slate-400 dark:text-slate-500 hidden sm:inline">
+              <span className="text-[0.6875rem] text-slate-400 dark:text-slate-500 hidden sm:inline">
                 {t('⌘/Ctrl + Entrée pour ajouter')}
               </span>
               <div className="flex items-center gap-2 ml-auto">
+                <button
+                  type="button"
+                  onClick={() => setShowPreview((v) => !v)}
+                  aria-pressed={showPreview}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border ${
+                    showPreview
+                      ? 'border-teal-500 text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40'
+                      : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <Eye className="w-4 h-4" />
+                  {t('Aperçu')}
+                </button>
                 {(editingId || front || back || frontImage || backImage) && (
                   <button
                     type="button"
@@ -609,12 +627,12 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
                 </div>
                 <div className="flex items-center gap-0.5 shrink-0">
                   {card.kind === 'cloze' && (
-                    <span className="text-[10px] font-bold text-teal-700 dark:text-teal-300 mr-1" title={t('Texte à trous')}>
+                    <span className="text-[0.625rem] font-bold text-teal-700 dark:text-teal-300 mr-1" title={t('Texte à trous')}>
                       {plural(clozeNumbers(card.front).length, '{n} trou', '{n} trous')}
                     </span>
                   )}
                   {card.kind === 'occlusion' && (
-                    <span className="text-[10px] font-bold text-teal-700 dark:text-teal-300 mr-1" title={t('Masques sur image')}>
+                    <span className="text-[0.625rem] font-bold text-teal-700 dark:text-teal-300 mr-1" title={t('Masques sur image')}>
                       {plural((card.masks ?? []).length, '{n} masque', '{n} masques')}
                     </span>
                   )}
@@ -623,7 +641,7 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
                       type="button"
                       onClick={() => setPickFor([card.id])}
                       title={t('Ranger cette carte dans un cours')}
-                      className="inline-flex items-center gap-1 px-2 py-1 mr-1 text-[11px] font-bold rounded-lg text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-950/60"
+                      className="inline-flex items-center gap-1 px-2 py-1 mr-1 text-[0.6875rem] font-bold rounded-lg text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-950/60"
                     >
                       <FolderInput className="w-3.5 h-3.5" />
                       {t('Ranger')}

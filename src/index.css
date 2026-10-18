@@ -13,6 +13,38 @@
   }
 }
 
+/* Barre du haut : assez de place pour les libellés des onglets ? 1180 px à la taille de texte normale. Les media queries
+   (même en rem) ignorent la taille de base de la page : le seuil est donc donné par palier de texte (attribut
+   data-text-scale posé par applyTextScale), à garder en phase avec TEXT_SCALES (seuil = 1180 px × palier, en rem). */
+@custom-variant nav-full {
+  @media (min-width: 73.75rem) {
+    :root:not([data-text-scale]) & {
+      @slot;
+    }
+  }
+  @media (min-width: 66.375rem) {
+    :root[data-text-scale="small"] & {
+      @slot;
+    }
+  }
+  @media (min-width: 84.8125rem) {
+    :root[data-text-scale="large"] & {
+      @slot;
+    }
+  }
+  @media (min-width: 95.875rem) {
+    :root[data-text-scale="xlarge"] & {
+      @slot;
+    }
+  }
+}
+
+/* Taille de texte choisie dans les Préférences (attribut data-text-scale sur <html>, voir applyTextScale) :
+   `scale-big` = Grande ou Très grande, `scale-xl` = Très grande seulement. Sert à la barre du haut, trop étroite
+   pour garder le mot « Nouveau » à côté de l'icône quand le texte est agrandi. */
+@custom-variant scale-big (:root:is([data-text-scale="large"], [data-text-scale="xlarge"]) &);
+@custom-variant scale-xl (:root[data-text-scale="xlarge"] &);
+
 @layer base {
   html, body {
     overflow-x: hidden;

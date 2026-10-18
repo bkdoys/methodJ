@@ -117,17 +117,17 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
               </span>
             )}
             {isToday && (
-              <span className="text-[10px] font-bold text-teal-700 bg-teal-100 dark:bg-teal-900/50 dark:text-teal-300 px-1.5 py-0.5 rounded">
+              <span className="text-[0.625rem] font-bold text-teal-700 bg-teal-100 dark:bg-teal-900/50 dark:text-teal-300 px-1.5 py-0.5 rounded">
                 {t('Aujourd\'hui')}
               </span>
             )}
             {isPastDue && (
-              <span className="text-[10px] font-bold text-rose-700 bg-rose-100 dark:bg-rose-900/50 dark:text-rose-300 px-1.5 py-0.5 rounded">
+              <span className="text-[0.625rem] font-bold text-rose-700 bg-rose-100 dark:bg-rose-900/50 dark:text-rose-300 px-1.5 py-0.5 rounded">
                 {t('En retard')}
               </span>
             )}
             {rev.completed && (
-              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/40 dark:text-emerald-300 px-1.5 py-0.5 rounded">
+              <span className="text-[0.625rem] font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/40 dark:text-emerald-300 px-1.5 py-0.5 rounded">
                 {t('Validé')}
               </span>
             )}
@@ -153,7 +153,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{t('Niveau de maîtrise')}</span>
               <MasteryStars level={rev.rating ?? 0} size={18} />
-              <span className="text-[11px] text-slate-500 dark:text-slate-400 min-w-[4.5rem]">
+              <span className="text-[0.6875rem] text-slate-500 dark:text-slate-400 min-w-[4.5rem]">
                 {MASTERY_CONFIG[rev.rating ?? 0]?.shortLabel}
               </span>
             </div>

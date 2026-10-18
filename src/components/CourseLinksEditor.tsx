@@ -108,7 +108,7 @@ export const CourseLinksEditor: React.FC<CourseLinksEditorProps> = ({ links, lin
                 >
                   <span className="block truncate">{linkLabel(link)}</span>
                   {link.label?.trim() && (
-                    <span className="block truncate text-[10px] font-normal text-slate-400">{hostLabel(link.url)}</span>
+                    <span className="block truncate text-[0.625rem] font-normal text-slate-400">{hostLabel(link.url)}</span>
                   )}
                 </a>
                 <select
@@ -140,7 +140,7 @@ export const CourseLinksEditor: React.FC<CourseLinksEditorProps> = ({ links, lin
       )}
 
       {full ? (
-        <p className="text-[11px] text-slate-500 dark:text-slate-400">{t('Nombre maximal de liens atteint ({n}).', { n: MAX_LINKS_PER_COURSE })}</p>
+        <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">{t('Nombre maximal de liens atteint ({n}).', { n: MAX_LINKS_PER_COURSE })}</p>
       ) : (
         <div className="space-y-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
           <div className="flex flex-wrap gap-2">
@@ -196,7 +196,7 @@ export const CourseLinksEditor: React.FC<CourseLinksEditorProps> = ({ links, lin
               <LinkTypeFields {...newType} onChange={setNewType} autoFocus />
             </div>
           )}
-          {error && <p className="text-[11px] font-medium text-rose-600 dark:text-rose-400">{error}</p>}
+          {error && <p className="text-[0.6875rem] font-medium text-rose-600 dark:text-rose-400">{error}</p>}
           <button
             type="button"
             onClick={handleAdd}

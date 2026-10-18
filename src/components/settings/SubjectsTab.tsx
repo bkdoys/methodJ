@@ -171,7 +171,7 @@ export const SubjectsTab: React.FC<SubjectsTabProps> = ({ draft, courses, onSave
                         <h4 className="text-xs font-bold text-slate-900 dark:text-white">
                           {t('Matières médicales enregistrées')}
                         </h4>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
                           {t('Modifiez le libellé, le code et le code couleur de chaque matière.')}
                         </p>
                       </div>
@@ -197,7 +197,7 @@ export const SubjectsTab: React.FC<SubjectsTabProps> = ({ draft, courses, onSave
 
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                           <div className="sm:col-span-2">
-                            <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-0.5">
+                            <label className="text-[0.6875rem] font-bold text-slate-700 dark:text-slate-300 block mb-0.5">
                               {t('Nom de la matière')}
                             </label>
                             <input
@@ -210,7 +210,7 @@ export const SubjectsTab: React.FC<SubjectsTabProps> = ({ draft, courses, onSave
                             />
                           </div>
                           <div>
-                            <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-0.5">
+                            <label className="text-[0.6875rem] font-bold text-slate-700 dark:text-slate-300 block mb-0.5">
                               {t('Code court')}
                             </label>
                             <input
@@ -225,7 +225,7 @@ export const SubjectsTab: React.FC<SubjectsTabProps> = ({ draft, courses, onSave
 
                         {/* Color selection */}
                         <div>
-                          <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          <label className="text-[0.6875rem] font-bold text-slate-700 dark:text-slate-300 block mb-1">
                             {t('Couleur associée')}
                           </label>
                           <div className="flex items-center gap-2 flex-wrap">
@@ -343,11 +343,11 @@ export const SubjectsTab: React.FC<SubjectsTabProps> = ({ draft, courses, onSave
                                       <span className="text-xs font-bold text-slate-900 dark:text-white">
                                         {sub.name}
                                       </span>
-                                      <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 font-bold bg-slate-100 dark:bg-slate-700 px-1.5 py-0.2 rounded">
+                                      <span className="text-[0.625rem] font-mono text-slate-500 dark:text-slate-400 font-bold bg-slate-100 dark:bg-slate-700 px-1.5 py-0.2 rounded">
                                         {sub.code}
                                       </span>
                                     </div>
-                                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                                    <span className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
                                       {attachedCount === 0 ? (
                                         <span className="text-slate-400">{t('Aucun cours rattaché')}</span>
                                       ) : (
@@ -408,7 +408,7 @@ export const SubjectsTab: React.FC<SubjectsTabProps> = ({ draft, courses, onSave
                       </button>
                       {importMsg && (
                         <p
-                          className={`text-[11px] font-medium ${
+                          className={`text-[0.6875rem] font-medium ${
                             importMsg.type === 'ok'
                               ? 'text-emerald-700 dark:text-emerald-400'
                               : 'text-rose-600 dark:text-rose-400'
@@ -417,13 +417,13 @@ export const SubjectsTab: React.FC<SubjectsTabProps> = ({ draft, courses, onSave
                           {importMsg.text}
                         </p>
                       )}
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                      <p className="text-[0.625rem] text-slate-500 dark:text-slate-400">
                         {t('Formats acceptés :')}{' '}<strong>{t('CSV/TXT')}</strong> {t('(une matière par ligne :')}{' '}
                         <code className="font-mono">{t('Nom;CODE;#couleur')}</code>{t(', code et couleur optionnels ; une ligne décalée par des espaces ou une tabulation devient un dossier de la matière au-dessus, un second décalage un sous-dossier) ou')}{' '}
                         <strong>{t('JSON')}</strong>{' '}{t('(liste de matières, ou un fichier de sauvegarde {app}).', { app: APP_NAME })}
                       </p>
-                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 pt-1">{t('Exemple de fichier .txt :')}</p>
-                      <pre className="text-[11px] leading-relaxed font-mono p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 overflow-x-auto">{`Cardiologie;CARDIO;#e11d48
+                      <p className="text-[0.625rem] font-bold text-slate-500 dark:text-slate-400 pt-1">{t('Exemple de fichier .txt :')}</p>
+                      <pre className="text-[0.6875rem] leading-relaxed font-mono p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 overflow-x-auto">{`Cardiologie;CARDIO;#e11d48
       Rythmologie
         ECG
         Fibrillation atriale

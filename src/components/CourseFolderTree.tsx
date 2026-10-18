@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { ChevronRight, Folder, FolderPlus, Layers, Palette, Pencil, Trash2 } from 'lucide-react';
+import { ChevronRight, Folder, FolderPlus, Layers, MoreHorizontal, Palette, Pencil, Trash2 } from 'lucide-react';
 import { Course, Subject } from '../types';
 import { addFolder, courseInNode, deleteFolder, getChildFolders, getFolders, newFolderId, renameFolder, setChildFoldersColor, setFolderColor } from '../utils/folders';
 import { getFolderColor } from '../utils/folderColors';
 import { FolderColorPopover } from './FolderColorPopover';
+import { ActionMenu, MenuAction } from './ActionMenu';
 import { t } from '../i18n';
 import { useConfirm } from './ConfirmDialog';
 
@@ -47,6 +48,8 @@ export const CourseFolderTree: React.FC<CourseFolderTreeProps> = ({
   const [draft, setDraft] = useState('');
   // Palette de couleur ouverte : quel dossier et quel bouton l'a ouverte
   const [palette, setPalette] = useState<{ subjectId: string; folderId: string; anchor: HTMLElement } | null>(null);
+  // Menu d'outils (bouton « ⋯ » de chaque ligne) : quelle ligne, et ce qu'on peut y faire
+  const [menu, setMenu] = useState<{ subjectId: string; folderId?: string; label: string; canAddChild: boolean; anchor: HTMLElement } | null>(null);
 
   const toggle = (id: string) =>
     setCollapsed((prev) => {
@@ -105,9 +108,6 @@ export const CourseFolderTree: React.FC<CourseFolderTreeProps> = ({
     />
   );
 
-  const actionBtn =
-    'p-1 rounded text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-slate-100 dark:hover:bg-slate-800';
-
   const row = (
     subject: Subject,
     node: TreeSelection,
@@ -133,6 +133,13 @@ export const CourseFolderTree: React.FC<CourseFolderTreeProps> = ({
           backgroundColor: dropTarget ? `${color}26` : sel ? (node.folderId ? `${color}1f` : subject.accentBg) : undefined,
           borderColor: dropTarget || sel ? color : 'transparent',
           borderStyle: dropTarget ? 'dashed' : undefined,
+        }}
+        // Clic droit (ou appui long sur Android) : le même menu que le bouton « ⋯ », qui lui sert de point d'ancrage
+        onContextMenu={(e) => {
+          const button = e.currentTarget.querySelector<HTMLElement>('button[aria-haspopup="menu"]');
+          if (!button) return;
+          e.preventDefault();
+          setMenu({ subjectId: subject.id, folderId: node.folderId, label, canAddChild: opts.canAddChild, anchor: button });
         }}
         onDragOver={(e) => {
           if (!e.dataTransfer.types.includes(COURSE_DRAG_MIME)) return;
@@ -178,73 +185,78 @@ export const CourseFolderTree: React.FC<CourseFolderTreeProps> = ({
           >
             {label}
           </span>
-          <span className="ml-auto pl-1 text-[10px] font-mono text-slate-400 shrink-0">{count(node)}</span>
+          <span className="ml-auto pl-1 text-[0.625rem] font-mono text-slate-400 shrink-0">{count(node)}</span>
         </button>
-        {/* Les boutons restent affichés tant que la palette de ce dossier est ouverte (elle se place contre le bouton) */}
-        <span
-          className={`${
-            palette?.folderId !== undefined && palette.folderId === node.folderId && palette.subjectId === subject.id ? 'flex' : 'hidden group-hover:flex group-focus-within:flex'
-          } items-center shrink-0 pr-0.5`}
+        {/* Un seul bouton discret par ligne, toujours là : le survol n'existe pas au doigt, et Safari ne donne pas le focus à un bouton touché */}
+        <button
+          type="button"
+          title={t('Outils')}
+          aria-label={t('Outils de « {name} »', { name: label })}
+          aria-haspopup="menu"
+          aria-expanded={menu?.subjectId === subject.id && menu.folderId === node.folderId}
+          onClick={(e) => setMenu({ subjectId: subject.id, folderId: node.folderId, label, canAddChild: opts.canAddChild, anchor: e.currentTarget })}
+          className="shrink-0 mr-0.5 p-1 [@media(hover:none)]:p-2 rounded text-slate-300 dark:text-slate-600 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-slate-100 dark:hover:bg-slate-800 aria-expanded:text-teal-600 aria-expanded:bg-slate-100 dark:aria-expanded:bg-slate-800"
         >
-          {opts.canAddChild && (
-            <button
-              type="button"
-              title={t('Nouveau dossier')}
-              aria-label={t('Nouveau dossier')}
-              onClick={() => startEdit({ kind: 'add', subjectId: subject.id, parentId: node.folderId })}
-              className={actionBtn}
-            >
-              <FolderPlus className="w-3.5 h-3.5" />
-            </button>
-          )}
-          {node.folderId && (
-            <>
-              <button
-                type="button"
-                title={t('Couleur du dossier')}
-                aria-label={t('Couleur du dossier')}
-                aria-haspopup="dialog"
-                onClick={(e) => setPalette({ subjectId: subject.id, folderId: node.folderId!, anchor: e.currentTarget })}
-                className={actionBtn}
-              >
-                <Palette className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                title={t('Renommer')}
-                aria-label={t('Renommer')}
-                onClick={() => startEdit({ kind: 'rename', subjectId: subject.id, folderId: node.folderId! }, label)}
-                className={actionBtn}
-              >
-                <Pencil className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                title={t('Supprimer ce dossier')}
-                aria-label={t('Supprimer ce dossier')}
-                onClick={async () => {
-                  const ok = await confirm({
-                    title: t('Supprimer le dossier « {name} » ?', { name: label }),
-                    message: t('Ses cours et sous-dossiers remontent d\'un niveau.'),
-                    confirmLabel: t('Supprimer'),
-                    tone: 'danger',
-                  });
-                  if (!ok) return;
-                  const { subject: next, courseTarget } = deleteFolder(subject, node.folderId!);
-                  onUpdateSubject(next, { from: node.folderId!, to: courseTarget });
-                  if (selected?.subjectId === subject.id && selected.folderId === node.folderId) {
-                    onSelect({ subjectId: subject.id, folderId: courseTarget });
-                  }
-                }}
-                className={`${actionBtn} hover:text-rose-600 dark:hover:text-rose-400`}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </>
-          )}
-        </span>
+          <MoreHorizontal className="w-4 h-4" />
+        </button>
       </div>
     );
+  };
+
+  const deleteFolderFlow = async (subject: Subject, folderId: string, label: string) => {
+    const ok = await confirm({
+      title: t('Supprimer le dossier « {name} » ?', { name: label }),
+      message: t('Ses cours et sous-dossiers remontent d\'un niveau.'),
+      confirmLabel: t('Supprimer'),
+      tone: 'danger',
+    });
+    if (!ok) return;
+    const { subject: next, courseTarget } = deleteFolder(subject, folderId);
+    onUpdateSubject(next, { from: folderId, to: courseTarget });
+    if (selected?.subjectId === subject.id && selected.folderId === folderId) {
+      onSelect({ subjectId: subject.id, folderId: courseTarget });
+    }
+  };
+
+  const menuActions = (): MenuAction[] => {
+    if (!menu) return [];
+    const subject = subjects.find((x) => x.id === menu.subjectId);
+    if (!subject) return [];
+    const actions: MenuAction[] = [];
+    if (menu.canAddChild) {
+      actions.push({
+        key: 'add',
+        label: t('Nouveau dossier'),
+        icon: <FolderPlus className="w-4 h-4" />,
+        onSelect: () => startEdit({ kind: 'add', subjectId: subject.id, parentId: menu.folderId }),
+      });
+    }
+    if (menu.folderId) {
+      const folderId = menu.folderId;
+      const anchor = menu.anchor;
+      actions.push(
+        {
+          key: 'color',
+          label: t('Couleur du dossier'),
+          icon: <Palette className="w-4 h-4" />,
+          onSelect: () => setPalette({ subjectId: subject.id, folderId, anchor }),
+        },
+        {
+          key: 'rename',
+          label: t('Renommer'),
+          icon: <Pencil className="w-4 h-4" />,
+          onSelect: () => startEdit({ kind: 'rename', subjectId: subject.id, folderId }, menu.label),
+        },
+        {
+          key: 'delete',
+          label: t('Supprimer ce dossier'),
+          icon: <Trash2 className="w-4 h-4" />,
+          danger: true,
+          onSelect: () => void deleteFolderFlow(subject, folderId, menu.label),
+        }
+      );
+    }
+    return actions;
   };
 
   const adding = (subject: Subject, parentId: string | undefined, depth: number) =>
@@ -263,7 +275,7 @@ export const CourseFolderTree: React.FC<CourseFolderTreeProps> = ({
       >
         <Layers className="w-3.5 h-3.5 shrink-0" />
         <span className="truncate">{t('Tous les cours')}</span>
-        <span className="ml-auto text-[10px] font-mono text-slate-400">{courses.length}</span>
+        <span className="ml-auto text-[0.625rem] font-mono text-slate-400">{courses.length}</span>
       </button>
 
       {subjects.map((subject) => {
@@ -302,6 +314,7 @@ export const CourseFolderTree: React.FC<CourseFolderTreeProps> = ({
           </div>
         );
       })}
+      {menu && <ActionMenu anchor={menu.anchor} title={menu.label} actions={menuActions()} onClose={() => setMenu(null)} />}
       {palette && (() => {
         const subject = subjects.find((x) => x.id === palette.subjectId);
         const folder = getFolders(subject).find((f) => f.id === palette.folderId);

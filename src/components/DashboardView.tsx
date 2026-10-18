@@ -86,9 +86,9 @@ const SYNC_LABEL: Record<SyncStatus, () => string> = {
 };
 
 const ghostBtn =
-  'inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors';
+  'inline-flex items-center gap-1 px-2 py-1 text-[0.6875rem] font-bold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors';
 const primaryBtn =
-  'inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold rounded-lg text-white bg-teal-600 hover:bg-teal-700 shadow-xs transition-colors';
+  'inline-flex items-center gap-1 px-2.5 py-1.5 text-[0.6875rem] font-bold rounded-lg text-white bg-teal-600 hover:bg-teal-700 shadow-xs transition-colors';
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   courses,
@@ -171,7 +171,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           >
             <span className="font-mono text-teal-700 dark:text-teal-400">{revLabel(rev)}</span> · {title}
           </button>
-          <span className="block truncate text-[11px] text-slate-500 dark:text-slate-400" title={path.full}>
+          <span className="block truncate text-[0.6875rem] text-slate-500 dark:text-slate-400" title={path.full}>
             {late
               ? `${plural(daysLate, '{n} jour de retard', '{n} jours de retard')} · ${formatFrenchDate(rev.scheduledDate)}`
               : `${path.text}${path.text ? ' · ' : ''}${formatMinutes(rev.durationMinutes)}`}
@@ -179,7 +179,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
         <div className="flex flex-wrap items-center gap-1.5 sm:shrink-0 pl-[1.125rem] sm:pl-0">
           {rev.completed ? (
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+            <span className="inline-flex items-center gap-1 text-[0.6875rem] font-bold text-emerald-700 dark:text-emerald-400">
               <Check className="w-3.5 h-3.5" />
               {t('Fait')}
             </span>
@@ -217,7 +217,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return (
       <li key={p.revisionId} className={isBlocked ? 'opacity-50' : undefined}>
         <label
-          className="flex items-start gap-2 py-1 cursor-pointer text-[11px] text-slate-700 dark:text-slate-200"
+          className="flex items-start gap-2 py-1 cursor-pointer text-[0.6875rem] text-slate-700 dark:text-slate-200"
           title={isBlocked ? t('Dépend d\'un déplacement décoché') : undefined}
         >
           <input
@@ -284,7 +284,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </>
         )}
         {plan.unresolved.length > 0 && (
-          <p className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
+          <p className="text-[0.6875rem] font-medium text-amber-700 dark:text-amber-400">
             {isSmooth
               ? t('Aucune solution simple, à traiter à la main (déplacer un créneau ou ajuster la plage de travail) : {days}', {
                   days: plan.unresolved.map((u) => (u.date ? formatFrenchDayShort(u.date) : '')).join(', '),
@@ -297,7 +297,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 )}
           </p>
         )}
-        <details className="text-[11px] text-slate-600 dark:text-slate-300">
+        <details className="text-[0.6875rem] text-slate-600 dark:text-slate-300">
           <summary className="cursor-pointer font-semibold text-slate-700 dark:text-slate-200">{t('Comment ça marche ?')}</summary>
           <div className="mt-1.5">
             <PlanningRules kind={kind} />
@@ -323,7 +323,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           >
             {course.title}
           </button>
-          <span className="block truncate text-[11px] text-slate-500 dark:text-slate-400" title={path.full}>
+          <span className="block truncate text-[0.6875rem] text-slate-500 dark:text-slate-400" title={path.full}>
             {detail ? `${detail} · ${path.text}` : path.text}
           </span>
         </div>
@@ -366,9 +366,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <div className="min-w-0 flex-1 basis-[12rem]">
                   <span className="block text-xs font-bold text-slate-900 dark:text-white capitalize">
                     {formatFrenchDate(d.date)}
-                    {d.date === todayIso && <span className="ml-1.5 text-[10px] font-semibold text-teal-700 dark:text-teal-400 normal-case">{t('Aujourd\'hui')}</span>}
+                    {d.date === todayIso && <span className="ml-1.5 text-[0.625rem] font-semibold text-teal-700 dark:text-teal-400 normal-case">{t('Aujourd\'hui')}</span>}
                   </span>
-                  <span className="block text-[11px] text-slate-500 dark:text-slate-400">
+                  <span className="block text-[0.6875rem] text-slate-500 dark:text-slate-400">
                     {formatMinutes(d.totalMinutes)} · {describeDayAlert(d)}
                   </span>
                 </div>
@@ -462,7 +462,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     {userEmail ? (
       <>
         <p className="text-xs font-bold text-slate-800 dark:text-slate-100">{SYNC_LABEL[syncStatus]()}</p>
-        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+        <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
           {t('Dernière synchronisation : {date}', { date: lastSyncText })}
           {safetyBackupCount > 0 && (
             <>
@@ -551,17 +551,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     <div className="grid grid-cols-3 gap-2 text-center">
       <div>
         <span className="block text-2xl font-mono font-bold text-slate-900 dark:text-white">{data.stats.streak}</span>
-        <span className="text-[11px] text-slate-500 dark:text-slate-400">{plural(data.stats.streak, 'jour de suite', 'jours de suite')}</span>
+        <span className="text-[0.6875rem] text-slate-500 dark:text-slate-400">{plural(data.stats.streak, 'jour de suite', 'jours de suite')}</span>
       </div>
       <div>
         <span className="block text-2xl font-mono font-bold text-slate-900 dark:text-white">{data.stats.bestStreak}</span>
-        <span className="text-[11px] text-slate-500 dark:text-slate-400">{t('meilleure série')}</span>
+        <span className="text-[0.6875rem] text-slate-500 dark:text-slate-400">{t('meilleure série')}</span>
       </div>
       <div>
         <span className="block text-2xl font-mono font-bold text-slate-900 dark:text-white">
           {data.stats.onTimeRate === null ? '–' : `${data.stats.onTimeRate}%`}
         </span>
-        <span className="text-[11px] text-slate-500 dark:text-slate-400">{t('à la date prévue')}</span>
+        <span className="text-[0.6875rem] text-slate-500 dark:text-slate-400">{t('à la date prévue')}</span>
       </div>
     </div>
   </Card>
@@ -645,7 +645,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <button
           type="button"
           onClick={onOpenExamSettings}
-          className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:text-teal-700 dark:hover:text-teal-400 underline-offset-2 hover:underline"
+          className="text-[0.6875rem] font-semibold text-slate-500 dark:text-slate-400 hover:text-teal-700 dark:hover:text-teal-400 underline-offset-2 hover:underline"
         >
           {t('Réglages de l\'examen')}
         </button>
@@ -704,7 +704,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <span className="truncate">{a.course.title}</span>
                 <FreeCourseBadge />
               </button>
-              <span className="block truncate text-[11px] text-slate-500 dark:text-slate-400">
+              <span className="block truncate text-[0.6875rem] text-slate-500 dark:text-slate-400">
                 {never
                   ? plural(a.idleDays, 'Créé il y a {n} jour, aucune révision', 'Créé il y a {n} jours, aucune révision')
                   : plural(a.idleDays, 'Dernière révision il y a {n} jour', 'Dernière révision il y a {n} jours')}
@@ -719,7 +719,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   {plural(a.nextSnooze, 'Reporter {n} jour', 'Reporter {n} jours')}
                 </button>
               ) : (
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">{t('Plus de report possible')}</span>
+                <span className="text-[0.6875rem] text-slate-500 dark:text-slate-400">{t('Plus de report possible')}</span>
               )}
             </div>
           </li>

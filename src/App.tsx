@@ -32,6 +32,7 @@ import {
   FlashcardsView,
   CardsImportModal,
   CardCoursePicker,
+  ApkgImportModal,
   RevisionPeriodModal,
   SlotDetailModal,
   SyncConflictModal,
@@ -44,6 +45,7 @@ import { FreeCourseAlert, findFreeCourseAlerts, snoozeFreeAlert } from './utils/
 import { INBOX_COURSE_ID, isInboxCourse, makeInboxCourse, withoutInbox } from './utils/inbox';
 import { findAlertDays } from './utils/dayLoad';
 import { ToastBanner } from './components/ToastBanner';
+import { DeleteCourseDialog } from './components/DeleteCourseDialog';
 import { useCloudSync } from './hooks/useCloudSync';
 import { useAuthActions } from './hooks/useAuthActions';
 import { useStudyData } from './hooks/useStudyData';
@@ -57,6 +59,7 @@ import { addCard, CardInput, courseIdsInScope, DeckScope, deleteCard, describeSc
 import { courseCardCounts, dueToday, getNewCardsPerDay, newCardsRoom, shuffle, SessionItem, subCardItems } from './utils/cardSession';
 import { formatIsoDate } from './utils/dateUtils';
 import { shouldOfferPeriod } from './utils/revisionPeriod';
+import { applyTextScale, getTextScale } from './utils/textScale';
 import type { PlayKind } from './components/FlashcardsView';
 import { getCourseEffectiveColor } from './utils/colorUtils';
 import type { PlayMode } from './components/FlashcardPlayer';
@@ -110,6 +113,8 @@ export default function App() {
   const [cardsSummary, setCardsSummary] = useState<{ revisionId: string; cards: number; success: number } | null>(null);
   // Import CSV de cartes ouvert (cours de destination proposé, s'il vient des cartes d'un cours)
   const [cardsImport, setCardsImport] = useState<{ defaultCourseId?: string } | null>(null);
+  // Paquet Anki (.apkg) choisi dans la fenêtre d'import de cartes
+  const [apkgFile, setApkgFile] = useState<File | null>(null);
   // Cours dont on rédige les cartes (fenêtre au-dessus de sa fiche)
   const [deckCourseId, setDeckCourseId] = useState<string | null>(null);
   // Carte à ouvrir en modification dans l'éditeur (résultat de recherche de la vue Cartes)
@@ -123,6 +128,8 @@ export default function App() {
   };
   // Choix du cours pour « Ajouter une carte » depuis la vue Cartes
   const [pickingCardCourse, setPickingCardCourse] = useState(false);
+  // Suppression d'un cours qui contient des cartes : choix du sort des cartes, puis éventuellement du cours d'accueil
+  const [deletingCourse, setDeletingCourse] = useState<{ id: string; step: 'choose' | 'pick' } | null>(null);
   const [lastCardCourseId, setLastCardCourseId] = useState<string | undefined>();
 
   // Fenêtres chargées à la demande : montées à la première ouverture, puis gardées (brouillon conservé)
@@ -281,6 +288,7 @@ export default function App() {
 
   // Actions sur cours, créneaux et matières (voir hooks/useStudyData.ts)
   const {
+    handleImportApkg,
     handleApplyRevisionPeriod,
     handleDeleteRevisionPeriod,
     handleSaveNewCourse,
@@ -318,6 +326,13 @@ export default function App() {
     notify: setToastMessage,
     setSelectedCourseForDetail,
     onCoursesDeleted: removeDecks,
+    onDeckReplaced: (courseId, deck) => updateDeck(courseId, () => deck),
+    onCardsRemoved: (idsByCourse) => {
+      const at = new Date().toISOString();
+      Object.entries(idsByCourse).forEach(([courseId, ids]) =>
+        updateDeck(courseId, (d) => ids.reduce((acc, id) => deleteCard(acc, id, at), d))
+      );
+    },
   });
 
   // La page se redessine quand la langue change ; le réglage enregistré (aussi synchronisé) l'emporte
@@ -351,6 +366,11 @@ export default function App() {
       saveStoredData(courses, revisions, subjects, settings, currentUser?.uid ?? getLastUid());
     }
   }, [courses, revisions, subjects, settings, dataLoaded, currentUser]);
+
+  // Taille du texte : suit les réglages (palier mémorisé sur l'appareil pour le prochain démarrage)
+  useEffect(() => {
+    applyTextScale(getTextScale(settings));
+  }, [settings.textScale]);
 
   // Sync theme changes to html class
   useEffect(() => {
@@ -586,6 +606,45 @@ export default function App() {
 
   const cardCount = (courseId: string) => liveCards(decks[courseId]).length;
 
+  // Supprimer un cours : sans carte, une simple confirmation ; avec des cartes, on choisit de les supprimer ou de les
+  // déplacer vers un autre cours (historique de révision compris) avant de supprimer le cours
+  const requestDeleteCourse = async (courseId: string) => {
+    const course = courses.find((c) => c.id === courseId);
+    if (!course) return;
+    if (cardCount(courseId) > 0) {
+      setDeletingCourse({ id: courseId, step: 'choose' });
+      return;
+    }
+    const ok = await confirm({
+      title: t('Supprimer le cours « {title} » ?', { title: course.title }),
+      message: t('Toutes ses révisions planifiées seront supprimées. Cette action est irréversible.'),
+      confirmLabel: t('Supprimer'),
+      tone: 'danger',
+    });
+    if (ok) handleDeleteCourse(courseId);
+  };
+
+  const moveCardsThenDelete = (fromId: string, toId: string) => {
+    const target = courses.find((c) => c.id === toId);
+    const ids = liveCards(decks[fromId]).map((c) => c.id);
+    const moved = moveCardsBetween(fromId, toId, ids);
+    if (moved === null) {
+      setToastMessage({
+        title: t('Déplacement impossible'),
+        description: t('Le cours « {title} » n\'a pas la place pour ces cartes.', { title: target?.title ?? '' }),
+        type: 'error',
+      });
+      return;
+    }
+    handleDeleteCourse(fromId);
+    setDeletingCourse(null);
+    setToastMessage({
+      title: t('Cours supprimé'),
+      description: t('{n} cartes déplacées vers « {title} ».', { n: moved, title: target?.title ?? t('Cartes à trier') }),
+      type: 'success',
+    });
+  };
+
   const playCourseCards = (courseId: string, revision?: RevisionItem) => {
     const course = courses.find((c) => c.id === courseId);
     if (!course) return;
@@ -657,7 +716,7 @@ export default function App() {
       onOpenQuickShift={openQuickShift}
       onOpenCompleteModal={openCompleteModal}
       onOpenNewCourseModal={openNewCourseModal}
-      onDeleteCourse={handleDeleteCourse}
+      onDeleteCourse={requestDeleteCourse}
       onUpdateCourseNotes={handleUpdateCourseNotes}
       onOpenCourseDetail={openCourseDetail}
       compact={compact || undefined}
@@ -917,7 +976,7 @@ export default function App() {
           onOpenQuickShift={openQuickShift}
           onOpenCompleteModal={openCompleteModal}
           onStartStudySession={handleStartStudySession}
-          onDeleteCourse={handleDeleteCourse}
+          onDeleteCourse={requestDeleteCourse}
           onResizeSlot={handleResizeSlot}
           cardCount={cardCount(selectedCourseForDetail.id)}
           onOpenDeck={() => openDeck(selectedCourseForDetail.id)}
@@ -963,6 +1022,37 @@ export default function App() {
         />
       )}
 
+      {deletingCourse?.step === 'choose' && (() => {
+        const course = courses.find((c) => c.id === deletingCourse.id);
+        return course ? (
+          <DeleteCourseDialog
+            title={course.title}
+            cardCount={cardCount(course.id)}
+            onDeleteAll={() => {
+              handleDeleteCourse(course.id);
+              setDeletingCourse(null);
+            }}
+            onMoveCards={() => setDeletingCourse({ id: course.id, step: 'pick' })}
+            onClose={() => setDeletingCourse(null)}
+          />
+        ) : null;
+      })()}
+
+      {deletingCourse?.step === 'pick' && (
+        <CardCoursePicker
+          courses={studyCourses.filter((c) => c.id !== deletingCourse.id)}
+          subjects={subjects}
+          title={t('Déplacer les cartes')}
+          subtitle={t('Dans quel cours ?')}
+          onPick={(toId) => moveCardsThenDelete(deletingCourse.id, toId)}
+          onPickInbox={() => {
+            if (!courses.some((c) => c.id === INBOX_COURSE_ID)) setCourses((prev) => [makeInboxCourse(todayIso), ...prev]);
+            moveCardsThenDelete(deletingCourse.id, INBOX_COURSE_ID);
+          }}
+          onClose={() => setDeletingCourse({ id: deletingCourse.id, step: 'choose' })}
+        />
+      )}
+
       {pickingCardCourse && (
         <CardCoursePicker
           courses={studyCourses}
@@ -988,7 +1078,25 @@ export default function App() {
           decks={decks}
           defaultCourseId={cardsImport.defaultCourseId}
           onImport={handleImportCards}
+          onApkg={(file) => {
+            setCardsImport(null);
+            setApkgFile(file);
+          }}
           onClose={() => setCardsImport(null)}
+        />
+      )}
+
+      {apkgFile && (
+        <ApkgImportModal
+          file={apkgFile}
+          subjects={subjects}
+          courses={courses}
+          decks={decks}
+          onImport={(result, info) => {
+            handleImportApkg(result, info);
+            setApkgFile(null);
+          }}
+          onClose={() => setApkgFile(null)}
         />
       )}
 

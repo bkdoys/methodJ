@@ -32,7 +32,7 @@ interface TopNavProps {
 
 // Entre 768 px (barre d'onglets en ligne) et 1180 px, tout ne tient pas avec le texte (iPad portrait, iPad mini,
 // téléphone en paysage) : onglets en icônes, « Nouveau », Cloud en icône. 1180 px = iPad paysage, inchangé.
-const NAV_LABEL = 'sr-only min-[73.75rem]:not-sr-only';
+const NAV_LABEL = 'sr-only nav-full:not-sr-only';
 
 export const TopNav: React.FC<TopNavProps> = ({
   currentView,
@@ -72,7 +72,7 @@ export const TopNav: React.FC<TopNavProps> = ({
                 {APP_NAME}
               </span>
               {APP_TAGLINE && (
-                <span className="text-[10px] sm:text-[11px] font-medium text-slate-500 dark:text-slate-400 block leading-none">
+                <span className="text-[0.625rem] sm:text-[0.6875rem] font-medium text-slate-500 dark:text-slate-400 block leading-none">
                   {t(APP_TAGLINE)}
                 </span>
               )}
@@ -95,7 +95,7 @@ export const TopNav: React.FC<TopNavProps> = ({
             <span className={NAV_LABEL}>{t('Dashboard')}</span>
             {dashboardAlerts > 0 && (
               <span
-                className="ml-0.5 min-w-[1.1rem] h-[1.1rem] px-1 inline-flex items-center justify-center rounded-full bg-rose-600 text-white text-[10px] font-bold leading-none"
+                className="ml-0.5 min-w-[1.1rem] h-[1.1rem] px-1 inline-flex items-center justify-center rounded-full bg-rose-600 text-white text-[0.625rem] font-bold leading-none"
                 aria-label={t('{n} à traiter', { n: dashboardAlerts })}
               >
                 {dashboardAlerts > 9 ? '9+' : dashboardAlerts}
@@ -141,7 +141,7 @@ export const TopNav: React.FC<TopNavProps> = ({
             <Layers className="w-4 h-4 shrink-0" />
             <span className={NAV_LABEL}>{t('Cartes')}</span>
             {cardsDue > 0 && (
-              <span className="ml-0.5 min-w-[1.1rem] h-[1.1rem] px-1 inline-flex items-center justify-center rounded-full bg-teal-600 text-white text-[10px] font-bold leading-none">
+              <span className="ml-0.5 min-w-[1.1rem] h-[1.1rem] px-1 inline-flex items-center justify-center rounded-full bg-teal-600 text-white text-[0.625rem] font-bold leading-none">
                 {cardsDue > 99 ? '99+' : cardsDue}
               </span>
             )}
@@ -213,7 +213,7 @@ export const TopNav: React.FC<TopNavProps> = ({
               ) : (
                 <Cloud className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
               )}
-              <span className="hidden min-[73.75rem]:inline">{t('Cloud')}</span>
+              <span className="hidden nav-full:inline">{t('Cloud')}</span>
               <span
                 className={`w-2 h-2 rounded-full shrink-0 ${
                   syncStatus === 'conflict'
@@ -227,7 +227,7 @@ export const TopNav: React.FC<TopNavProps> = ({
               />
               {/* « En attente » = juste la pastille orange qui clignote : un texte ferait bouger la barre à chaque modification */}
               {(syncStatus === 'conflict' || syncStatus === 'offline') && (
-                <span className="hidden lg:inline text-[10px] font-bold">
+                <span className="hidden lg:inline text-[0.625rem] font-bold">
                   {syncStatus === 'conflict' ? t('Conflit') : t('Hors ligne')}
                 </span>
               )}
@@ -239,7 +239,7 @@ export const TopNav: React.FC<TopNavProps> = ({
               className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 hover:bg-teal-50 dark:hover:bg-teal-950/50 border border-slate-200 dark:border-slate-700 rounded-xl transition-colors shrink-0"
             >
               <Cloud className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
-              <span className="hidden sm:inline md:hidden min-[73.75rem]:inline">{t('Sync Cloud')}</span>
+              <span className="hidden sm:inline md:hidden nav-full:inline">{t('Sync Cloud')}</span>
             </button>
           ) : null}
 
@@ -273,11 +273,13 @@ export const TopNav: React.FC<TopNavProps> = ({
           {/* Primary CTA: Add Course */}
           <button
             onClick={onOpenNewCourseModal}
+            title={t('Nouveau cours')}
+            aria-label={t('Nouveau cours')}
             className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 active:bg-teal-800 rounded-xl transition-colors shadow-xs shrink-0 whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <Plus className="w-4 h-4 shrink-0" />
-            <span className="hidden sm:inline md:hidden min-[73.75rem]:inline">{t('Nouveau cours')}</span>
-            <span className="sm:hidden md:inline min-[73.75rem]:hidden">{t('Nouveau')}</span>
+            <span className="hidden sm:inline md:hidden nav-full:inline">{t('Nouveau cours')}</span>
+            <span className="sm:hidden md:inline nav-full:hidden scale-xl:hidden scale-big:max-sm:hidden">{t('Nouveau')}</span>
           </button>
 
           {/* Settings */}
@@ -304,7 +306,7 @@ export const TopNav: React.FC<TopNavProps> = ({
           <ListChecks className="w-4 h-4 mb-0.5" />
           <span>{t('Dashboard')}</span>
           {dashboardAlerts > 0 && (
-            <span className="absolute top-0 right-1 min-w-[1rem] h-4 px-1 inline-flex items-center justify-center rounded-full bg-rose-600 text-white text-[10px] font-bold leading-none">
+            <span className="absolute top-0 right-1 min-w-[1rem] h-4 px-1 inline-flex items-center justify-center rounded-full bg-rose-600 text-white text-[0.625rem] font-bold leading-none">
               {dashboardAlerts > 9 ? '9+' : dashboardAlerts}
             </span>
           )}
@@ -342,7 +344,7 @@ export const TopNav: React.FC<TopNavProps> = ({
           <Layers className="w-4 h-4 mb-0.5" />
           <span>{t('Cartes')}</span>
           {cardsDue > 0 && (
-            <span className="absolute top-0 right-1 min-w-[1rem] h-4 px-1 inline-flex items-center justify-center rounded-full bg-teal-600 text-white text-[10px] font-bold leading-none">
+            <span className="absolute top-0 right-1 min-w-[1rem] h-4 px-1 inline-flex items-center justify-center rounded-full bg-teal-600 text-white text-[0.625rem] font-bold leading-none">
               {cardsDue > 99 ? '99+' : cardsDue}
             </span>
           )}

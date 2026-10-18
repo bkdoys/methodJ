@@ -70,7 +70,7 @@ export const ReminderSection: React.FC<ReminderSectionProps> = ({ uid, lang }) =
       setSubscribedTime(null);
     });
 
-  const note = (text: string) => <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">{text}</p>;
+  const note = (text: string) => <p className="text-[0.6875rem] text-slate-600 dark:text-slate-400 leading-relaxed">{text}</p>;
 
   return (
     <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/40 space-y-2">
@@ -102,7 +102,7 @@ export const ReminderSection: React.FC<ReminderSectionProps> = ({ uid, lang }) =
           />
           {subscribedTime ? (
             <>
-              <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+              <span className="text-[0.6875rem] font-semibold text-emerald-700 dark:text-emerald-400">
                 {t('Activé sur cet appareil')}
               </span>
               <button
@@ -128,7 +128,7 @@ export const ReminderSection: React.FC<ReminderSectionProps> = ({ uid, lang }) =
           )}
         </div>
       )}
-      {error && <p className="text-[11px] text-rose-600 dark:text-rose-400 font-medium">{error}</p>}
+      {error && <p className="text-[0.6875rem] text-rose-600 dark:text-rose-400 font-medium">{error}</p>}
     </div>
   );
 };

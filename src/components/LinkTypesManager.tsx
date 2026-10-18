@@ -46,7 +46,7 @@ export const LinkTypesManager: React.FC<LinkTypesManagerProps> = ({ linkTypes, c
                   <Icon className="w-3.5 h-3.5" />
                 </span>
                 <span className="flex-1 min-w-0 truncate text-xs font-semibold text-slate-800 dark:text-slate-100">{linkTypeName(type)}</span>
-                {used > 0 && <span className="text-[10px] font-mono text-slate-400">{used}</span>}
+                {used > 0 && <span className="text-[0.625rem] font-mono text-slate-400">{used}</span>}
                 <button
                   type="button"
                   onClick={() => setEditingId(editing ? null : type.id)}

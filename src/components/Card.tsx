@@ -27,7 +27,7 @@ export const Card: React.FC<CardProps> = ({ title, hint, tone, aside, className 
     <div className="flex items-start justify-between gap-3">
       <div>
         <h3 className="text-sm font-bold text-slate-900 dark:text-white">{title}</h3>
-        {hint && <p className="text-[11px] text-slate-500 dark:text-slate-400">{hint}</p>}
+        {hint && <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">{hint}</p>}
       </div>
       {aside}
     </div>

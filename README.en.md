@@ -49,7 +49,7 @@ Before an exam, the **revision period** organises a full pass: tick courses (sub
 
 ### Flashcards
 
-Cards written in each course (front/back or cloze, with images: photo taken from the iPad, file, pasted screenshot or freehand drawing with finger or stylus, also to annotate an image; and image-occlusion cards on a diagram, like Anki's Image Occlusion), reviewed with the FSRS algorithm (Anki's): today's cards, or every card of a course, folder or subject, also from a J slot. CSV import (Anki “Notes in Plain Text” export or spreadsheet). A card can be created without a course: it waits in “Cards to sort” until you file it. Cards are stored on the device and synced per course (images through Cloud Storage, optional: see [cloud sync](docs/CLOUD_SETUP.en.md#card-images-optional)).
+Cards written in each course (front/back or cloze, with images: photo taken from the iPad, file, pasted screenshot or freehand drawing with finger or stylus, also to annotate an image; and image-occlusion cards on a diagram, like Anki's Image Occlusion), reviewed with the FSRS algorithm (Anki's): today's cards, or every card of a course, folder or subject, also from a J slot. Import of an **Anki package (.apkg)** with its images, image masks and progress: each deck and sub-deck becomes a free-review course, filed as in Anki, and importing it again duplicates nothing. CSV import (Anki “Notes in Plain Text” export or spreadsheet). Card preview while writing. A card can be created without a course: it waits in “Cards to sort” until you file it. Cards are stored on the device and synced per course (images through Cloud Storage, optional: see [cloud sync](docs/CLOUD_SETUP.en.md#card-images-optional)).
 
 ![Cards view: today's cards and decks by subject](docs/screenshots/cartes.jpg)
 
@@ -76,7 +76,7 @@ For cards: estimated and actual retention, cards reviewed per day, review-log ac
 
 ### And also
 
-- **Interface in French and English**: the browser language is followed on first launch, then adjustable in Preferences > Display. Light or dark theme.
+- **Interface in French and English**: the browser language is followed on first launch, then adjustable in Preferences > Display. Light or dark theme, adjustable text size (4 steps).
 - **Installable** on iPad / phone / computer (PWA), full screen.
 - **Your data stays yours**: everything is stored in your browser, with JSON export / import. Syncing between devices is **optional** (your own Firebase project, see below).
 

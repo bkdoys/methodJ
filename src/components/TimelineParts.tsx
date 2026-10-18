@@ -68,7 +68,7 @@ export const ForceDayToggle: React.FC<{
       onClick={() => onToggle(date)}
       title={title}
       aria-label={t('Forcer ce jour')}
-      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium transition-colors ${
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[0.6875rem] font-medium transition-colors ${
         forced
           ? 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40'
           : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -131,7 +131,7 @@ export const TimelineScale: React.FC<{ displayStart: number; displayEnd: number;
       {hours.map((m) => (
         <React.Fragment key={m}>
           <div className="absolute left-0 right-0 border-t border-slate-200 dark:border-slate-800" style={{ top: yOf(m) }}>
-            <span className="absolute -top-2 left-0 w-11 text-right pr-1.5 text-[10px] font-mono text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 leading-4 select-none">
+            <span className="absolute -top-2 left-0 w-11 text-right pr-1.5 text-[0.625rem] font-mono text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 leading-4 select-none">
               {formatTime(m)}
             </span>
           </div>
@@ -749,7 +749,7 @@ export const DayColumn: React.FC<DayColumnProps> = ({
                   {handle}
                   {circle}
                   <h3
-                    className={`flex-1 min-w-0 text-[11px] font-bold leading-tight ${height >= MIN_HEIGHT_TALL_TITLE ? 'line-clamp-3' : 'line-clamp-2'} ${
+                    className={`flex-1 min-w-0 text-[0.6875rem] font-bold leading-tight ${height >= MIN_HEIGHT_TALL_TITLE ? 'line-clamp-3' : 'line-clamp-2'} ${
                       rev.completed ? 'line-through opacity-85' : ''
                     }`}
                     style={{ color: g.color }}
@@ -758,7 +758,7 @@ export const DayColumn: React.FC<DayColumnProps> = ({
                   </h3>
                 </div>
                 {showDetailsRow && (
-                <div className="flex items-center gap-1 flex-wrap text-[10px] font-mono font-bold">
+                <div className="flex items-center gap-1 flex-wrap text-[0.625rem] font-mono font-bold">
                   {isDragging && (
                     <span
                       className="px-1 py-0.5 rounded shadow-2xs"
@@ -802,14 +802,14 @@ export const DayColumn: React.FC<DayColumnProps> = ({
                   {/* L'heure se lit sur l'échelle ; on ne l'écrit dans le bloc que pendant un déplacement */}
                   {isDragging && (
                     <span
-                      className="text-[11px] font-mono font-bold px-1.5 py-0.5 rounded shadow-2xs"
+                      className="text-[0.6875rem] font-mono font-bold px-1.5 py-0.5 rounded shadow-2xs"
                       style={{ backgroundColor: g.badgeBg, color: g.badgeText }}
                     >
                       {startLabel}
                     </span>
                   )}
                   <span
-                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-extrabold shadow-2xs"
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[0.6875rem] font-extrabold shadow-2xs"
                     style={{ backgroundColor: g.badgeBg, color: g.badgeText, ...labelBorder }}
                   >
                     {revLabel(rev)}
@@ -817,7 +817,7 @@ export const DayColumn: React.FC<DayColumnProps> = ({
                   </span>
                   {details.subject !== 'none' && (
                     <span
-                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-bold shadow-2xs max-w-full"
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[0.6875rem] font-bold shadow-2xs max-w-full"
                       style={{ backgroundColor: g.badgeBg, color: g.badgeText }}
                       title={subject.name}
                     >
@@ -827,7 +827,7 @@ export const DayColumn: React.FC<DayColumnProps> = ({
                   )}
                   {details.code && course.itemCode && (
                     <span
-                      className="text-[11px] font-mono font-bold px-1.5 py-0.5 rounded shadow-2xs"
+                      className="text-[0.6875rem] font-mono font-bold px-1.5 py-0.5 rounded shadow-2xs"
                       style={{ backgroundColor: g.badgeBg, color: g.badgeText }}
                     >
                       {course.itemCode}
@@ -841,7 +841,7 @@ export const DayColumn: React.FC<DayColumnProps> = ({
                   <div className="flex items-center gap-2 pl-[26px] min-w-0 min-h-0 overflow-hidden">
                     {showRatingLine && (
                       <span
-                        className="inline-flex items-center gap-1 shrink-0 select-none text-[11px] font-semibold"
+                        className="inline-flex items-center gap-1 shrink-0 select-none text-[0.6875rem] font-semibold"
                         title={t('Note de ce créneau : {n}/4', { n: rev.rating ?? 0 })}
                         style={{ color: g.color }}
                       >

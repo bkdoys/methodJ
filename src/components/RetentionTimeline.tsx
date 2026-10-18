@@ -98,7 +98,7 @@ export const RetentionTimeline: React.FC<RetentionTimelineProps> = ({
   return (
     <div className={compact ? 'w-full' : 'w-full space-y-1.5'}>
       {!compact && (
-        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block">
+        <span className="text-[0.6875rem] font-bold text-slate-700 dark:text-slate-300 block">
           {t('Progression dans le temps')}
         </span>
       )}
@@ -148,7 +148,7 @@ export const RetentionTimeline: React.FC<RetentionTimelineProps> = ({
             {labels.map((l) => (
               <span
                 key={l.jIndex}
-                className="absolute text-[10px] font-mono text-slate-500 dark:text-slate-400 -translate-x-1/2 first:translate-x-0"
+                className="absolute text-[0.625rem] font-mono text-slate-500 dark:text-slate-400 -translate-x-1/2 first:translate-x-0"
                 style={{ left: `${l.pct}%` }}
               >
                 J{l.jIndex}
@@ -160,13 +160,13 @@ export const RetentionTimeline: React.FC<RetentionTimelineProps> = ({
             {([1, 2, 3, 4] as MasteryLevel[]).map((lvl) => (
               <span
                 key={lvl}
-                className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400"
+                className="flex items-center gap-1 text-[0.625rem] text-slate-500 dark:text-slate-400"
               >
                 <span className={`inline-block w-2.5 h-2.5 rounded-sm ${BAR_COLORS[lvl]}`} />
                 {MASTERY_CONFIG[lvl].shortLabel}
               </span>
             ))}
-            <span className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
+            <span className="flex items-center gap-1 text-[0.625rem] text-slate-500 dark:text-slate-400">
               <span className="inline-block w-2.5 h-2.5 rounded-sm bg-slate-200 dark:bg-slate-700" />
               {t('À venir')}
             </span>

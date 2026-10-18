@@ -85,14 +85,14 @@ export const ExamTab: React.FC<Props> = ({ draft, revisions, settings, onDeleteP
               </button>
             )}
           </div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400 mt-1">
             {t('Active une projection dans Statistiques : à ce rythme, tous les cours seront-ils commencés à temps ? Sans date, rien n\'est affiché.')}
           </p>
         </div>
       </SettingsSection>
 
       <SettingsSection title={t('Proposer la période de révision')} defaultOpen>
-        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+        <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
           {t('La période répartit les révisions de plusieurs cours avant un examen. Choisissez quand l\'app vous la propose.')}
         </p>
         <div role="radiogroup" aria-label={t('Proposer la période de révision')} className="space-y-2">
@@ -114,7 +114,7 @@ export const ExamTab: React.FC<Props> = ({ draft, revisions, settings, onDeleteP
               />
               <span className="min-w-0">
                 <span className="block text-xs font-bold text-slate-900 dark:text-white">{m.label()}</span>
-                <span className="block text-[11px] text-slate-500 dark:text-slate-400">{m.hint()}</span>
+                <span className="block text-[0.6875rem] text-slate-500 dark:text-slate-400">{m.hint()}</span>
                 {m.id === 'auto' && periodPrompt === 'auto' && (
                   <span className="flex items-center gap-2 mt-2 flex-wrap">
                     <input

@@ -77,14 +77,14 @@ export const QuickShiftModal: React.FC<QuickShiftModalProps> = ({
           {/* Current vs New Date comparison */}
           <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-800">
             <div>
-              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">{t('Date initiale ({label})', { label: revLabel(revision) })}</span>
+              <span className="text-[0.6875rem] font-medium text-slate-500 dark:text-slate-400 block">{t('Date initiale ({label})', { label: revLabel(revision) })}</span>
               <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 capitalize">
                 {formatFrenchDate(revision.scheduledDate)}
               </span>
             </div>
             <ArrowRight className="w-4 h-4 text-slate-400 shrink-0" />
             <div className="text-right">
-              <span className="text-[11px] font-medium text-teal-800 dark:text-teal-300 block">{t('Nouvelle date')}</span>
+              <span className="text-[0.6875rem] font-medium text-teal-800 dark:text-teal-300 block">{t('Nouvelle date')}</span>
               <span className="text-sm font-bold text-teal-700 dark:text-teal-400 capitalize">
                 {formatFrenchDate(targetDate)}
               </span>
@@ -158,10 +158,10 @@ export const QuickShiftModal: React.FC<QuickShiftModalProps> = ({
 
             {autoCascade && subsequentRevisions.length > 0 && currentDelta !== 0 && (
               <div className="mt-2 pl-6 pt-2 border-t border-teal-200/60 dark:border-teal-800/60 text-xs text-teal-950 dark:text-teal-200 space-y-1">
-                <span className="font-bold text-[11px] block text-teal-800 dark:text-teal-300">
+                <span className="font-bold text-[0.6875rem] block text-teal-800 dark:text-teal-300">
                   {t('Répercussions prévues :')}
                 </span>
-                <ul className="space-y-0.5 font-mono text-[11px]">
+                <ul className="space-y-0.5 font-mono text-[0.6875rem]">
                   {subsequentRevisions.slice(0, 3).map((sub) => (
                     <li key={sub.id} className="flex items-center gap-1.5">
                       <span className="font-bold">{revLabel(sub)}</span> : {sub.scheduledDate} ➔{' '}
@@ -171,7 +171,7 @@ export const QuickShiftModal: React.FC<QuickShiftModalProps> = ({
                     </li>
                   ))}
                   {subsequentRevisions.length > 3 && (
-                    <li className="text-[10px] text-teal-700 dark:text-teal-400 italic">
+                    <li className="text-[0.625rem] text-teal-700 dark:text-teal-400 italic">
                       {t('+ {n} révision(s) suivante(s)', { n: subsequentRevisions.length - 3 })}
                     </li>
                   )}

@@ -124,24 +124,24 @@ export const PlanningTab: React.FC<{ draft: PlanningDraft; courses: Course[] }> 
           <h4 className="text-xs font-bold text-slate-900 dark:text-white">
             {t('Répétitions par défaut')}
           </h4>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+          <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
             {t('Appliquées à chaque nouveau cours.')}
           </p>
         </div>
 
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[11px] text-slate-500">{t('Préréglages :')}</span>
+          <span className="text-[0.6875rem] text-slate-500">{t('Préréglages :')}</span>
           <button
             type="button"
             onClick={() => setDefaultPattern([...DEFAULT_J_PATTERNS.ednClassique])}
-            className="text-[11px] px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-200"
+            className="text-[0.6875rem] px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-200"
           >
             {t('EDN Classique')}
           </button>
           <button
             type="button"
             onClick={() => setDefaultPattern([...DEFAULT_J_PATTERNS.passIntensif])}
-            className="text-[11px] px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-200"
+            className="text-[0.6875rem] px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-200"
           >
             {t('PASS Intensif')}
           </button>
@@ -169,7 +169,7 @@ export const PlanningTab: React.FC<{ draft: PlanningDraft; courses: Course[] }> 
                 className="pl-3 pr-2 py-1.5 text-xs font-bold flex items-center gap-1 hover:brightness-95"
               >
                 <span>J{jVal}</span>
-                <span className="text-[10px] opacity-75 font-normal">({formatMinutes(slotByJ[String(jVal)] ?? slotDefault)})</span>
+                <span className="text-[0.625rem] opacity-75 font-normal">({formatMinutes(slotByJ[String(jVal)] ?? slotDefault)})</span>
               </button>
               {jVal !== 0 && (
                 <button
@@ -191,7 +191,7 @@ export const PlanningTab: React.FC<{ draft: PlanningDraft; courses: Course[] }> 
           );
         })}
       </div>
-      <div className="flex items-center gap-x-4 gap-y-1 flex-wrap text-[11px] text-slate-500 dark:text-slate-400 -mt-2">
+      <div className="flex items-center gap-x-4 gap-y-1 flex-wrap text-[0.6875rem] text-slate-500 dark:text-slate-400 -mt-2">
         <span className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded bg-teal-600" />
           {t('Par défaut')}
@@ -221,7 +221,7 @@ export const PlanningTab: React.FC<{ draft: PlanningDraft; courses: Course[] }> 
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
             <h4 className="text-xs font-bold text-slate-900 dark:text-white">{t('Durée des créneaux')}</h4>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
               {t('Une durée pour tous les J, puis des exceptions pour certains. Appliqué aux nouveaux créneaux.')}
             </p>
           </div>
@@ -313,7 +313,7 @@ export const PlanningTab: React.FC<{ draft: PlanningDraft; courses: Course[] }> 
             <label htmlFor="settings-cascade" className="text-xs font-bold text-slate-900 dark:text-white cursor-pointer block">
               {t('Décalage automatique en cascade des révisions suivantes')}
             </label>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+            <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400 leading-relaxed">
               {t('Si vous décalez un créneau (ex: J1 repoussé de 2 jours), tous les créneaux suivants non faits (J3, J7, J15...) sont décalés du même nombre de jours pour préserver la courbe de mémorisation.')}
             </p>
           </div>
@@ -370,7 +370,7 @@ export const PlanningTab: React.FC<{ draft: PlanningDraft; courses: Course[] }> 
           />
           <span className="text-xs text-slate-600 dark:text-slate-400">{t('jours sans révision ni R planifiée (0 = jamais)')}</span>
         </div>
-        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+        <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400 mt-1">
           {t('Le cours apparaît dans le tableau de bord. Chaque report y est deux fois plus court que le précédent, jusqu\'à 1 jour ; ensuite il faut planifier une R.')}
         </p>
       </div>
@@ -382,7 +382,7 @@ export const PlanningTab: React.FC<{ draft: PlanningDraft; courses: Course[] }> 
           <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
             {t('Plages horaires par jour')}
           </span>
-          <span className="text-[11px] text-slate-500 dark:text-slate-400">
+          <span className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
             {t('Heures pendant lesquelles vous acceptez de travailler. Les nouveaux créneaux (J0, J1…) se placent là où il y a de la place dans la plage du jour, et on ne peut pas les déplacer hors de cette plage. Le reste de la journée apparaît grisé.')}
           </span>
         </div>
@@ -421,7 +421,7 @@ export const PlanningTab: React.FC<{ draft: PlanningDraft; courses: Course[] }> 
                   </span>
                 )}
                 {invalid && (
-                  <span className="text-[11px] text-rose-600 dark:text-rose-400">{t('la fin doit suivre le début')}</span>
+                  <span className="text-[0.6875rem] text-rose-600 dark:text-rose-400">{t('la fin doit suivre le début')}</span>
                 )}
               </div>
             );
@@ -434,14 +434,14 @@ export const PlanningTab: React.FC<{ draft: PlanningDraft; courses: Course[] }> 
               const monday = windowFor(0);
               setCustomWindows(Object.fromEntries(weekdayLabels().map((_, i) => [String(i), { ...monday }])));
             }}
-            className="text-[11px] font-semibold text-teal-700 dark:text-teal-400 hover:underline"
+            className="text-[0.6875rem] font-semibold text-teal-700 dark:text-teal-400 hover:underline"
           >
             {t('Appliquer le lundi à tous les jours')}
           </button>
           <button
             type="button"
             onClick={() => setCustomWindows({})}
-            className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:underline"
+            className="text-[0.6875rem] font-semibold text-slate-500 dark:text-slate-400 hover:underline"
           >
             {t('Rétablir la plage par défaut')}
           </button>
@@ -459,13 +459,13 @@ export const PlanningTab: React.FC<{ draft: PlanningDraft; courses: Course[] }> 
           <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
             {t('Échelle de la vue Journée')}
           </span>
-          <span className="text-[11px] text-slate-500 dark:text-slate-400">
+          <span className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
             {t('Plage d\'heures affichée et pas de déplacement des créneaux (glisser-déposer).')}
           </span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label htmlFor="tl-start" className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+            <label htmlFor="tl-start" className="text-[0.6875rem] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
               {t('De')}
             </label>
             <select
@@ -482,7 +482,7 @@ export const PlanningTab: React.FC<{ draft: PlanningDraft; courses: Course[] }> 
             </select>
           </div>
           <div>
-            <label htmlFor="tl-end" className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+            <label htmlFor="tl-end" className="text-[0.6875rem] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
               {t('À')}
             </label>
             <select
@@ -499,7 +499,7 @@ export const PlanningTab: React.FC<{ draft: PlanningDraft; courses: Course[] }> 
             </select>
           </div>
           <div>
-            <label htmlFor="tl-step" className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+            <label htmlFor="tl-step" className="text-[0.6875rem] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
               {t('Pas de déplacement')}
             </label>
             <select
@@ -525,7 +525,7 @@ export const PlanningTab: React.FC<{ draft: PlanningDraft; courses: Course[] }> 
           <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
             {t('Vue sur plusieurs jours et affichage des créneaux')}
           </span>
-          <span className="text-[11px] text-slate-500 dark:text-slate-400">
+          <span className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
             {t('La vue « N jours » se place entre Jour et Semaine. Quand les colonnes sont assez larges, les créneaux affichent les détails cochés ci-dessous.')}
           </span>
         </div>
@@ -603,7 +603,7 @@ export const PlanningDialogs: React.FC<{ draft: PlanningDraft }> = ({ draft }) =
             <h4 className="text-sm font-bold text-slate-900 dark:text-white">{t('Exception de durée')}</h4>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label htmlFor="slot-new-j" className="text-[11px] text-slate-500 dark:text-slate-400 block mb-0.5">
+                <label htmlFor="slot-new-j" className="text-[0.6875rem] text-slate-500 dark:text-slate-400 block mb-0.5">
                   {t('Intervalle')}
                 </label>
                 <select
@@ -624,7 +624,7 @@ export const PlanningDialogs: React.FC<{ draft: PlanningDraft }> = ({ draft }) =
                 </select>
               </div>
               <div>
-                <label htmlFor="slot-new-min" className="text-[11px] text-slate-500 dark:text-slate-400 block mb-0.5">
+                <label htmlFor="slot-new-min" className="text-[0.6875rem] text-slate-500 dark:text-slate-400 block mb-0.5">
                   {t('Durée')}
                 </label>
                 <DurationSelect
@@ -636,7 +636,7 @@ export const PlanningDialogs: React.FC<{ draft: PlanningDraft }> = ({ draft }) =
               </div>
             </div>
             {newSlotMinutes === slotDefault && (
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
                 {t('Cette durée est déjà celle par défaut : choisissez-en une différente.')}
               </p>
             )}

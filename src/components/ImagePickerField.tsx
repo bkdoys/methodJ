@@ -44,7 +44,7 @@ interface ImagePickerFieldProps {
 const hasCamera = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
 
 const BTN =
-  'inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-md text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50';
+  'inline-flex items-center gap-1 px-2 py-1 text-[0.6875rem] font-semibold rounded-md text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50';
 
 /**
  * Ajout d'une image à une carte : « Photo » ouvre directement l'appareil photo (iPad, téléphone), « Importer »
@@ -119,7 +119,7 @@ export const ImagePickerField: React.FC<ImagePickerFieldProps> = ({ value, onCha
           </button>
         )}
         {busy && (
-          <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
+          <span className="inline-flex items-center gap-1 text-[0.6875rem] text-slate-500 dark:text-slate-400">
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
             {t('Compression…')}
           </span>
@@ -127,7 +127,7 @@ export const ImagePickerField: React.FC<ImagePickerFieldProps> = ({ value, onCha
         <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onFile} />
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
       </div>
-      {error && <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">{error}</p>}
+      {error && <p className="text-[0.6875rem] font-semibold text-rose-600 dark:text-rose-400">{error}</p>}
       {preview && value && <CardImage id={value} maxHeight="max-h-40" />}
       {drawing && <DrawingEditor background={drawing.background} onDone={onDrawn} onClose={() => setDrawing(null)} />}
     </div>

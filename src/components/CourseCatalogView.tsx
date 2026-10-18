@@ -29,7 +29,6 @@ import { getLinkTypes } from '../utils/courseLinks';
 import { COURSE_DRAG_MIME, CourseFolderTree, TreeSelection } from './CourseFolderTree';
 import { courseInNode, formatCoursePath } from '../utils/folders';
 import { t } from '../i18n';
-import { useConfirm } from './ConfirmDialog';
 import {
   PANEL_DEFAULT_WIDTH,
   PANEL_KEY_STEP,
@@ -94,7 +93,6 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
   onResetCourseColors,
   onUpdateSubjectFolders,
 }) => {
-  const confirm = useConfirm();
   const [searchQuery, setSearchQuery] = useState('');
   // Arbre des disciplines et dossiers : replié, tous les cours sont visibles (la sélection est alors ignorée)
   const [selection, setSelection] = useState<TreeSelection | null>(null);
@@ -366,7 +364,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
         >
         <aside className="flex-1 min-h-0 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-2 shadow-2xs max-h-[70vh] lg:max-h-none overflow-y-auto">
           <div className="flex items-center justify-between px-2 pb-1.5 mb-1 border-b border-slate-100 dark:border-slate-800">
-            <span className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{t('Disciplines')}</span>
+            <span className="text-[0.6875rem] font-bold uppercase tracking-wide text-slate-400">{t('Disciplines')}</span>
             <button
               type="button"
               onClick={toggleTree}
@@ -532,7 +530,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
 
                         {course.customColor && (
                           <span
-                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[0.625rem] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
                             title={t('Couleur personnalisée sur ce cours ({color})', { color: course.customColor ?? '' })}
                           >
                             <span className="w-1.5 h-1.5 rounded-full ring-1 ring-white/60" style={{ backgroundColor: course.customColor }} />
@@ -564,7 +562,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                         className="text-left text-base font-bold text-slate-900 dark:text-white hover:text-teal-600 dark:hover:text-teal-400 transition-colors cursor-pointer group flex items-center gap-1.5"
                       >
                         <span>{course.title}</span>
-                        <span className="text-[11px] font-normal text-teal-600 dark:text-teal-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="text-[0.6875rem] font-normal text-teal-600 dark:text-teal-400 opacity-0 group-hover:opacity-100 transition-opacity">
                           {t('(Détails & Édition)')}
                         </span>
                       </button>
@@ -643,7 +641,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                       ) : (
                         <span className="italic">{t('Ajouter des notes, réflexes EDN ou pièges à retenir...')}</span>
                       )}
-                      <span className="text-[10px] text-teal-600 dark:text-teal-400 opacity-0 group-hover:opacity-100 transition-opacity font-bold shrink-0 ml-2">
+                      <span className="text-[0.625rem] text-teal-600 dark:text-teal-400 opacity-0 group-hover:opacity-100 transition-opacity font-bold shrink-0 ml-2">
                         {t('Modifier')}
                       </span>
                     </div>
@@ -655,12 +653,12 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                       <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5 text-teal-600" />
                         <span>{isFreeCourse(course) ? t('Révisions libres') : t('Cycle de répétitions espacées')}</span>
-                        <span className="text-[11px] font-normal text-slate-500 dark:text-slate-400">
+                        <span className="text-[0.6875rem] font-normal text-slate-500 dark:text-slate-400">
                           {t('({done}/{total} révisions faites)', { done: completedCount, total: courseRevisions.length })}
                         </span>
                       </span>
 
-                      <span className="text-[11px] text-slate-400">
+                      <span className="text-[0.6875rem] text-slate-400">
                         {isFreeCourse(course) ? t('Ajoutez une révision depuis la fiche du cours') : t('Cliquez sur un J pour décaler ou valider')}
                       </span>
                     </div>
@@ -696,12 +694,12 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                               >
                                 {revLabel(rev)}
                               </button>
-                              <span className="text-[10px] font-mono opacity-75">
+                              <span className="text-[0.625rem] font-mono opacity-75">
                                 {isJ0orJ1 ? '1h30' : '1h00'}
                               </span>
                             </div>
 
-                            <span className="font-mono text-[11px] block mb-1.5">
+                            <span className="font-mono text-[0.6875rem] block mb-1.5">
                               {rev.scheduledDate.slice(5)}
                             </span>
 
@@ -709,7 +707,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                             <div className="flex items-center justify-between gap-1 pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
                               <button
                                 onClick={() => onOpenCompleteModal(rev)}
-                                className={`text-[10px] font-bold ${
+                                className={`text-[0.625rem] font-bold ${
                                   rev.completed
                                     ? 'text-emerald-700 dark:text-emerald-400 hover:underline'
                                     : 'text-teal-700 dark:text-teal-400 hover:underline'
@@ -721,7 +719,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                               <button
                                 onClick={() => onOpenQuickShift(rev)}
                                 title={t('Décaler ce J (cascade automatique des J suivants)')}
-                                className="text-[10px] text-slate-400 hover:text-teal-600"
+                                className="text-[0.625rem] text-slate-400 hover:text-teal-600"
                               >
                                 <ArrowRightLeft className="w-3 h-3" />
                               </button>
@@ -734,7 +732,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
 
                   {/* Course footer actions */}
                   <div className="flex items-center justify-between pt-2 text-xs text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800">
-                    <span className="text-[11px]">
+                    <span className="text-[0.6875rem]">
                       {t('Ajouté le {date}', { date: formatFrenchDate(course.createdAt) })}
                     </span>
 
@@ -748,15 +746,8 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
                       </button>
 
                       <button
-                        onClick={async () => {
-                          const ok = await confirm({
-                            title: t('Supprimer le cours « {title} » ?', { title: course.title }),
-                            message: t('Toutes ses révisions planifiées seront supprimées. Cette action est irréversible.'),
-                            confirmLabel: t('Supprimer'),
-                            tone: 'danger',
-                          });
-                          if (ok) onDeleteCourse(course.id);
-                        }}
+                        // La confirmation (et le sort des cartes du cours) est demandée par l'application
+                        onClick={() => onDeleteCourse(course.id)}
                         className="text-slate-400 hover:text-rose-600 flex items-center gap-1 transition-colors"
                         title={t('Supprimer ce cours')}
                       >

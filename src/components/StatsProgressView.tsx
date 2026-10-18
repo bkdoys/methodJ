@@ -60,7 +60,7 @@ const Tile: React.FC<{ label: string; icon: React.ReactNode; value: React.ReactN
       {icon}
     </div>
     <div className="text-2xl font-mono font-bold text-slate-900 dark:text-white">{value}</div>
-    <span className="text-[11px] text-slate-500 dark:text-slate-400">{sub}</span>
+    <span className="text-[0.6875rem] text-slate-500 dark:text-slate-400">{sub}</span>
   </div>
 );
 
@@ -88,7 +88,7 @@ const DayBars: React.FC<{
 );
 
 const Axis: React.FC<{ left: string; right: string }> = ({ left, right }) => (
-  <div className="flex justify-between text-[10px] text-slate-400 dark:text-slate-500">
+  <div className="flex justify-between text-[0.625rem] text-slate-400 dark:text-slate-500">
     <span>{left}</span>
     <span>{right}</span>
   </div>
@@ -225,7 +225,7 @@ export const StatsProgressView: React.FC<StatsProgressViewProps> = ({
               <div className="text-2xl font-mono font-bold text-slate-900 dark:text-white">
                 {t('{n} j', { n: exam.daysLeft })}
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">{t('avant l\'examen du {d}', { d: formatFrenchDate(examDate as string) })}</p>
+              <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">{t('avant l\'examen du {d}', { d: formatFrenchDate(examDate as string) })}</p>
             </div>
             <div className="space-y-1 text-xs text-slate-700 dark:text-slate-300 lg:col-span-2">
               {exam.remaining === 0 ? (
@@ -245,7 +245,7 @@ export const StatsProgressView: React.FC<StatsProgressViewProps> = ({
                         : t('À ce rythme, tous les cours seront commencés le {d}, après l\'examen.', { d: formatFrenchDate(exam.projectedDate) })}
                   </p>
                   {exam.cycleDays > 0 && (
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
                       {exam.lastFullCycleStart >= todayIso
                         ? t('Un cours commencé après le {d} n\'aura pas tout son cycle (jusqu\'à J{j}) avant l\'examen.', { d: formatFrenchDate(exam.lastFullCycleStart), j: exam.cycleDays })
                         : t('Le cycle complet (jusqu\'à J{j}) ne tient plus avant l\'examen pour un cours commencé maintenant.', { j: exam.cycleDays })}
@@ -291,7 +291,7 @@ export const StatsProgressView: React.FC<StatsProgressViewProps> = ({
                   type="button"
                   aria-pressed={horizon === h}
                   onClick={() => setHorizon(h)}
-                  className={`px-2 py-0.5 text-[11px] font-semibold rounded-md ${
+                  className={`px-2 py-0.5 text-[0.6875rem] font-semibold rounded-md ${
                     horizon === h ? 'bg-teal-600 text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                   }`}
                 >
@@ -329,7 +329,7 @@ export const StatsProgressView: React.FC<StatsProgressViewProps> = ({
             ))}
           </div>
           {coverage.total > coverage.started && (
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
               {plural(coverage.total - coverage.started, '{n} cours pas encore commencé.', '{n} cours pas encore commencés.')}
             </p>
           )}
@@ -350,18 +350,18 @@ export const StatsProgressView: React.FC<StatsProgressViewProps> = ({
                     className="flex-1 h-full flex flex-col justify-end items-center gap-1 min-w-0"
                     title={t('J{j} : {avg} ★ sur {count}', { j: r.jIndex, avg: r.avgRating.toFixed(1), count: plural(r.count, '{n} créneau', '{n} créneaux') })}
                   >
-                    <span className="text-[10px] font-mono font-bold text-slate-700 dark:text-slate-200">{r.avgRating.toFixed(1)}</span>
+                    <span className="text-[0.625rem] font-mono font-bold text-slate-700 dark:text-slate-200">{r.avgRating.toFixed(1)}</span>
                     <div
                       className={`w-full rounded-t-sm ${r.count < FEW_RATINGS ? 'bg-amber-500/30' : 'bg-amber-500/80'}`}
                       style={{ height: `${Math.max(4, (r.avgRating / 4) * 60)}%` }}
                     />
-                    <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">J{r.jIndex}</span>
-                    <span className="text-[9px] text-slate-400 dark:text-slate-500">{t('n={n}', { n: r.count })}</span>
+                    <span className="text-[0.625rem] font-mono text-slate-500 dark:text-slate-400">J{r.jIndex}</span>
+                    <span className="text-[0.5625rem] text-slate-400 dark:text-slate-500">{t('n={n}', { n: r.count })}</span>
                   </div>
                 ))}
               </div>
               {stats.retentionByJ.some((r) => r.count < FEW_RATINGS) && (
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
                   {t('Barres pâles : moins de {n} notes, moyenne peu fiable.', { n: FEW_RATINGS })}
                 </p>
               )}
@@ -383,7 +383,7 @@ export const StatsProgressView: React.FC<StatsProgressViewProps> = ({
                 </span>
                 <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t('à la date d\'origine ou avant')}</span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
                 {drift.avgDrift === null
                   ? t('Aucun créneau suivi n\'est encore validé.')
                   : t('Écart moyen {d} j sur {n}.', {
@@ -396,7 +396,7 @@ export const StatsProgressView: React.FC<StatsProgressViewProps> = ({
             <div className="space-y-2 min-w-0">
               <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{t('Écart moyen par étape J (jours)')}</p>
               {drift.byJ.length === 0 ? (
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">{t('Pas encore de créneau validé.')}</p>
+                <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">{t('Pas encore de créneau validé.')}</p>
               ) : (
                 <ul className="space-y-1">
                   {drift.byJ.map((j) => (
@@ -421,7 +421,7 @@ export const StatsProgressView: React.FC<StatsProgressViewProps> = ({
             <div className="space-y-2 min-w-0">
               <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{t('Cours les plus décalés')}</p>
               {drift.courses.length === 0 ? (
-                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">{t('Aucun cours décalé.')}</p>
+                <p className="text-[0.6875rem] text-emerald-600 dark:text-emerald-400 font-medium">{t('Aucun cours décalé.')}</p>
               ) : (
                 <ul className="space-y-1">
                   {drift.courses.slice(0, 5).map((c) => (
@@ -447,7 +447,7 @@ export const StatsProgressView: React.FC<StatsProgressViewProps> = ({
                 </span>
                 <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t('rétention estimée')}</span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
                 {t('Probabilité moyenne de vous souvenir aujourd\'hui, sur {n}.', { n: plural(cards.rated, '{n} carte déjà révisée', '{n} cartes déjà révisées') })}
               </p>
               <div className="flex h-3 rounded overflow-hidden bg-slate-100 dark:bg-slate-800" role="img" aria-label={t('Cartes par état')}>
@@ -462,7 +462,7 @@ export const StatsProgressView: React.FC<StatsProgressViewProps> = ({
                   cards.states[k] > 0 ? <div key={k} className={color} style={{ width: `${(cards.states[k] / cards.total) * 100}%` }} /> : null
                 )}
               </div>
-              <ul className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] text-slate-600 dark:text-slate-300">
+              <ul className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[0.6875rem] text-slate-600 dark:text-slate-300">
                 <li><span className="inline-block w-2 h-2 rounded-sm bg-emerald-500 mr-1" />{t('Mûres (≥ {d} j) : {n}', { d: MATURE_DAYS, n: cards.states.mature })}</li>
                 <li><span className="inline-block w-2 h-2 rounded-sm bg-lime-500 mr-1" />{t('Jeunes : {n}', { n: cards.states.young })}</li>
                 <li><span className="inline-block w-2 h-2 rounded-sm bg-amber-500 mr-1" />{t('En apprentissage : {n}', { n: cards.states.learning })}</li>
@@ -488,7 +488,7 @@ export const StatsProgressView: React.FC<StatsProgressViewProps> = ({
             <div className="space-y-2 min-w-0">
               <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{t('Cartes souvent oubliées')}</p>
               {cards.leeches.length === 0 ? (
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
                   {t('Aucune carte oubliée {n} fois ou plus.', { n: LEECH_LAPSES })}
                 </p>
               ) : (
@@ -508,14 +508,14 @@ export const StatsProgressView: React.FC<StatsProgressViewProps> = ({
                             ) : (
                               <span className="text-xs text-slate-500">{t('Masques sur image')}</span>
                             )}
-                            <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 shrink-0">{t('{n}× oubliée', { n: l.lapses })}</span>
+                            <span className="text-[0.6875rem] font-semibold text-rose-600 dark:text-rose-400 shrink-0">{t('{n}× oubliée', { n: l.lapses })}</span>
                           </span>
-                          <span className="block text-[10px] text-slate-400 dark:text-slate-500 truncate">{courseOf.get(l.courseId)?.title ?? (l.courseId === INBOX_COURSE_ID ? t('Cartes à trier') : '')}</span>
+                          <span className="block text-[0.625rem] text-slate-400 dark:text-slate-500 truncate">{courseOf.get(l.courseId)?.title ?? (l.courseId === INBOX_COURSE_ID ? t('Cartes à trier') : '')}</span>
                         </button>
                       </li>
                     ))}
                   </ul>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">{t('À reformuler ou découper : elles coûtent du temps sans rester.')}</p>
+                  <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">{t('À reformuler ou découper : elles coûtent du temps sans rester.')}</p>
                 </>
               )}
             </div>
@@ -530,12 +530,12 @@ export const StatsProgressView: React.FC<StatsProgressViewProps> = ({
                   </span>
                   <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t('rétention réelle')}</span>
                 </div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
                   {history.trueRetention === null
                     ? t('Pas encore de carte revue après son délai.')
                     : t('Réponses autres que « Encore » sur des cartes déjà en révision : {n} sur 30 jours.', { n: history.retentionBase })}
                 </p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
                   {t('Série : {s} j · {a}/30 jours actifs · {n} par jour actif', {
                     s: history.streak,
                     a: history.activeDays,
@@ -577,7 +577,7 @@ export const StatsProgressView: React.FC<StatsProgressViewProps> = ({
                     <span className="w-3.5 h-3.5 rounded-full shrink-0" style={{ backgroundColor: item.subject.color }} />
                     <div className="min-w-0">
                       <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">{item.subject.name}</span>
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                      <span className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
                         {t('{started}/{courses} cours commencés · {done}/{total} créneaux', {
                           started: item.started,
                           courses: item.courseCount,
@@ -596,15 +596,15 @@ export const StatsProgressView: React.FC<StatsProgressViewProps> = ({
 
                   <div className="flex items-center gap-4 text-xs shrink-0">
                     <div>
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400 block">{t('Maîtrise')}</span>
+                      <span className="text-[0.6875rem] text-slate-500 dark:text-slate-400 block">{t('Maîtrise')}</span>
                       {item.started > 0 ? <MasteryStrip counts={item.mastery} className="w-24 mt-1" /> : <span className="text-slate-400">—</span>}
                     </div>
                     <div>
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400 block">{t('Temps')}</span>
+                      <span className="text-[0.6875rem] text-slate-500 dark:text-slate-400 block">{t('Temps')}</span>
                       <span className="font-mono font-bold text-slate-800 dark:text-white">{formatMinutes(item.minutes)}</span>
                     </div>
                     <div className="w-24">
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400 block">{t('Dernière révision')}</span>
+                      <span className="text-[0.6875rem] text-slate-500 dark:text-slate-400 block">{t('Dernière révision')}</span>
                       <span className={`font-semibold ${stale ? 'text-amber-600 dark:text-amber-400' : 'text-slate-800 dark:text-white'}`}>
                         {lastDoneLabel(item.lastDone)}
                       </span>
@@ -618,7 +618,7 @@ export const StatsProgressView: React.FC<StatsProgressViewProps> = ({
       )}
 
       {cards.total === 0 && (
-        <p className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+        <p className="flex items-center gap-1.5 text-[0.6875rem] text-slate-400 dark:text-slate-500">
           <Layers className="w-3.5 h-3.5" />
           {t('Les statistiques des flashcards apparaîtront ici dès vos premières cartes.')}
         </p>

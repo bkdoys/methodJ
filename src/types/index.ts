@@ -156,6 +156,8 @@ export interface AppSettings {
   revisionPeriods?: RevisionPeriod[];
   /** Nouvelles cartes (flashcards) proposées par jour dans « Cartes du jour » ; absent = 20. */
   cardsNewPerDay?: number;
+  /** Taille du texte de l'interface ; absent = normale (taille de base du navigateur). */
+  textScale?: 'small' | 'normal' | 'large' | 'xlarge';
   /** Langue de l'interface ; absent = français. */
   language?: 'fr' | 'en';
   splitView: boolean;

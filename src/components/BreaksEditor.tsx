@@ -47,7 +47,7 @@ const BreakRows: React.FC<{
     <button
       type="button"
       onClick={() => onChange([...list, { ...NEW_BREAK }])}
-      className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-teal-700 dark:text-teal-400 hover:underline"
+      className="inline-flex items-center gap-0.5 text-[0.6875rem] font-semibold text-teal-700 dark:text-teal-400 hover:underline"
     >
       <Plus className="w-3 h-3" />
       {t('Ajouter une pause')}
@@ -73,11 +73,11 @@ export const BreaksEditor: React.FC<BreaksEditorProps> = ({ value, onChange, wee
     <details className="pt-3 mt-1 border-t border-slate-100 dark:border-slate-800 group">
       <summary className="cursor-pointer list-none flex items-baseline gap-2">
         <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{t('Pauses')}</span>
-        <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{summary}</span>
-        <span className="ml-auto text-[11px] text-slate-400 group-open:hidden">{t('Modifier')}</span>
+        <span className="text-[0.6875rem] text-slate-500 dark:text-slate-400 truncate">{summary}</span>
+        <span className="ml-auto text-[0.6875rem] text-slate-400 group-open:hidden">{t('Modifier')}</span>
       </summary>
       <div className="mt-2 space-y-2">
-        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+        <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
           {t('Temps de non-travail (déjeuner…) : aucun créneau n\'y est placé et il apparaît grisé. Un jour personnalisé remplace les pauses communes.')}
         </p>
         <div className="flex items-start gap-2">
@@ -97,14 +97,14 @@ export const BreaksEditor: React.FC<BreaksEditorProps> = ({ value, onChange, wee
                 onChange={(l) => (l.length === 0 ? unset(k) : set(k, l))}
               />
               {value[k].length === 0 ? (
-                <span className="text-[11px] text-amber-700 dark:text-amber-400">
+                <span className="text-[0.6875rem] text-amber-700 dark:text-amber-400">
                   {t('Aucune pause ce jour-là : les pauses communes ne s\'appliquent pas.')}
                 </span>
               ) : (
                 <button
                   type="button"
                   onClick={() => set(k, [])}
-                  className="text-[11px] text-slate-500 dark:text-slate-400 hover:underline"
+                  className="text-[0.6875rem] text-slate-500 dark:text-slate-400 hover:underline"
                 >
                   {t('Aucune pause ce jour')}
                 </button>
@@ -112,7 +112,7 @@ export const BreaksEditor: React.FC<BreaksEditorProps> = ({ value, onChange, wee
               <button
                 type="button"
                 onClick={() => unset(k)}
-                className="ml-auto text-[11px] text-slate-500 dark:text-slate-400 hover:underline"
+                className="ml-auto text-[0.6875rem] text-slate-500 dark:text-slate-400 hover:underline"
               >
                 {t('comme les autres jours')}
               </button>
@@ -124,7 +124,7 @@ export const BreaksEditor: React.FC<BreaksEditorProps> = ({ value, onChange, wee
             aria-label={t('Personnaliser un jour')}
             value=""
             onChange={(e) => e.target.value && set(e.target.value, common.map((b) => ({ ...b })))}
-            className="px-2 py-1 text-[11px] border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+            className="px-2 py-1 text-[0.6875rem] border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300"
           >
             <option value="">{t('Personnaliser un jour…')}</option>
             {free.map((k) => (

@@ -81,9 +81,9 @@ export const CloudTab: React.FC<CloudTabProps> = (props) => {
             <Cloud className="w-4 h-4 text-slate-400" />
             <span className="text-xs font-bold text-slate-900 dark:text-white">{t('Cloud non configuré')}</span>
           </div>
-          <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+          <p className="text-[0.6875rem] text-slate-600 dark:text-slate-400 leading-relaxed">
             {t('Cette installation fonctionne en local : vos données restent dans ce navigateur. Pour les synchroniser entre vos appareils, branchez votre propre projet Firebase en suivant')}{' '}
-            <code className="font-mono text-[10px]">docs/CLOUD_SETUP.md</code>{t('. En attendant, la sauvegarde JSON ci-dessous permet de transférer vos données.')}
+            <code className="font-mono text-[0.625rem]">docs/CLOUD_SETUP.md</code>{t('. En attendant, la sauvegarde JSON ci-dessous permet de transférer vos données.')}
           </p>
         </div>
       ) : (
@@ -98,19 +98,19 @@ export const CloudTab: React.FC<CloudTabProps> = (props) => {
               <span className="text-xs font-bold text-slate-900 dark:text-white block">
                 {t('Synchronisation Cloud')}
               </span>
-              <span className="text-[11px] text-teal-700 dark:text-teal-400 font-medium">
+              <span className="text-[0.6875rem] text-teal-700 dark:text-teal-400 font-medium">
                 {t('Retrouvez vos cours sur tous vos appareils')}
               </span>
             </div>
           </div>
 
           {currentUser ? (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[0.6875rem] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>{t('Connecté au Cloud')}</span>
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[0.6875rem] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
               <span>{t('Local uniquement')}</span>
             </span>
           )}
@@ -135,7 +135,7 @@ export const CloudTab: React.FC<CloudTabProps> = (props) => {
                 </button>
               )}
             </div>
-            <details className="text-[11px] text-rose-700 dark:text-rose-300">
+            <details className="text-[0.6875rem] text-rose-700 dark:text-rose-300">
               <summary className="cursor-pointer font-semibold">{t('Détails')}</summary>
               <p className="mt-1 leading-relaxed">
                 {authError.code ? `${authError.code} : ` : ''}
@@ -160,7 +160,7 @@ export const CloudTab: React.FC<CloudTabProps> = (props) => {
                     : t('Compte : {name}', { name: currentUser.email || currentUser.displayName || t('Utilisateur Cloud') })}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
                 {currentUser.isAnonymous
                   ? t('Cette session n\'existe que sur cet appareil. Déconnectez-vous puis connectez-vous avec Google pour synchroniser vos appareils.')
                   : t('Synchronisation automatique en temps réel active avec votre compte.')}
@@ -194,7 +194,7 @@ export const CloudTab: React.FC<CloudTabProps> = (props) => {
           </div>
         ) : (
           <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-teal-100 dark:border-teal-900 space-y-3 shadow-2xs">
-            <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+            <p className="text-[0.6875rem] text-slate-600 dark:text-slate-400 leading-relaxed">
               {t('Connectez-vous pour retrouver vos cours sur tous vos appareils. Sans connexion, tout reste sur cet appareil.')}
             </p>
 
@@ -221,7 +221,7 @@ export const CloudTab: React.FC<CloudTabProps> = (props) => {
               type="button"
               onClick={() => setShowEmailLogin((v) => !v)}
               aria-expanded={showEmailLogin}
-              className="text-[11px] font-semibold text-teal-700 dark:text-teal-400 hover:underline"
+              className="text-[0.6875rem] font-semibold text-teal-700 dark:text-teal-400 hover:underline"
             >
               {showEmailLogin ? t('Masquer') : t('Utiliser un e-mail à la place')}
             </button>
@@ -246,7 +246,7 @@ export const CloudTab: React.FC<CloudTabProps> = (props) => {
                 />
 
                 {emailError && (
-                  <p className="text-[11px] text-rose-600 dark:text-rose-400 font-medium">{emailError}</p>
+                  <p className="text-[0.6875rem] text-rose-600 dark:text-rose-400 font-medium">{emailError}</p>
                 )}
 
                 <div className="flex items-center gap-2">
@@ -302,11 +302,11 @@ export const CloudTab: React.FC<CloudTabProps> = (props) => {
             <Download className="w-4 h-4 text-teal-600" />
             <span>{t('Sauvegarde de secours JSON (Fichier local)')}</span>
           </span>
-          <span className="text-[10px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800 font-medium">
+          <span className="text-[0.625rem] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800 font-medium">
             {t('Sécurité 100% Hors-Ligne')}
           </span>
         </div>
-        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+        <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
           {t('Même avec le Cloud actif, vous pouvez exporter ou importer à tout moment un fichier JSON complet de votre base de révision.')}
         </p>
 
@@ -367,7 +367,7 @@ export const CloudTab: React.FC<CloudTabProps> = (props) => {
             <RotateCcw className="w-4 h-4 text-amber-600" />
             <span>{t('Versions mises de côté (annuler un écrasement)')}</span>
           </span>
-          <p className="text-[11px] text-slate-600 dark:text-slate-400">
+          <p className="text-[0.6875rem] text-slate-600 dark:text-slate-400">
             {t('Avant de remplacer vos données par celles du cloud (ou l\'inverse), la version écrasée est conservée ici.')}
           </p>
           <ul className="space-y-1.5">
@@ -375,7 +375,7 @@ export const CloudTab: React.FC<CloudTabProps> = (props) => {
               <li key={b.at} className="flex items-center justify-between gap-2 text-xs">
                 <span className="min-w-0">
                   <span className="font-semibold text-slate-800 dark:text-slate-200 block truncate">{t(b.reason)}</span>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  <span className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
                     {new Date(b.at).toLocaleString(getLocale(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     {' · '}{t('{courses} cours · {slots} créneaux', { courses: b.courses, slots: b.revisions })}
                   </span>

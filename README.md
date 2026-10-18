@@ -49,7 +49,7 @@ Avant un examen, la **période de révision** organise un tour complet : cochez 
 
 ### Cartes (flashcards)
 
-Des cartes rédigées dans chaque cours (recto/verso ou texte à trous, avec images : photo prise depuis l'iPad, fichier, capture collée ou dessin à main levée au doigt ou au stylet, aussi pour annoter une image ; et cartes à masques sur un schéma, comme l'Image Occlusion d'Anki), révisées avec l'algorithme FSRS (celui d'Anki) : cartes du jour, ou toutes les cartes d'un cours, d'un dossier ou d'une discipline, aussi depuis un créneau J. Import CSV (export Anki « Notes en texte brut » ou tableur). Une carte peut être créée sans cours : elle attend dans « Cartes à trier » que vous la rangiez. Les cartes sont enregistrées sur l'appareil et synchronisées par cours (images via Cloud Storage, facultatif : voir [la synchronisation](docs/CLOUD_SETUP.md#images-des-cartes-facultatif)).
+Des cartes rédigées dans chaque cours (recto/verso ou texte à trous, avec images : photo prise depuis l'iPad, fichier, capture collée ou dessin à main levée au doigt ou au stylet, aussi pour annoter une image ; et cartes à masques sur un schéma, comme l'Image Occlusion d'Anki), révisées avec l'algorithme FSRS (celui d'Anki) : cartes du jour, ou toutes les cartes d'un cours, d'un dossier ou d'une discipline, aussi depuis un créneau J. Import d'un **paquet Anki (.apkg)** avec ses images, ses masques sur image et son avancement : chaque paquet et sous-paquet devient un cours en révision libre, rangé comme dans Anki, et un ré-import ne duplique rien. Import CSV (export Anki « Notes en texte brut » ou tableur). Aperçu de la carte pendant la rédaction. Une carte peut être créée sans cours : elle attend dans « Cartes à trier » que vous la rangiez. Les cartes sont enregistrées sur l'appareil et synchronisées par cours (images via Cloud Storage, facultatif : voir [la synchronisation](docs/CLOUD_SETUP.md#images-des-cartes-facultatif)).
 
 ![Vue Cartes : cartes du jour et paquets par discipline](docs/screenshots/cartes.jpg)
 
@@ -76,7 +76,7 @@ Pour les cartes : rétention estimée et réelle, cartes révisées par jour, jo
 
 ### Et aussi
 
-- **Interface en français et en anglais** : la langue du navigateur est suivie au premier lancement, puis réglable dans Préférences > Affichage. Thème clair ou sombre.
+- **Interface en français et en anglais** : la langue du navigateur est suivie au premier lancement, puis réglable dans Préférences > Affichage. Thème clair ou sombre, taille du texte réglable (4 paliers).
 - **Installable** sur iPad / téléphone / ordinateur (PWA), plein écran.
 - **Vos données vous appartiennent** : tout est stocké dans votre navigateur, avec export / import JSON. La synchronisation entre appareils est **facultative** (votre propre projet Firebase, voir ci-dessous).
 
