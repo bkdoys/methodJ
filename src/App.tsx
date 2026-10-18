@@ -5,6 +5,7 @@ import {
   getLastUid,
   saveStoredData,
   exportBackupJson,
+  buildBackupJson,
   parseImportBackupJson,
   parseImportDecks,
 } from './utils/storage';
@@ -31,6 +32,7 @@ import {
   FlashcardsView,
   CardsImportModal,
   CardCoursePicker,
+  RevisionPeriodModal,
   SlotDetailModal,
   SyncConflictModal,
   prefetchLazyViews,
@@ -124,6 +126,8 @@ export default function App() {
 
   // Fenêtres chargées à la demande : montées à la première ouverture, puis gardées (brouillon conservé)
   const newCourseMounted = useMountedOnce(isNewCourseOpen);
+  // Assistant « Période de révision » : simulation pure, rien n'est gardé à la fermeture
+  const [isPeriodOpen, setIsPeriodOpen] = useState(false);
   const settingsMounted = useMountedOnce(isSettingsOpen);
 
   // Toast Notification for cascade shifts or actions
@@ -276,6 +280,8 @@ export default function App() {
 
   // Actions sur cours, créneaux et matières (voir hooks/useStudyData.ts)
   const {
+    handleApplyRevisionPeriod,
+    handleDeleteRevisionPeriod,
     handleSaveNewCourse,
     handleAddReview,
     handleDeleteReview,
@@ -399,6 +405,10 @@ export default function App() {
   const handleExportBackup = useCallback(() => {
     exportBackupJson({ courses, revisions, subjects, settings }, Object.values(decks));
   }, [courses, revisions, subjects, settings, decks]);
+  const handleBuildBackup = useCallback(
+    () => buildBackupJson({ courses, revisions, subjects, settings }, Object.values(decks)),
+    [courses, revisions, subjects, settings, decks]
+  );
 
   // Renvoie false si le fichier est invalide ou si l'utilisateur annule (la fenêtre des réglages reste ouverte)
   const handleImportBackup = async (jsonContent: string): Promise<boolean> => {
@@ -654,6 +664,7 @@ export default function App() {
       onMoveCourse={handleMoveCourse}
       onResetCourseColors={handleResetCourseColors}
       onUpdateSubjectFolders={handleUpdateSubjectFolders}
+      onOpenRevisionPeriod={() => setIsPeriodOpen(true)}
     />
   );
   const renderTimer = () => (
@@ -788,6 +799,7 @@ export default function App() {
                 inboxCards={inboxCards}
                 onOpenInbox={() => openDeck(INBOX_COURSE_ID)}
                 onSnoozeFreeAlert={handleSnoozeFreeAlert}
+                onOpenRevisionPeriod={() => setIsPeriodOpen(true)}
               />
             ) : currentView === 'session' ? (
               renderTimer()
@@ -848,11 +860,13 @@ export default function App() {
         subjects={subjects}
         onSaveSubjects={handleSaveSubjects}
         onChangeLinkTypes={handleChangeLinkTypes}
+        onDeleteRevisionPeriod={handleDeleteRevisionPeriod}
         onResolveSubjectCourses={handleResolveSubjectCourses}
         cloudAvailable={isCloudConfigured}
         courses={studyCourses}
         revisions={revisions}
         onExportBackup={handleExportBackup}
+        onBuildBackup={handleBuildBackup}
         onImportBackup={handleImportBackup}
         onResetSeedData={handleResetSeedData}
         currentUser={currentUser}
@@ -927,6 +941,21 @@ export default function App() {
           courses={courses}
           subjects={subjects}
           onMove={(toId, ids) => handleMoveCards(deckCourse.id, toId, ids)}
+        />
+      )}
+
+      {isPeriodOpen && (
+        <RevisionPeriodModal
+          courses={studyCourses}
+          subjects={subjects}
+          revisions={revisions}
+          settings={settings}
+          todayIso={todayIso}
+          onApply={(period, plan) => {
+            handleApplyRevisionPeriod(period, plan);
+            setIsPeriodOpen(false);
+          }}
+          onClose={() => setIsPeriodOpen(false)}
         />
       )}
 

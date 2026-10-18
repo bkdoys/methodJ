@@ -77,6 +77,26 @@ export interface Course {
   createdAt: string;
 }
 
+/**
+ * Période de révision : des cours repassés en révision libre et des R réparties entre `start` et `end` (inclus).
+ * Pendant ces dates, ses plages, pauses et objectif remplacent les réglages habituels ; absents = réglages habituels.
+ * Deux périodes ne se chevauchent jamais.
+ */
+export interface RevisionPeriod {
+  id: string;
+  name: string;
+  start: string;
+  end: string;
+  courseIds: string[];
+  /** Plages par jour de semaine ("0" = lundi … "6"), même forme que `AppSettings.dayWindows`. */
+  dayWindows?: Record<string, { start: string; end: string }>;
+  /** Pauses de chaque jour de la période ; `[]` = aucune. */
+  breaks?: { start: string; end: string }[];
+  /** Objectif d'heures par jour pendant la période. */
+  targetHours?: number;
+  createdAt: string;
+}
+
 export interface AppSettings {
   defaultJPattern: number[];
   /** Intervalles J proposés à la création d'un cours (modifiable) ; absent = liste d'origine. J0 y est toujours. */
@@ -114,6 +134,10 @@ export interface AppSettings {
   googleCalendarId?: string;
   /** Date (ISO) du dernier envoi réussi vers cet agenda ; affichée dans le tableau de bord. */
   googleCalendarSyncedAt?: string;
+  /** Dossier Google Drive créé par l'application pour les sauvegardes JSON ; absent = pas encore créé. */
+  googleDriveFolderId?: string;
+  /** Date (ISO) de la dernière sauvegarde réussie sur Google Drive. */
+  googleDriveSavedAt?: string;
   /** Cours en révision libre : alerte quand aucune R n'est planifiée et rien n'a été fait depuis ce nombre de jours ; absent = 15, 0 = jamais. */
   freeAlertDays?: number;
   /**
@@ -121,6 +145,8 @@ export interface AppSettings {
    * l'annule), `until` = jour où l'alerte revient, `delay` = jours du dernier report (le suivant en prend la moitié).
    */
   freeAlertSnooze?: Record<string, { since: string; until: string; delay: number }>;
+  /** Périodes de révision (avant un examen) : leurs contraintes remplacent les réglages habituels pendant leurs dates. */
+  revisionPeriods?: RevisionPeriod[];
   /** Nouvelles cartes (flashcards) proposées par jour dans « Cartes du jour » ; absent = 20. */
   cardsNewPerDay?: number;
   /** Langue de l'interface ; absent = français. */

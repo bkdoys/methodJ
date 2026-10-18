@@ -4,6 +4,7 @@ import { useConfirm } from '../ConfirmDialog';
 import { remindersAvailable } from '../../utils/firebase';
 import { ReminderSection } from './ReminderSection';
 import { CalendarExportSection } from '../CalendarExportSection';
+import { DriveBackupButton } from './DriveBackupButton';
 import { Download, Upload, RotateCcw, X, AlertTriangle, Cloud, LogOut, LogIn, RefreshCw } from 'lucide-react';
 import type { SettingsModalProps } from '../SettingsModal';
 
@@ -35,6 +36,7 @@ type CloudTabProps = Pick<
   | 'onLoginWithEmail'
   | 'onRegisterWithEmail'
   | 'onExportBackup'
+  | 'onBuildBackup'
   | 'onImportBackup'
   | 'onClose'
   | 'courses'
@@ -53,7 +55,7 @@ type CloudTabProps = Pick<
 /** Onglet Cloud : compte et synchronisation, sauvegarde JSON, export agenda, versions mises de côté. */
 export const CloudTab: React.FC<CloudTabProps> = (props) => {
   const confirm = useConfirm();
-  const { cloudAvailable, currentUser, authError, onClearAuthError, onSyncCloudNow, isSyncing, onLogout, onLoginWithGoogle, onLoginWithGoogleRedirect, onLoginWithEmail, onRegisterWithEmail, onExportBackup, onImportBackup, onClose, courses, revisions, subjects, settings, onSaveSettings, safetyBackups, onRestoreSafetyBackup } = props;
+  const { cloudAvailable, currentUser, authError, onClearAuthError, onSyncCloudNow, isSyncing, onLogout, onLoginWithGoogle, onLoginWithGoogleRedirect, onLoginWithEmail, onRegisterWithEmail, onExportBackup, onBuildBackup, onImportBackup, onClose, courses, revisions, subjects, settings, onSaveSettings, safetyBackups, onRestoreSafetyBackup } = props;
   const { showEmailLogin, setShowEmailLogin, emailInput, setEmailInput, passwordInput, setPasswordInput, emailMode, setEmailMode, emailError, setEmailError, emailLoading, setEmailLoading } = props.login;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -334,6 +336,9 @@ export const CloudTab: React.FC<CloudTabProps> = (props) => {
             <Upload className="w-3.5 h-3.5 text-teal-600" />
             <span>{t('Importer un fichier JSON')}</span>
           </button>
+          {currentUser && !currentUser.isAnonymous && (
+            <DriveBackupButton email={currentUser.email} buildBackup={onBuildBackup} settings={settings} onSaveSettings={onSaveSettings} />
+          )}
           {/* Bouton désactivé. Pour le réactiver, reprendre `onResetSeedData` dans les props déstructurées.
           <button
             type="button"

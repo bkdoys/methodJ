@@ -18,6 +18,7 @@ const loaders = {
   FlashcardsView: () => import('./components/FlashcardsView').then((m) => ({ default: m.FlashcardsView })),
   CardsImportModal: () => import('./components/CardsImportModal').then((m) => ({ default: m.CardsImportModal })),
   CardCoursePicker: () => import('./components/CardCoursePicker').then((m) => ({ default: m.CardCoursePicker })),
+  RevisionPeriodModal: () => import('./components/RevisionPeriodModal').then((m) => ({ default: m.RevisionPeriodModal })),
 };
 
 export const SettingsModal = lazy(loaders.SettingsModal);
@@ -35,6 +36,7 @@ export const FlashcardPlayer = lazy(loaders.FlashcardPlayer);
 export const FlashcardsView = lazy(loaders.FlashcardsView);
 export const CardsImportModal = lazy(loaders.CardsImportModal);
 export const CardCoursePicker = lazy(loaders.CardCoursePicker);
+export const RevisionPeriodModal = lazy(loaders.RevisionPeriodModal);
 
 /**
  * Précharge tous les morceaux après le démarrage, quand le navigateur est libre : l'ouverture d'une vue

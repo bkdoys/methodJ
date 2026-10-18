@@ -16,3 +16,12 @@ The app only gets the `calendar.app.created` permission: it sees the calendar it
 Without `googleClientId` the button is hidden (the `.ics` export stays available). This feature also needs
 `firebase-applet-config.json` to exist. The security header in `firebase.json` must allow `https://accounts.google.com/gsi/client`
 (it does in this repository).
+
+## Backup to Google Drive (same client ID)
+
+Settings › Cloud › “Save to Drive” (shown once signed in, with `googleClientId`) sends the JSON export to a “methodJ” folder of your
+Drive: one file per day, a new send on the same day replaces that day's file. Requested scope: `drive.file` (non-sensitive), the
+app only sees the files it created.
+
+1. **APIs & Services → Library** → enable **Google Drive API**.
+2. **Google Auth Platform → Data access** → add the scope `…/auth/drive.file`.

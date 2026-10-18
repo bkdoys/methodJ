@@ -5,6 +5,7 @@ import {
   loginWithEmail,
   registerWithEmail,
   checkRedirectResult,
+  isSignInBlocked,
   logoutUser,
 } from '../utils/firebase';
 import { ToastMessage } from '../types';
@@ -26,8 +27,24 @@ interface UseAuthActionsOptions {
  * Actions de connexion / déconnexion Firebase et erreur d'authentification à afficher.
  * L'utilisateur courant est suivi par useCloudSync (onAuthStateChanged).
  */
+/** Compte absent de la liste d'accès de cette installation (voir functions/README.md). */
+const notAllowedError = (): AuthError => ({
+  code: 'medj/not-allowed',
+  message: t('Ce compte n\'est pas autorisé à se connecter à cette application.'),
+  resolution: t('Demandez à l\'administrateur de l\'ajouter, ou continuez sans compte : vos données restent sur cet appareil.'),
+});
+
 export function useAuthActions({ setIsSyncing, notify }: UseAuthActionsOptions) {
   const [authError, setAuthError] = useState<AuthError | null>(null);
+
+  /** Erreur de connexion due à la liste d'accès : message dédié et toast. Faux pour toute autre erreur. */
+  const reportBlocked = (err: unknown): boolean => {
+    if (!isSignInBlocked(err)) return false;
+    const blocked = notAllowedError();
+    setAuthError(blocked);
+    notify({ title: t('Compte non autorisé'), description: blocked.message, type: 'error' });
+    return true;
+  };
 
   // Check redirect login on page load (iPad / Safari fallback)
   useEffect(() => {
@@ -43,6 +60,7 @@ export function useAuthActions({ setIsSyncing, notify }: UseAuthActionsOptions) 
       })
       .catch((err) => {
         console.error('Redirect result check error:', err);
+        reportBlocked(err);
       });
   }, []);
 
@@ -55,6 +73,7 @@ export function useAuthActions({ setIsSyncing, notify }: UseAuthActionsOptions) 
       setIsSyncing(true);
     } catch (err: any) {
       setIsSyncing(false);
+      if (reportBlocked(err)) return;
       const code = err?.code || '';
       const rawMessage = err?.message || String(err);
 
@@ -120,10 +139,12 @@ export function useAuthActions({ setIsSyncing, notify }: UseAuthActionsOptions) 
       });
     } catch (err: any) {
       setIsSyncing(false);
-      setAuthError({
-        code: err?.code,
-        message: err?.message || t('Identifiants incorrects'),
-      });
+      if (!reportBlocked(err)) {
+        setAuthError({
+          code: err?.code,
+          message: err?.message || t('Identifiants incorrects'),
+        });
+      }
       throw err;
     }
   };
@@ -141,10 +162,12 @@ export function useAuthActions({ setIsSyncing, notify }: UseAuthActionsOptions) 
       });
     } catch (err: any) {
       setIsSyncing(false);
-      setAuthError({
-        code: err?.code,
-        message: err?.message || t('Impossible de créer le compte'),
-      });
+      if (!reportBlocked(err)) {
+        setAuthError({
+          code: err?.code,
+          message: err?.message || t('Impossible de créer le compte'),
+        });
+      }
       throw err;
     }
   };

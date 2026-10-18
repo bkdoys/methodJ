@@ -21,6 +21,7 @@ import {
   consecutiveDays,
   DEFAULT_HOUR_HEIGHT,
   formatTime,
+  getDailyTargetHours,
   getDayWindow,
   getMultiDayCount,
   nextMultiDayCount,
@@ -174,7 +175,8 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
     .filter((r) => r.completed)
     .reduce((acc, r) => acc + r.durationMinutes, 0);
 
-  const targetMinutes = settings.dailyTargetHours * 60;
+  const targetHours = getDailyTargetHours(settings, selectedDate);
+  const targetMinutes = targetHours * 60;
   const isOverloaded = dayTotalMinutes > targetMinutes;
   const dayOverflowCount = analyzeDay(selectedDate, dayRevisions, settings).overflowIds.length;
 
@@ -439,7 +441,7 @@ export const CalendarPlanningView: React.FC<CalendarPlanningViewProps> = ({
                 {isOverloaded && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold whitespace-nowrap bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                     <AlertTriangle className="w-3 h-3 shrink-0" />
-                    {t('Dépasse objectif ({n}h)', { n: settings.dailyTargetHours })}
+                    {t('Dépasse objectif ({n}h)', { n: targetHours })}
                   </span>
                 )}
                 {dayOverflowCount > 0 && (

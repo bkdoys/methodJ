@@ -4,6 +4,7 @@ import type { AppSettings, Course, LinkType, RevisionItem, Subject } from '../ty
 import { t } from '../i18n';
 import { APP_NAME } from '../appInfo';
 import { planningSettingsFromValues } from '../utils/planningSettings';
+import { getTodayIso } from '../utils/dateUtils';
 import { PlanningDialogs, PlanningTab, usePlanningDraft } from './settings/PlanningTab';
 import { SubjectDeleteDialog, SubjectsTab, useSubjectsDraft } from './settings/SubjectsTab';
 import { DisplayTab, useDisplayDraft } from './settings/DisplayTab';
@@ -17,6 +18,8 @@ export interface SettingsModalProps {
   onSaveSettings: (newSettings: AppSettings) => void;
   /** Enregistre aussitôt la liste des types de liens (commune à tous les cours). */
   onChangeLinkTypes: (types: LinkType[]) => void;
+  /** Supprime une période de révision (tout de suite), avec ou sans ses R à venir. */
+  onDeleteRevisionPeriod?: (periodId: string, removePendingReviews: boolean) => void;
   /** Faux sans configuration Firebase : l'onglet Cloud explique comment la brancher. */
   cloudAvailable?: boolean;
   subjects: Subject[];
@@ -29,6 +32,8 @@ export interface SettingsModalProps {
   courses: Course[];
   revisions: RevisionItem[];
   onExportBackup: () => void;
+  /** Contenu de l'export JSON, pour l'envoyer sur Google Drive. */
+  onBuildBackup: () => { json: string; fileName: string };
   /** Renvoie true si les données ont été remplacées (false : fichier invalide ou import annulé). */
   onImportBackup: (jsonContent: string) => Promise<boolean>;
   onResetSeedData: () => void;
@@ -59,6 +64,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   settings,
   onSaveSettings,
   onChangeLinkTypes,
+  onDeleteRevisionPeriod,
   cloudAvailable = true,
   subjects,
   onSaveSubjects,
@@ -66,6 +72,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   courses,
   revisions,
   onExportBackup,
+  onBuildBackup,
   onImportBackup,
   currentUser,
   onLoginWithEmail,
@@ -190,7 +197,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             {activeTab === 'subjects' && (
               <SubjectsTab draft={subjectsDraft} courses={courses} onSaveSubjects={onSaveSubjects} />
             )}
-            {activeTab === 'planning' && <PlanningTab draft={planning} courses={courses} />}
+            {activeTab === 'planning' && (
+              <PlanningTab
+                draft={planning}
+                courses={courses}
+                periods={
+                  onDeleteRevisionPeriod
+                    ? { list: settings.revisionPeriods ?? [], revisions, todayIso: getTodayIso(), onDelete: onDeleteRevisionPeriod }
+                    : undefined
+                }
+              />
+            )}
             {activeTab === 'preferences' && (
               <DisplayTab draft={display} settings={settings} courses={courses} onChangeLinkTypes={onChangeLinkTypes} />
             )}
@@ -208,6 +225,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 onLoginWithEmail={onLoginWithEmail}
                 onRegisterWithEmail={onRegisterWithEmail}
                 onExportBackup={onExportBackup}
+                onBuildBackup={onBuildBackup}
                 onImportBackup={onImportBackup}
                 onClose={onClose}
                 courses={courses}

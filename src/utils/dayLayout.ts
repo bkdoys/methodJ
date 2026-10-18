@@ -1,4 +1,4 @@
-import { AppSettings, RevisionItem } from '../types';
+import { AppSettings, RevisionItem, RevisionPeriod } from '../types';
 import { addDays, parseIsoDate } from './dateUtils';
 
 export interface TimelineConfig {
@@ -195,6 +195,19 @@ export interface DayWindow {
   end: number;
 }
 
+/** Période de révision qui couvre ce jour (les périodes ne se chevauchent pas). */
+export function getPeriodForDate(
+  settings: Partial<Pick<AppSettings, 'revisionPeriods'>>,
+  dateIso: string
+): RevisionPeriod | undefined {
+  return settings.revisionPeriods?.find((p) => p.start <= dateIso && dateIso <= p.end);
+}
+
+/** Objectif d'heures de ce jour : celui de la période de révision qui le couvre, sinon le réglage habituel. */
+export function getDailyTargetHours(settings: Pick<AppSettings, 'dailyTargetHours'> & Partial<Pick<AppSettings, 'revisionPeriods'>>, dateIso: string): number {
+  return getPeriodForDate(settings, dateIso)?.targetHours ?? settings.dailyTargetHours;
+}
+
 /** 0 = lundi … 6 = dimanche. */
 export function weekdayIndex(dateIso: string): number {
   return (parseIsoDate(dateIso).getDay() + 6) % 7;
@@ -205,7 +218,7 @@ export function weekdayIndex(dateIso: string): number {
  * sinon de l'heure de début par défaut à la fin de l'échelle. Toujours valide (fin après début).
  */
 export function getDayWindow(
-  settings: Partial<Pick<AppSettings, 'dayStartTime' | 'dayWindows' | 'timelineStartHour' | 'timelineEndHour' | 'timelineStepMinutes'>>,
+  settings: Partial<Pick<AppSettings, 'dayStartTime' | 'dayWindows' | 'timelineStartHour' | 'timelineEndHour' | 'timelineStepMinutes' | 'revisionPeriods'>>,
   dateIso: string
 ): DayWindow {
   const cfg = getTimelineConfig(settings);
@@ -213,7 +226,9 @@ export function getDayWindow(
   const defEnd = Math.max(cfg.endHour * 60, defStart + 60);
   const fallback: DayWindow = { start: defStart, end: Math.min(defEnd, DAY_MINUTES) };
 
-  const custom = settings.dayWindows?.[String(weekdayIndex(dateIso))];
+  const day = String(weekdayIndex(dateIso));
+  // Une période de révision qui couvre ce jour impose sa plage (sinon les réglages habituels)
+  const custom = getPeriodForDate(settings, dateIso)?.dayWindows?.[day] ?? settings.dayWindows?.[day];
   if (!custom) return fallback;
   const start = parseTime(custom.start);
   // « 23:59 » (champ heure du navigateur) vaut minuit
@@ -225,7 +240,7 @@ export function getDayWindow(
  * Limites où l'on peut poser un créneau à la main : la plage du jour, ou toute l'échelle affichée si le jour est forcé.
  */
 export function getDayBounds(
-  settings: Partial<Pick<AppSettings, 'dayStartTime' | 'dayWindows' | 'forcedDates' | 'timelineStartHour' | 'timelineEndHour' | 'timelineStepMinutes'>>,
+  settings: Partial<Pick<AppSettings, 'dayStartTime' | 'dayWindows' | 'forcedDates' | 'timelineStartHour' | 'timelineEndHour' | 'timelineStepMinutes' | 'revisionPeriods'>>,
   dateIso: string
 ): DayWindow {
   const win = getDayWindow(settings, dateIso);
@@ -236,7 +251,7 @@ export function getDayBounds(
 
 /** Le jour a-t-il une zone de non-travail (pause ou hors plage) que l'on pourrait forcer ? Indépendant du forçage. */
 export function dayHasLimits(
-  settings: Partial<Pick<AppSettings, 'breaks' | 'dayStartTime' | 'dayWindows' | 'timelineStartHour' | 'timelineEndHour' | 'timelineStepMinutes'>>,
+  settings: Partial<Pick<AppSettings, 'breaks' | 'dayStartTime' | 'dayWindows' | 'timelineStartHour' | 'timelineEndHour' | 'timelineStepMinutes' | 'revisionPeriods'>>,
   dateIso: string
 ): boolean {
   const cfg = getTimelineConfig(settings);
@@ -256,7 +271,7 @@ export function defaultDayWindowStrings(
  * Pauses (temps de non-travail) d'un jour : celles de son jour de la semaine si elles existent (une liste vide
  * = aucune pause ce jour-là), sinon les pauses communes `all`. Triées, bornées au jour, sans plage invalide.
  */
-export function getDayBreaks(settings: Partial<Pick<AppSettings, 'breaks' | 'forcedDates'>>, dateIso: string): DayWindow[] {
+export function getDayBreaks(settings: Partial<Pick<AppSettings, 'breaks' | 'forcedDates' | 'revisionPeriods'>>, dateIso: string): DayWindow[] {
   return isForcedDay(settings, dateIso) ? [] : configuredDayBreaks(settings, dateIso);
 }
 
@@ -266,12 +281,13 @@ export function isForcedDay(settings: Partial<Pick<AppSettings, 'forcedDates'>>,
 }
 
 /** Pauses réglées pour ce jour, même s'il est forcé (pour les dessiner en filigrane). */
-export function getConfiguredBreaks(settings: Partial<Pick<AppSettings, 'breaks'>>, dateIso: string): DayWindow[] {
+export function getConfiguredBreaks(settings: Partial<Pick<AppSettings, 'breaks' | 'revisionPeriods'>>, dateIso: string): DayWindow[] {
   return configuredDayBreaks(settings, dateIso);
 }
 
-function configuredDayBreaks(settings: Partial<Pick<AppSettings, 'breaks'>>, dateIso: string): DayWindow[] {
-  const list = settings.breaks?.[String(weekdayIndex(dateIso))] ?? settings.breaks?.all ?? [];
+function configuredDayBreaks(settings: Partial<Pick<AppSettings, 'breaks' | 'revisionPeriods'>>, dateIso: string): DayWindow[] {
+  const list =
+    getPeriodForDate(settings, dateIso)?.breaks ?? settings.breaks?.[String(weekdayIndex(dateIso))] ?? settings.breaks?.all ?? [];
   return list
     .map((b) => ({ start: parseTime(b?.start), end: b?.end === '23:59' ? DAY_MINUTES : parseTime(b?.end) }))
     .filter((b): b is DayWindow => b.start !== null && b.end !== null && b.end > b.start)
@@ -283,7 +299,7 @@ const overlaps = (a: Span, b: Span) => a.start < b.end && b.start < a.end;
 
 /** Réglages qui décident où l'on peut poser un créneau (plage du jour, pauses, jours forcés, échelle). */
 export type PlacementSettings = Partial<
-  Pick<AppSettings, 'dayStartTime' | 'dayWindows' | 'breaks' | 'forcedDates' | 'timelineStartHour' | 'timelineEndHour' | 'timelineStepMinutes'>
+  Pick<AppSettings, 'dayStartTime' | 'dayWindows' | 'breaks' | 'forcedDates' | 'timelineStartHour' | 'timelineEndHour' | 'timelineStepMinutes' | 'revisionPeriods'>
 >;
 
 /**

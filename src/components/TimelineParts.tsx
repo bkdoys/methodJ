@@ -184,6 +184,8 @@ export interface DayColumnProps {
   onCrossDayHover?: (hover: CrossDayHover | null) => void;
   /** Dépôt dans un autre jour : jour visé et heure de début (minutes). */
   onMoveToDay?: (revisionId: string, targetDate: string, startMinutes: number) => void;
+  /** Aperçu (période de révision) : ces créneaux sont mis en avant, les autres atténués. */
+  highlightIds?: ReadonlySet<string>;
 }
 
 export interface CrossDayHover {
@@ -252,6 +254,7 @@ export const DayColumn: React.FC<DayColumnProps> = ({
   resolveTargetDay,
   onCrossDayHover,
   onMoveToDay,
+  highlightIds,
 }) => {
   const config = getTimelineConfig(settings);
   const step = config.stepMinutes;
@@ -719,7 +722,7 @@ export const DayColumn: React.FC<DayColumnProps> = ({
                 : isDragging
                 ? 'z-30 shadow-2xl ring-2 ring-white/80'
                 : `z-20 transition-[top] duration-150 ${rev.completed ? 'opacity-70' : 'shadow-md hover:shadow-lg hover:brightness-105'}`
-            }`}
+            } ${highlightIds ? (highlightIds.has(rev.id) ? 'ring-2 ring-white/90 dark:ring-slate-900/90' : 'opacity-30 saturate-50') : ''}`}
             style={{
               top: yOf(p.start),
               height,

@@ -41,6 +41,12 @@ export const HelpTab: React.FC<{ courses: Course[] }> = ({ courses }) => {
             <PlanningRules kind="catchup" />
           </div>
         </div>
+        <div className="space-y-1">
+          <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200">{t('Période de révision')}</span>
+          <div className="text-[11px] text-slate-600 dark:text-slate-400">
+            <PlanningRules kind="period" />
+          </div>
+        </div>
       </div>
       {/* Méthode des J & Ebbinghaus */}
       <div className="bg-gradient-to-br from-teal-50/80 via-white to-slate-50 dark:from-teal-950/40 dark:via-slate-900 dark:to-slate-900 rounded-2xl border border-teal-200 dark:border-teal-800/60 p-5 space-y-3">

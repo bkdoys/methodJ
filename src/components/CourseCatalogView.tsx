@@ -21,6 +21,7 @@ import {
   GripVertical,
   PanelLeftClose,
   PanelLeftOpen,
+  CalendarRange,
 } from 'lucide-react';
 import { getCourseEffectiveColor, getSubject } from '../utils/colorUtils';
 import { CourseLinkIcons } from './CourseLinkIcons';
@@ -59,6 +60,8 @@ interface CourseCatalogViewProps {
   onOpenQuickShift: (revision: RevisionItem) => void;
   onOpenCompleteModal: (revision: RevisionItem) => void;
   onOpenNewCourseModal: () => void;
+  /** Assistant « Période de révision » (avant un examen). */
+  onOpenRevisionPeriod?: () => void;
   onDeleteCourse: (courseId: string) => void;
   onUpdateCourseNotes: (courseId: string, notes: string) => void;
   onOpenCourseDetail: (course: Course) => void;
@@ -81,6 +84,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
   onOpenQuickShift,
   onOpenCompleteModal,
   onOpenNewCourseModal,
+  onOpenRevisionPeriod,
   onDeleteCourse,
   onUpdateCourseNotes,
   onOpenCourseDetail,
@@ -266,13 +270,25 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
             </h2>
           </div>
 
-          <button
-            onClick={onOpenNewCourseModal}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-xl shadow-xs transition-colors self-start sm:self-auto shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            <span>{t('Ajouter un cours (J0)')}</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto shrink-0">
+            {onOpenRevisionPeriod && courses.length > 0 && (
+              <button
+                type="button"
+                onClick={onOpenRevisionPeriod}
+                className="flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-bold text-teal-700 dark:text-teal-300 bg-white dark:bg-slate-800 border border-teal-200 dark:border-teal-800 hover:bg-teal-50 dark:hover:bg-teal-950/40 rounded-xl transition-colors"
+              >
+                <CalendarRange className="w-4 h-4" />
+                <span>{t('Période de révision')}</span>
+              </button>
+            )}
+            <button
+              onClick={onOpenNewCourseModal}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-xl shadow-xs transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{t('Ajouter un cours (J0)')}</span>
+            </button>
+          </div>
         </div>
 
         {/* Search & Filter Bar */}

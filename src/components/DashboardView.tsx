@@ -12,11 +12,13 @@ import {
   Play,
   RefreshCw,
   Sun,
+  CalendarRange,
 } from 'lucide-react';
 import { AppSettings, Course, RevisionItem, Subject } from '../types';
 import { Card } from './Card';
 import { computeDashboard } from '../utils/dashboard';
 import { describeDayAlert, findAlertDays } from '../utils/dayLoad';
+import { getDailyTargetHours } from '../utils/dayLayout';
 import { CATCH_UP_HORIZON_DAYS, Plan, PlannedMove, Proposal, planCatchUp, planSmoothing, selectMoves } from '../utils/smoothing';
 import { PlanningRules } from './PlanningRules';
 import { CalendarExportModal } from './CalendarExportModal';
@@ -69,6 +71,8 @@ interface DashboardViewProps {
   onOpenInbox?: () => void;
   /** Reporte l'alerte d'un cours en révision libre laissé de côté. */
   onSnoozeFreeAlert?: (alert: FreeCourseAlert) => void;
+  /** Ouvre l'assistant « Période de révision ». */
+  onOpenRevisionPeriod?: () => void;
 }
 
 const SYNC_LABEL: Record<SyncStatus, () => string> = {
@@ -111,6 +115,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   inboxCards = 0,
   onOpenInbox,
   onSnoozeFreeAlert,
+  onOpenRevisionPeriod,
 }) => {
   const todayIso = getTodayIso();
   const data = useMemo(() => computeDashboard(courses, revisions, todayIso), [courses, revisions, todayIso]);
@@ -121,7 +126,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [exportOpen, setExportOpen] = useState(false);
   const courseById = useMemo(() => new Map(courses.map((c) => [c.id, c])), [courses]);
   const { overdue } = data.stats;
-  const targetMinutes = settings.dailyTargetHours * 60;
+  const targetMinutes = getDailyTargetHours(settings, todayIso) * 60;
   const alertDays = useMemo(() => findAlertDays(revisions, settings, todayIso), [revisions, settings, todayIso]);
   const visibleDays = showAllDays ? alertDays : alertDays.slice(0, ALERT_DAYS_VISIBLE);
   const smoothing = useMemo(() => planSmoothing(revisions, settings, todayIso), [revisions, settings, todayIso]);
@@ -360,7 +365,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     {d.date === todayIso && <span className="ml-1.5 text-[10px] font-semibold text-teal-700 dark:text-teal-400 normal-case">{t('Aujourd\'hui')}</span>}
                   </span>
                   <span className="block text-[11px] text-slate-500 dark:text-slate-400">
-                    {formatMinutes(d.totalMinutes)} · {describeDayAlert(d, settings.dailyTargetHours)}
+                    {formatMinutes(d.totalMinutes)} · {describeDayAlert(d)}
                   </span>
                 </div>
                 {slotId && (
@@ -587,6 +592,44 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   </Card>
   ) : null;
 
+  // Période de révision en cours ou à venir (la plus proche) ; sinon une invitation à en planifier une
+  const period = [...(settings.revisionPeriods ?? [])].filter((p) => p.end >= todayIso).sort((a, b) => a.start.localeCompare(b.start))[0];
+  const periodRevs = period
+    ? revisions.filter(
+        (r) => r.kind === 'R' && period.courseIds.includes(r.courseId) && r.scheduledDate >= period.start && r.scheduledDate <= period.end
+      )
+    : [];
+  const periodDone = periodRevs.filter((r) => r.completed).length;
+  const cardPeriod = onOpenRevisionPeriod && courses.length > 0 ? (
+  <Card
+    title={period ? period.name : t('Période de révision')}
+    hint={
+      period
+        ? t('Du {start} au {end}', { start: formatFrenchDate(period.start), end: formatFrenchDate(period.end) })
+        : t('Avant un examen : choisissez des cours et l\'app répartit leurs révisions sur la période.')
+    }
+    aside={<CalendarRange className="w-4 h-4 text-teal-600 shrink-0" />}
+  >
+    {period && (
+      <div className="space-y-2 mb-3">
+        <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+          <div className="h-full bg-teal-500" style={{ width: `${periodRevs.length ? (periodDone / periodRevs.length) * 100 : 0}%` }} />
+        </div>
+        <p className="text-xs text-slate-600 dark:text-slate-400">
+          {t('{done} / {total} révisions faites', { done: periodDone, total: periodRevs.length })}
+          {' · '}
+          {period.start > todayIso
+            ? t('commence dans {n} j', { n: diffInDays(period.start, todayIso) })
+            : plural(diffInDays(period.end, todayIso) + 1, '{n} jour restant', '{n} jours restants')}
+        </p>
+      </div>
+    )}
+    <button type="button" onClick={onOpenRevisionPeriod} className={ghostBtn}>
+      {period ? t('Nouvelle période') : t('Planifier une période')}
+    </button>
+  </Card>
+  ) : null;
+
   const cardGoogle = googleClientId && settings.googleCalendarId ? (
   <Card
     title={t('Google Agenda')}
@@ -712,6 +755,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {actionCards.filter((c) => !c.active && !c.optional).map((c) => <React.Fragment key={c.key}>{c.el}</React.Fragment>)}
         </div>
         <div className="space-y-4 min-w-0">
+          {cardPeriod}
           {cardSync}
           {cardCards}
           {cardWatched}

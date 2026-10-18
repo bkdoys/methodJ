@@ -16,3 +16,12 @@ L'application n'obtient que le droit `calendar.app.created` : elle ne voit que l
 Sans `googleClientId`, le bouton n'apparaît pas (l'export `.ics` reste disponible). Cette fonction demande aussi que le fichier
 `firebase-applet-config.json` existe. L'en-tête de sécurité de `firebase.json` doit autoriser `https://accounts.google.com/gsi/client`
 (c'est le cas dans ce dépôt).
+
+## Sauvegarde sur Google Drive (même ID client)
+
+Réglages › Cloud › « Sauvegarder sur Drive » (visible une fois connecté, avec `googleClientId`) envoie l'export JSON dans un
+dossier « methodJ » de votre Drive : un fichier par jour, un nouvel envoi le même jour remplace celui du jour. Droit demandé :
+`drive.file` (non sensible), l'application ne voit que les fichiers qu'elle a créés.
+
+1. **API et services → Bibliothèque** → activer **Google Drive API**.
+2. **Google Auth Platform → Accès aux données** → ajouter le niveau d'accès `…/auth/drive.file`.

@@ -1,17 +1,18 @@
 import { AppSettings, RevisionItem } from '../types';
 import { plural, t } from '../i18n';
-import { getDayBreaks, getDayWindow, isForcedDay, resolveDayLayout } from './dayLayout';
+import { getDailyTargetHours, getDayBreaks, getDayWindow, isForcedDay, resolveDayLayout } from './dayLayout';
 
 type LoadSettings = Pick<
   AppSettings,
   'dailyTargetHours' | 'dayStartTime' | 'dayWindows' | 'timelineStartHour' | 'timelineEndHour' | 'timelineStepMinutes' | 'breaks' | 'forcedDates'
->;
+> &
+  Partial<Pick<AppSettings, 'revisionPeriods'>>;
 
 export interface DayLoad {
   date: string;
   /** Somme des durées de tous les créneaux du jour (faits ou non, comme « Charge du jour »). */
   totalMinutes: number;
-  /** Objectif quotidien (réglage `dailyTargetHours`). */
+  /** Objectif quotidien (réglage `dailyTargetHours`, ou celui de la période de révision du jour). */
   targetMinutes: number;
   /** Temps réellement disponible : plage du jour moins les pauses. */
   capacityMinutes: number;
@@ -39,7 +40,7 @@ export function analyzeDay(date: string, dayRevs: RevisionItem[], settings: Load
   const forced = isForcedDay(settings, date);
 
   const totalMinutes = dayRevs.reduce((sum, r) => sum + r.durationMinutes, 0);
-  const targetMinutes = settings.dailyTargetHours * 60;
+  const targetMinutes = getDailyTargetHours(settings, date) * 60;
 
   const overflowIds = forced
     ? []
@@ -79,7 +80,7 @@ export function findAlertDays(revisions: RevisionItem[], settings: LoadSettings,
 }
 
 /** Phrase décrivant pourquoi un jour demande l'attention (infobulles) ; vide si tout va bien. */
-export function describeDayAlert(load: DayLoad, targetHours: number): string {
+export function describeDayAlert(load: DayLoad, targetHours: number = load.targetMinutes / 60): string {
   const parts: string[] = [];
   if (load.overloaded) parts.push(t('Au-dessus de l\'objectif ({n}h)', { n: targetHours }));
   if (load.overflowIds.length > 0) {

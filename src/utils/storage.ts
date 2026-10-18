@@ -133,13 +133,21 @@ export function saveStoredData(
 }
 
 /** Export JSON ; les paquets de cartes (`decks`) n'y figurent que s'il y en a. */
+/** Contenu et nom du fichier d'export (téléchargement ou envoi vers Google Drive). */
+export function buildBackupJson(data: AppDataState, decks: Deck[] = []): { json: string; fileName: string } {
+  return {
+    json: JSON.stringify(decks.length > 0 ? { ...data, decks } : data, null, 2),
+    fileName: `${APP_FILE_PREFIX}-revisions-backup-${new Date().toISOString().slice(0, 10)}.json`,
+  };
+}
+
 export function exportBackupJson(data: AppDataState, decks: Deck[] = []): void {
-  const jsonStr = JSON.stringify(decks.length > 0 ? { ...data, decks } : data, null, 2);
-  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const { json, fileName } = buildBackupJson(data, decks);
+  const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${APP_FILE_PREFIX}-revisions-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = fileName;
   a.click();
   URL.revokeObjectURL(url);
 }

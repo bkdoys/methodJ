@@ -56,6 +56,28 @@ la première place libre.
    Comme pour le lissage, les propositions se cochent et se décochent.
 4. On cherche sur les **14 prochains jours**. Au-delà, ou si aucun jour ne convient : « aucune solution simple », à décaler à la main.
 
+## La période de révision
+
+Avant un examen, l'assistant « Période de révision » (Tableau de bord ou vue Cours) répartit des révisions sur une plage de dates.
+
+1. Les cours choisis qui suivent la méthode des J passent en **révision libre** : leurs J à venir sont retirés, les révisions faites
+   restent. Après la période, ils restent libres.
+2. Chaque cours reçoit un **nombre de passages selon sa maîtrise** (non évalué 2, ★ 3, ★★ 3, ★★★ 2, ★★★★ 1), modifiable dans l'aperçu.
+   Les R déjà prévues d'un cours libre dans la période comptent comme passages.
+3. Les passages d'un cours sont **espacés régulièrement**, le dernier près de la fin de la période. Deux passages d'un même cours sont
+   toujours séparés d'au moins la moitié de cet espacement.
+4. Les **disciplines alternent** : les cours d'une même discipline sont décalés entre eux, et une discipline ne prend pas plus que sa
+   part d'un jour.
+5. À écart égal, le **jour le moins chargé** est choisi (créneaux déjà prévus compris). L'objectif quotidien, la plage et les pauses de
+   la période sont respectés ; un passage sans place est signalé, jamais forcé.
+6. Si ça ne rentre pas avec vos horaires habituels, l'app propose **des journées plus longues** (le minimum nécessaire, jusqu'à 11 h),
+   puis, à 11 h, **une période plus longue** (calculée au plus juste), ou de réduire les passages.
+7. La période a **ses propres horaires, pauses et objectif** : ils remplacent les vôtres pendant ces dates seulement (planning, alertes,
+   lissage), puis tout redevient comme avant. Supprimer la période (Réglages › Planning) les retire.
+
+Tout l'assistant est une simulation : rien n'est modifié avant « Planifier ». « Autre répartition » tire un autre agencement, et un seul
+message avec **Annuler** remet tout comme avant.
+
 ## À savoir
 
 - Les deux plans sont indépendants : appliquer l'un recalcule l'autre. Selon l'ordre, un jour peut devenir impossible à alléger

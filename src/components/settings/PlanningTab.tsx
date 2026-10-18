@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { AppSettings, Course } from '../../types';
+import type { AppSettings, Course, RevisionItem, RevisionPeriod } from '../../types';
 import type { BlockDetails, SubjectDisplay } from '../../utils/dayLayout';
 import type { BreaksValue, PlanningValues } from '../../utils/planningSettings';
 import { DEFAULT_J_PATTERNS, getJPool } from '../../utils/jMethod';
@@ -12,6 +12,7 @@ import { JIntervalAdder } from '../JIntervalAdder';
 import { defaultDayWindowStrings, getBlockDetails, getMultiDayCount, MULTI_DAY_MAX, MULTI_DAY_MIN, getTimelineConfig, parseTime, STEP_OPTIONS } from '../../utils/dayLayout';
 import { customWindowsFromSettings, slotDurationsFromSettings, weekdayLabels } from '../../utils/planningSettings';
 import { SettingsSection } from './SettingsSection';
+import { RevisionPeriodsSection } from './RevisionPeriodsSection';
 import { X, Plus, Layers } from 'lucide-react';
 import { getFreeAlertDays } from '../../utils/freeAlerts';
 
@@ -81,7 +82,12 @@ export function usePlanningDraft(settings: AppSettings) {
 export type PlanningDraft = ReturnType<typeof usePlanningDraft>;
 
 /** Onglet Planning : répétitions, créneaux, journée de travail, affichage du planning. */
-export const PlanningTab: React.FC<{ draft: PlanningDraft; courses: Course[] }> = ({ draft, courses }) => {
+export const PlanningTab: React.FC<{
+  draft: PlanningDraft;
+  courses: Course[];
+  /** Périodes de révision (supprimées tout de suite, hors du bouton Enregistrer). */
+  periods?: { list: RevisionPeriod[]; revisions: RevisionItem[]; todayIso: string; onDelete: (id: string, removePending: boolean) => void };
+}> = ({ draft, courses, periods }) => {
   const { defaultPattern, setDefaultPattern, jPool, setJPool, slotDefault, setSlotDefault, slotByJ, setSlotByJ, setNewSlotJ, setIsAddingException, setNewSlotMinutes, setJToRemove, autoCascade, setAutoCascade, dailyTargetHours, setDailyTargetHours, examDate, setExamDate, freeAlertDays, setFreeAlertDays, dayStartTime, setDayStartTime, timelineStartHour, setTimelineStartHour, timelineEndHour, setTimelineEndHour, timelineStepMinutes, setTimelineStepMinutes, customWindows, setCustomWindows, breaks, setBreaks, multiDayCount, setMultiDayCount, blockDetails, setBlockDetails } = draft;
 
   // J toggle handlers
@@ -606,6 +612,12 @@ export const PlanningTab: React.FC<{ draft: PlanningDraft; courses: Course[] }> 
         </div>
       </div>
       </SettingsSection>
+
+      {periods && (
+        <SettingsSection title={t('Périodes de révision')}>
+          <RevisionPeriodsSection periods={periods.list} revisions={periods.revisions} todayIso={periods.todayIso} onDelete={periods.onDelete} />
+        </SettingsSection>
+      )}
     </div>
   );
 };

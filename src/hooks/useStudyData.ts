@@ -1,5 +1,6 @@
 import { Dispatch, SetStateAction } from 'react';
-import { AppSettings, Course, CourseLink, LinkType, MasteryLevel, RevisionItem, Subject, ToastMessage } from '../types';
+import { AppSettings, Course, CourseLink, LinkType, MasteryLevel, RevisionItem, RevisionPeriod, Subject, ToastMessage } from '../types';
+import type { PeriodPlan } from '../utils/revisionPeriod';
 import {
   clearOriginalDates,
   convertCourseToFree,
@@ -757,7 +758,91 @@ export function useStudyData({
     );
   };
 
+  // Période de révision : le plan simulé par l'assistant devient réel en un seul changement d'état, avec « Annuler »
+  const handleApplyRevisionPeriod = (period: RevisionPeriod, plan: PeriodPlan) => {
+    const converted = new Map(plan.conversions.map((c) => [c.course.id, c.course]));
+    const before = courses.filter((c) => converted.has(c.id));
+    const removed = plan.conversions.flatMap((c) => c.removed);
+    const removedIds = new Set(removed.map((r) => r.id));
+    const addedIds = new Set(plan.added.map((r) => r.id));
+    const prevPeriods = settings.revisionPeriods;
+    const prevSnooze = settings.freeAlertSnooze;
+
+    setCourses((prev) => prev.map((c) => converted.get(c.id) ?? c));
+    setRevisions((prev) => [...prev.filter((r) => !removedIds.has(r.id)), ...plan.added]);
+    setSettings((prev) => ({
+      ...prev,
+      revisionPeriods: [...(prev.revisionPeriods ?? []).filter((p) => p.id !== period.id), period],
+      freeAlertSnooze: clearFreeSnoozes(prev.freeAlertSnooze, period.courseIds, courses),
+    }));
+    if (cloudUid) {
+      converted.forEach((c) => syncCourseToCloud(cloudUid, c).catch((e) => console.warn('Period course sync error:', e)));
+      deleteRevisionsFromCloud(cloudUid, [...removedIds]).catch((e) => console.warn('Period delete sync error:', e));
+      syncRevisionsBatchToCloud(cloudUid, plan.added).catch((e) => console.warn('Period revisions sync error:', e));
+    }
+
+    const undo = () => {
+      const beforeById = new Map(before.map((c) => [c.id, c]));
+      setCourses((prev) => prev.map((c) => beforeById.get(c.id) ?? c));
+      setRevisions((prev) => [...prev.filter((r) => !addedIds.has(r.id)), ...removed]);
+      setSettings((prev) => ({ ...prev, revisionPeriods: prevPeriods, freeAlertSnooze: prevSnooze }));
+      if (cloudUid) {
+        before.forEach((c) => syncCourseToCloud(cloudUid, c).catch((e) => console.warn('Undo period course sync error:', e)));
+        deleteRevisionsFromCloud(cloudUid, [...addedIds]).catch((e) => console.warn('Undo period delete sync error:', e));
+        syncRevisionsBatchToCloud(cloudUid, removed).catch((e) => console.warn('Undo period revisions sync error:', e));
+      }
+    };
+    notify({
+      title: t('Période planifiée'),
+      description: t('{n} révisions du {start} au {end}.', {
+        n: plan.added.length,
+        start: formatFrenchDate(period.start),
+        end: formatFrenchDate(period.end),
+      }),
+      type: 'success',
+      action: { label: t('Annuler'), onClick: undo },
+    });
+  };
+
+  // Retire une période : ses contraintes cessent ; ses R non faites sont retirées seulement si on le demande
+  const handleDeleteRevisionPeriod = (periodId: string, removePendingReviews: boolean) => {
+    const period = settings.revisionPeriods?.find((p) => p.id === periodId);
+    if (!period) return;
+    const chosen = new Set(period.courseIds);
+    const pending = removePendingReviews
+      ? revisions.filter(
+          (r) => chosen.has(r.courseId) && r.kind === 'R' && !r.completed && r.scheduledDate >= period.start && r.scheduledDate <= period.end
+        )
+      : [];
+    const pendingIds = new Set(pending.map((r) => r.id));
+    const prevPeriods = settings.revisionPeriods;
+    setSettings((prev) => ({ ...prev, revisionPeriods: (prev.revisionPeriods ?? []).filter((p) => p.id !== periodId) }));
+    if (pending.length) {
+      setRevisions((prev) => prev.filter((r) => !pendingIds.has(r.id)));
+      if (cloudUid) deleteRevisionsFromCloud(cloudUid, [...pendingIds]).catch((e) => console.warn('Delete period sync error:', e));
+    }
+    notify({
+      title: t('Période supprimée'),
+      description: pending.length
+        ? plural(pending.length, '{n} révision à venir retirée.', '{n} révisions à venir retirées.')
+        : t('Les révisions prévues sont gardées.'),
+      type: 'info',
+      action: {
+        label: t('Annuler'),
+        onClick: () => {
+          setSettings((prev) => ({ ...prev, revisionPeriods: prevPeriods }));
+          if (pending.length) {
+            setRevisions((prev) => [...prev, ...pending]);
+            if (cloudUid) syncRevisionsBatchToCloud(cloudUid, pending).catch((e) => console.warn('Undo delete period sync error:', e));
+          }
+        },
+      },
+    });
+  };
+
   return {
+    handleApplyRevisionPeriod,
+    handleDeleteRevisionPeriod,
     handleSaveNewCourse,
     handleAddReview,
     handleDeleteReview,

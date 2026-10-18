@@ -2,9 +2,13 @@
 
 [🇫🇷 Français](README.md) · 🇬🇧 English
 
-methodJ schedules your revisions with the **"J method"** (spaced repetition): for each course, review slots are placed at J0, J1, J3, J7, J15, J30, J60… (J = *jour*, day). You stay in control: drag and drop, cascading reschedule, touch gestures (swipe to change day, pinch to zoom), timer, statistics. A course can also be in **free review** (no J scheduled): you add reviews (R) to it whenever you like, and switch it to the J method later if needed; the dashboard flags a free course left aside. A card can also be created without a course: it waits in “Cards to sort” until you file it. The interface is available in French and English (follows your browser on first launch, then adjustable in Preferences > Display > Language).
+methodJ is built on the **"J method"**: you don't read a course once, you review it at increasingly spaced intervals. When you add a course you give the day of the first session (**J0**); methodJ then places the following reviews at **J1, J3, J7, J15, J30, J60…** (J = *jour*, day: J7 is 7 days after J0). Each slot is validated once done. You stay in control: if you push a slot back, the following ones of the same course follow (cascade); intervals, lengths, hours and breaks are all adjustable.
+
+Around that method, methodJ adds what it takes to keep the pace: a dashboard that flags overdue slots and smooths the load, free-review courses and a **revision period** before an exam, flashcards, statistics, and an export to your calendar.
 
 > ⚠️ methodJ is a study-organisation tool. It provides no medical content and no medical advice.
+
+## The J method
 
 **Weekly planner**: slots can be dragged by finger or mouse, including from one day to another.
 
@@ -18,27 +22,63 @@ methodJ schedules your revisions with the **"J method"** (spaced repetition): fo
 
 ![Course catalogue with the folder tree](docs/screenshots/cours-arbre.jpg)
 
-**Dashboard**: everything that needs an action in one place (overdue slots, days above your target, slots outside the working window), with smoothing and catch-up proposals that you tick before accepting them. The rules are described in [docs/PLANNING_RULES.en.md](docs/PLANNING_RULES.en.md).
+What you can adjust:
+
+- **A customisable method**: pick your intervals, save your defaults, set a default slot length plus exceptions per J.
+- **Day, N-day, Week and Month views** with a time scale, slots you can drag by finger or mouse (also from one day to another), allowed hours and breaks (e.g. lunch) per weekday, which you can override for a single day.
+- **Cascading reschedule**: if you push a slot back, the following unfinished ones follow.
+- **Touch gestures**: swipe to change day, pinch to zoom the day.
+- **Revision timer** with notes and a mastery self-assessment.
+- **Course catalogue**, customisable subjects and colours (CSV/JSON import), a folder tree (subject › folder › sub-folder) to file and filter, links (Drive, flashcards…) attached to each course.
+
+## Additional features
+
+### Dashboard, smoothing and catch-up
+
+Everything that needs an action in one place: overdue slots, days above your target, slots outside the working window, with smoothing and catch-up proposals that you tick before accepting them (never applied without your consent, and undoable). The rules are described in [docs/PLANNING_RULES.en.md](docs/PLANNING_RULES.en.md).
 
 ![Dashboard: days to watch, proposed smoothing and overdue slots](docs/screenshots/dashboard.jpg)
 
-**Cards**: today's cards on the left, your decks filed by subject › folder › course on the right (▶ for a folder's cards due today, “All” for all of its cards, search in questions and answers).
+### Free review and revision period
+
+A course can be in **free review** (no J scheduled): you add reviews (R) to it whenever you like, and switch it back to the J method later if needed; the dashboard flags a free course left aside.
+
+Before an exam, the **revision period** organises a full pass: tick courses (subject › folder › course tree) and pick dates. methodJ switches those courses to free review and spreads their reviews over the period: a number of passes based on each course's mastery, evenly spaced, the last one near the exam, disciplines alternating (never a whole discipline on the same day) and the load smoothed. The period has its own hours, breaks and daily target, which replace yours on those dates; if it doesn't fit, methodJ suggests longer days, then a longer period. Everything is a **preview** (simulated planner, load day by day, passes per course): nothing changes before “Plan”, “Another spread” draws another arrangement, and the whole thing can be undone in one click. See [the rules](docs/PLANNING_RULES.en.md#revision-period).
+
+![Revision period: spread preview](docs/screenshots/periode.jpg)
+
+### Flashcards
+
+Cards written in each course (front/back or cloze, with images: photo taken from the iPad, file, pasted screenshot or freehand drawing with finger or stylus, also to annotate an image; and image-occlusion cards on a diagram, like Anki's Image Occlusion), reviewed with the FSRS algorithm (Anki's): today's cards, or every card of a course, folder or subject, also from a J slot. CSV import (Anki “Notes in Plain Text” export or spreadsheet). A card can be created without a course: it waits in “Cards to sort” until you file it. Cards are stored on the device and synced per course (images through Cloud Storage, optional: see [cloud sync](docs/CLOUD_SETUP.en.md#card-images-optional)).
 
 ![Cards view: today's cards and decks by subject](docs/screenshots/cartes.jpg)
 
-**A card, and an image-occlusion card**: the full-screen player grades each answer (Again, Hard, Good, Easy) and shows the delay before the next review; on a diagram you hide areas (rectangles, ovals or polygon outlines) and guess one area at a time.
+The full-screen player grades each answer (Again, Hard, Good, Easy) and shows the delay before the next review; on a diagram you hide areas (rectangles, ovals or polygon outlines) and guess one area at a time.
 
 ![Front/back card: answer shown with the grade buttons](docs/screenshots/carte.jpg)
 
 ![Image-occlusion card on a diagram: the area to guess in red](docs/screenshots/carte-masques.jpg)
 
-**Statistics**: progress through the syllabus (courses started, pace), upcoming load over 14, 30 or 60 days, memorisation by J step, gap to the original plan (the planned date is frozen when J0 is completed) and, if you enter an exam date, a projection of what is left to start.
+### Statistics
+
+Progress through the syllabus (courses started, pace), the last 7 days against the 7 before, upcoming load over 14, 30 or 60 days, memorisation per J step, **gap to the original plan** (each J's planned date is frozen when J0 is completed; postponing a slot does not change it) and, if you enter an **exam date** (Preferences > Planning), a projection of the pace you need; without a date, nothing is shown.
 
 ![Statistics: progress, upcoming load, gap to the original plan](docs/screenshots/stats.jpg)
 
-**Card statistics**: estimated and actual retention, cards reviewed per day, cards due over 30 days, often-forgotten cards, and progress by subject.
+For cards: estimated and actual retention, cards reviewed per day, review-log activity, cards due over 30 days, often-forgotten cards, and progress by subject.
 
 ![Statistics: flashcards and progress by subject](docs/screenshots/stats-cartes.jpg)
+
+### Calendar and backups
+
+- **`.ics` export** of your slots (Google Calendar, Apple, Outlook) and, if you set it up, **direct sending to a dedicated Google calendar**, updated on each send.
+- **JSON backup** at any time (export / import) and, when signed in with Google, a **“Save to Drive”** button that puts the export in a folder of your Drive (one file per day). Sending to Google Calendar and Drive is optional: see [docs/GOOGLE_CALENDAR_SETUP.en.md](docs/GOOGLE_CALENDAR_SETUP.en.md).
+
+### And also
+
+- **Interface in French and English**: the browser language is followed on first launch, then adjustable in Preferences > Display. Light or dark theme.
+- **Installable** on iPad / phone / computer (PWA), full screen.
+- **Your data stays yours**: everything is stored in your browser, with JSON export / import. Syncing between devices is **optional** (your own Firebase project, see below).
 
 <details>
 <summary>Dark theme</summary>
@@ -51,6 +91,8 @@ methodJ schedules your revisions with the **"J method"** (spaced repetition): fo
 
 ![Dashboard, dark theme](docs/screenshots/dashboard-sombre.jpg)
 
+![Revision period, dark theme](docs/screenshots/periode-sombre.jpg)
+
 ![Cards view, dark theme](docs/screenshots/cartes-sombre.jpg)
 
 ![Front/back card, dark theme](docs/screenshots/carte-sombre.jpg)
@@ -62,19 +104,6 @@ methodJ schedules your revisions with the **"J method"** (spaced repetition): fo
 ![Card statistics, dark theme](docs/screenshots/stats-cartes-sombre.jpg)
 
 </details>
-
-## Features
-
-- **Customisable J method**: pick your intervals, save your defaults, set a default slot length plus exceptions per J.
-- **Day, N-day, Week and Month views** with a time scale, slots you can drag by finger or mouse (also from one day to another), allowed hours and breaks (e.g. lunch) per weekday, which you can override for a single day.
-- **Cascading reschedule**: if you push a slot back, the following unfinished ones follow.
-- **Revision timer** with notes and a mastery self-assessment.
-- **Course catalogue**, customisable subjects and colours (CSV/JSON import), with a folder tree (subject › folder › sub-folder) to file and filter courses, and links (Drive, flashcards…) attached to each course, plus an `.ics` export of your slots (Google Calendar, Apple, Outlook).
-- **Flashcards** written in each course (front/back or cloze, with images: photo taken from the iPad, file, pasted screenshot or freehand drawing (finger or stylus, also to annotate an image), compressed when added; and image occlusion cards on a diagram, like Anki's Image Occlusion), reviewed with the FSRS algorithm (Anki's): today's cards, or every card of a course, folder or subject, also from a J slot. CSV import (Anki “Notes in Plain Text” export or spreadsheet). Stored on the device and synced per course (images through Cloud Storage, optional: see [cloud sync](docs/CLOUD_SETUP.en.md#card-images-optional)).
-- **Dashboard**: overdue slots, days that are overloaded or have slots outside the window, load smoothing and catch-up proposals (never applied without your consent, and undoable), sync state.
-- **Statistics**: courses started and pace, the last 7 days against the 7 before, upcoming load (14, 30 or 60 days), memorisation per J step, **gap to the original plan** (each J's planned date is frozen when J0 is completed; postponing a slot does not change it) and, for cards, estimated and actual retention, review-log activity, due cards and often-forgotten cards. An optional **exam date** (Preferences > Planning) adds a projection of the pace you need; without a date, nothing is shown.
-- **Installable** on iPad / phone / computer (PWA), full screen.
-- **Your data stays yours**: everything is stored in your browser, with JSON export / import. Syncing between devices is **optional** (your own Firebase project, see below).
 
 ## Quick start (no account, local)
 

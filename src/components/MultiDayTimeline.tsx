@@ -36,6 +36,10 @@ interface MultiDayTimelineProps {
   /** Dépôt d'un créneau dans un autre jour (glisser entre colonnes). */
   onMoveToDay: (revisionId: string, targetDate: string, startMinutes: number) => void;
   onToggleForcedDay?: (date: string) => void;
+  /** Aperçu : rien n'est cliquable ni déplaçable (le zoom reste). */
+  readOnly?: boolean;
+  /** Aperçu : créneaux mis en avant, les autres sont atténués. */
+  highlightIds?: ReadonlySet<string>;
 }
 
 /** En dessous de cette largeur de colonne, les blocs passent en version compacte. */
@@ -58,6 +62,7 @@ export const MultiDayTimeline: React.FC<MultiDayTimelineProps> = ({
   onOpenDay,
   onMoveToDay,
   onToggleForcedDay,
+  readOnly = false,
   ...rest
 }) => {
   const pxPerMin = hourHeight / 60;
@@ -139,6 +144,7 @@ export const MultiDayTimeline: React.FC<MultiDayTimelineProps> = ({
                 <div key={dayIso} className="relative">
                 <button
                   type="button"
+                  disabled={readOnly}
                   onClick={() => onOpenDay(dayIso)}
                   title={t('Ouvrir ce jour')}
                   aria-label={t('Ouvrir le {day}', { day: formatFrenchDayShort(dayIso) })}
@@ -157,15 +163,17 @@ export const MultiDayTimeline: React.FC<MultiDayTimelineProps> = ({
                     className={`inline-flex items-center gap-1 text-[10px] font-mono ${
                       load.alert ? 'font-bold text-amber-700 dark:text-amber-400' : 'text-teal-700 dark:text-teal-400'
                     }`}
-                    title={load.alert ? describeDayAlert(load, settings.dailyTargetHours) : undefined}
+                    title={load.alert ? describeDayAlert(load) : undefined}
                   >
                     {load.alert && <AlertTriangle className="w-3 h-3 shrink-0" />}
                     {dayRevs.length === 0 ? '—' : `${formatMinutes(total)} · ${dayRevs.length}`}
                   </span>
                 </button>
-                <div className="absolute top-1 right-1">
-                  <ForceDayToggle date={dayIso} settings={settings} onToggle={onToggleForcedDay} />
-                </div>
+                {!readOnly && (
+                  <div className="absolute top-1 right-1">
+                    <ForceDayToggle date={dayIso} settings={settings} onToggle={onToggleForcedDay} />
+                  </div>
+                )}
                 </div>
               );
             })}
@@ -176,7 +184,7 @@ export const MultiDayTimeline: React.FC<MultiDayTimelineProps> = ({
           <TimelineScale displayStart={displayStart} displayEnd={displayEnd} pxPerMin={pxPerMin} />
           <div
             ref={gridRef}
-            className={`absolute top-0 bottom-0 ${SCALE_WIDTH_CLASS} right-0 grid gap-1`}
+            className={`absolute top-0 bottom-0 ${SCALE_WIDTH_CLASS} right-0 grid gap-1 ${readOnly ? 'pointer-events-none' : ''}`}
             style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
           >
             {days.map((dayIso) => (

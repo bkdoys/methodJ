@@ -10,3 +10,4 @@ coverage/
 firebase-applet-config.json
 .firebaserc
 .firebase/
+.firebase-deploy.json

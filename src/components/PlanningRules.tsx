@@ -1,11 +1,26 @@
 import React from 'react';
 import { CATCH_UP_HORIZON_DAYS, maxDelayDays } from '../utils/smoothing';
+import { MAX_PERIOD_HOURS } from '../utils/revisionPeriod';
 import { t } from '../i18n';
 
-/** Règles du lissage de charge et du rattrapage des retards, affichées à l'identique dans le tableau de bord et l'aide. */
-export const PlanningRules: React.FC<{ kind: 'smooth' | 'catchup' }> = ({ kind }) => (
+/**
+ * Règles du lissage de charge, du rattrapage des retards et des périodes de révision, affichées à l'identique dans le
+ * tableau de bord, l'assistant de période et l'aide.
+ */
+export const PlanningRules: React.FC<{ kind: 'smooth' | 'catchup' | 'period' }> = ({ kind }) => (
   <ul className="space-y-1 list-disc pl-4 leading-relaxed">
-    {kind === 'smooth' ? (
+    {kind === 'period' ? (
+      <>
+        <li>{t('Les cours choisis en méthode des J passent en révision libre : leurs J à venir sont retirés, les révisions faites restent.')}</li>
+        <li>{t('Chaque cours reçoit un nombre de passages selon sa maîtrise (plus il est fragile, plus il revient), modifiable cours par cours.')}</li>
+        <li>{t('Les passages d\'un cours sont espacés régulièrement, le dernier près de la fin de la période (de l\'examen).')}</li>
+        <li>{t('Les disciplines alternent : les cours d\'une même discipline sont décalés entre eux, jamais toute une discipline le même jour.')}</li>
+        <li>{t('À écart égal, le jour le moins chargé est préféré ; l\'objectif quotidien, la plage et les pauses de la période sont respectés.')}</li>
+        <li>{t('Si ça ne rentre pas, l\'app propose des journées plus longues (jusqu\'à {h} h), puis une période plus longue.', { h: MAX_PERIOD_HOURS })}</li>
+        <li>{t('Rien n\'est modifié avant « Planifier » ; « Autre répartition » tire un autre agencement, et tout s\'annule d\'un clic.')}</li>
+        <li>{t('Pendant la période, ses horaires remplacent les vôtres ; après, tout redevient comme avant. Les cours restent en révision libre.')}</li>
+      </>
+    ) : kind === 'smooth' ? (
       <>
         <li>{t('On repère les jours au-dessus de l\'objectif quotidien ou avec des créneaux hors de la plage de travail.')}</li>
         <li>{t('Si un créneau déborde de la plage alors qu\'une place est libre plus tôt le même jour, il est d\'abord remonté à la première place libre, sans changer de jour.')}</li>

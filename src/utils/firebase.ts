@@ -223,8 +223,19 @@ export async function checkRedirectResult(): Promise<User | null> {
     return result ? result.user : null;
   } catch (err) {
     console.error('Redirect result error:', err);
+    // Un refus de la liste d'accès doit s'afficher (useAuthActions) ; les autres erreurs restent silencieuses
+    if (isSignInBlocked(err)) throw err;
     return null;
   }
+}
+
+/**
+ * Connexion refusée par la liste d'accès (fonctions bloquantes `allowListOn…` de functions/src/index.ts) :
+ * Firebase Auth renvoie une erreur interne dont le message contient la réponse de la fonction.
+ */
+export function isSignInBlocked(err: unknown): boolean {
+  const message = String((err as { message?: unknown } | null)?.message ?? '');
+  return message.includes('MEDJ_NOT_ALLOWED') || message.includes('BLOCKING_FUNCTION_ERROR_RESPONSE');
 }
 
 // Sign out

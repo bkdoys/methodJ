@@ -54,6 +54,27 @@ free place.
    As with smoothing, proposals can be checked and unchecked.
 4. The search covers the **next 14 days**. Beyond that, or if no day fits: “no simple solution”, to be moved by hand.
 
+## Revision period
+
+Before an exam, the “Revision period” wizard (Dashboard or Courses view) spreads reviews over a date range.
+
+1. Chosen courses on the J method switch to **free review**: their upcoming J are removed, done reviews stay. After the period they stay
+   free.
+2. Each course gets a **number of passes based on its mastery** (not rated 2, ★ 3, ★★ 3, ★★★ 2, ★★★★ 1), editable in the preview. A free
+   course's R already planned in the period count as passes.
+3. A course's passes are **evenly spaced**, the last one near the end of the period. Two passes of the same course are always at least
+   half that spacing apart.
+4. **Disciplines alternate**: courses of the same discipline are staggered, and a discipline never takes more than its share of a day.
+5. Other things equal, the **least loaded day** wins (slots already planned included). The period's daily target, hours and breaks are
+   respected; a pass with no room is reported, never forced.
+6. If it doesn't fit with your usual hours, the app suggests **longer days** (the minimum needed, up to 11 h), then, at 11 h, **a longer
+   period** (computed as tightly as possible), or fewer passes.
+7. The period has **its own hours, breaks and target**: they replace yours on these dates only (planner, alerts, smoothing), then
+   everything goes back to normal. Deleting the period (Settings › Planning) removes them.
+
+The whole wizard is a simulation: nothing changes before “Plan”. “Another spread” draws another arrangement, and a single message with
+**Undo** puts everything back.
+
 ## Good to know
 
 - The two plans are independent: applying one recomputes the other. Depending on the order, a day may become impossible to relieve
