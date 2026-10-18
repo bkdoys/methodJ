@@ -147,8 +147,34 @@ export function parseDelimited(input: string): ParsedTable {
 const ENTITIES: Record<string, string> = { nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
 
 /** HTML d'Anki ramené à du texte : retours à la ligne gardés, balises et sons/images retirés, entités décodées. */
+/**
+ * Gras, italique, souligné, exposant et indice d'Anki → marqueurs de l'appli (utils/richText.ts), quand le contenu n'a
+ * pas de balise ni le caractère du marqueur (sinon la balise est simplement retirée) ; jusqu'à trois niveaux imbriqués.
+ */
+function htmlMarks(html: string): string {
+  const rules: [RegExp, string, RegExp][] = [
+    [/<(?:sup)(?:\s[^>]*)?>([^<\s^]+)<\/sup>/gi, '^', /\^/],
+    [/<(?:sub)(?:\s[^>]*)?>([^<\s~]+)<\/sub>/gi, '~', /~/],
+    [/<(?:u)(?:\s[^>]*)?>([^<\n]*?\S)<\/u>/gi, '++', /\+\+/],
+    [/<(i|em)(?:\s[^>]*)?>([^<\n]*?\S)<\/\1>/gi, '_', /_/],
+    [/<(b|strong)(?:\s[^>]*)?>([^<\n]*?\S)<\/\1>/gi, '**', /\*\*/],
+  ];
+  let out = html;
+  for (let pass = 0; pass < 3; pass++) {
+    const before = out;
+    for (const [re, mark, clash] of rules) {
+      out = out.replace(re, (all, ...g: string[]) => {
+        const inner = mark === '^' || mark === '~' || mark === '++' ? g[0] : g[1];
+        return clash.test(inner) || inner.startsWith(' ') ? all : `${mark}${inner.trimStart()}${mark}`;
+      });
+    }
+    if (out === before) break;
+  }
+  return out;
+}
+
 export function htmlToText(html: string): string {
-  return html
+  return htmlMarks(html)
     .replace(/\[sound:[^\]]*\]/g, '')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/(div|p|li|h[1-6])>/gi, '\n')

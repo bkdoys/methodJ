@@ -12,6 +12,9 @@ const LOCAL_SCOPE = 'local';
 /** Un média que plus aucune carte n'utilise n'est effacé qu'après ce délai (annulations, autres appareils). */
 export const MEDIA_GRACE_MS = 7 * 86_400_000;
 const UPLOAD_DELAY_MS = 1000;
+/** Les dessins modifiables (drawingSource.ts) sont des médias à part : id `draw:<id de l'image>`. */
+export const DRAW_PREFIX = 'draw:';
+const MAX_DRAWING_BYTES = 3 * 1024 * 1024;
 
 let scope = LOCAL_SCOPE;
 let cloudUid: string | undefined;
@@ -57,6 +60,35 @@ export async function addMedia(blob: Blob): Promise<string> {
   if (!urls.has(id)) urls.set(id, URL.createObjectURL(blob));
   if (!row.uploaded) scheduleUpload(UPLOAD_DELAY_MS);
   return id;
+}
+
+/** Enregistre le dessin modifiable d'une image (déjà codé) ; il part vers le cloud peu après. */
+export async function addDrawingBlob(imageId: string, blob: Blob): Promise<void> {
+  const id = DRAW_PREFIX + imageId;
+  await putMedia([{ key: metaKey(scope, id), scope, id, uploaded: false, createdAt: Date.now() }], { id, blob });
+  scheduleUpload(UPLOAD_DELAY_MS);
+}
+
+/** Le dessin modifiable d'une image : appareil d'abord, sinon le cloud (puis gardé sur l'appareil). */
+export async function loadDrawingBlob(imageId: string): Promise<Blob | null> {
+  const id = DRAW_PREFIX + imageId;
+  const local = await getBlob(id);
+  if (local) {
+    if (!(await getMeta(scope, id))) {
+      await putMedia([{ key: metaKey(scope, id), scope, id, uploaded: false, createdAt: Date.now() }]);
+      scheduleUpload(UPLOAD_DELAY_MS);
+    }
+    return local;
+  }
+  if (!cloudUid || !navigator.onLine) return null;
+  try {
+    const blob = await (await import('./mediaCloud')).downloadDrawing(cloudUid, imageId);
+    if (blob) await putMedia([{ key: metaKey(scope, id), scope, id, uploaded: true, createdAt: Date.now() }], { id, blob });
+    return blob;
+  } catch (err) {
+    console.warn('Drawing download error:', err);
+    return null;
+  }
 }
 
 /** URL affichable d'un média : appareil d'abord, sinon le cloud (puis gardé sur l'appareil). */
@@ -105,12 +137,16 @@ export async function flushMediaUploads(): Promise<void> {
   if (!uid || uploading || !navigator.onLine) return;
   uploading = true;
   try {
-    const { uploadMedia } = await import('./mediaCloud');
+    const { uploadMedia, uploadDrawing } = await import('./mediaCloud');
     for (const m of await listMeta(uid)) {
       if (m.uploaded || cloudUid !== uid) continue;
       const blob = await getBlob(m.id);
       if (!blob) continue;
-      await uploadMedia(uid, m.id, blob);
+      if (m.id.startsWith(DRAW_PREFIX)) {
+        // Trop gros pour la règle de Storage : reste sur l'appareil
+        if (blob.size >= MAX_DRAWING_BYTES) continue;
+        await uploadDrawing(uid, m.id.slice(DRAW_PREFIX.length), blob);
+      } else await uploadMedia(uid, m.id, blob);
       await putMedia([{ ...m, uploaded: true }]);
     }
   } catch (err) {
@@ -129,13 +165,16 @@ if (typeof window !== 'undefined') window.addEventListener('online', () => sched
 export async function pruneMedia(referenced: Set<string>, now: number = Date.now()): Promise<void> {
   const current = scope;
   const uid = cloudUid;
-  const stale = (await listMeta(current)).filter((m) => !referenced.has(m.id) && now - m.createdAt > MEDIA_GRACE_MS);
+  // Un dessin modifiable (`draw:X`) vit tant que son image X est utilisée
+  const imageOf = (id: string) => (id.startsWith(DRAW_PREFIX) ? id.slice(DRAW_PREFIX.length) : id);
+  const stale = (await listMeta(current)).filter((m) => !referenced.has(imageOf(m.id)) && now - m.createdAt > MEDIA_GRACE_MS);
   if (stale.length === 0) return;
   if (uid) {
-    const { deleteMedia } = await import('./mediaCloud');
+    const { deleteMedia, deleteDrawing } = await import('./mediaCloud');
     for (const m of stale) {
       try {
-        await deleteMedia(uid, m.id);
+        if (m.id.startsWith(DRAW_PREFIX)) await deleteDrawing(uid, m.id.slice(DRAW_PREFIX.length));
+        else await deleteMedia(uid, m.id);
       } catch (err) {
         console.warn('Media delete error:', err);
         return; // on réessaiera à la prochaine ouverture

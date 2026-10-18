@@ -1,9 +1,10 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Camera, ImagePlus, Loader2, PenLine, Trash2 } from 'lucide-react';
 import { compressImage } from '../utils/imageCompress';
 import { addMedia } from '../utils/media';
 import { CardImage } from './CardImage';
 import { DrawingEditor } from './DrawingEditor';
+import { DrawingSource, loadDrawingSource, saveDrawingSource } from '../utils/drawingSource';
 import { t } from '../i18n';
 
 /** Compresse puis enregistre une image ; renvoie son id de média, ou null (message dans `onError`). */
@@ -56,16 +57,30 @@ export const ImagePickerField: React.FC<ImagePickerFieldProps> = ({ value, onCha
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Éditeur de dessin ouvert : page blanche, ou par-dessus l'image actuelle (`background`)
-  const [drawing, setDrawing] = useState<{ background?: string } | null>(null);
+  const [drawing, setDrawing] = useState<{ background?: string; initial?: DrawingSource } | null>(null);
+  // Dessin modifiable gardé sur cet appareil pour l'image actuelle (voir utils/drawingSource.ts)
+  const [source, setSource] = useState<DrawingSource | null>(null);
+  useEffect(() => {
+    let live = true;
+    setSource(null);
+    if (value) loadDrawingSource(value).then((s) => live && setSource(s));
+    return () => {
+      live = false;
+    };
+  }, [value]);
 
-  const onDrawn = async (png: Blob) => {
-    const annotating = !!drawing?.background;
+  const onDrawn = async (png: Blob, drawn: DrawingSource) => {
+    // Annotation ou dessin rouvert : mêmes proportions que l'image d'avant
+    const annotating = !!drawing?.background || !!drawing?.initial;
     setDrawing(null);
     setBusy(true);
     setError(null);
     const id = await storeImageFile(png, setError);
     setBusy(false);
-    if (id) (annotating && onAnnotated ? onAnnotated : onChange)(id);
+    if (id) {
+      await saveDrawingSource(id, drawn);
+      (annotating && onAnnotated ? onAnnotated : onChange)(id);
+    }
   };
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -102,6 +117,12 @@ export const ImagePickerField: React.FC<ImagePickerFieldProps> = ({ value, onCha
           <PenLine className="w-3.5 h-3.5" />
           {t('Dessiner')}
         </button>
+        {value && source && (
+          <button type="button" className={BTN} disabled={busy} onClick={() => setDrawing({ initial: source })}>
+            <PenLine className="w-3.5 h-3.5" />
+            {t('Modifier le dessin')}
+          </button>
+        )}
         {value && annotate && (
           <button type="button" className={BTN} disabled={busy} onClick={() => setDrawing({ background: value })}>
             <PenLine className="w-3.5 h-3.5" />
@@ -129,7 +150,7 @@ export const ImagePickerField: React.FC<ImagePickerFieldProps> = ({ value, onCha
       </div>
       {error && <p className="text-[0.6875rem] font-semibold text-rose-600 dark:text-rose-400">{error}</p>}
       {preview && value && <CardImage id={value} maxHeight="max-h-40" />}
-      {drawing && <DrawingEditor background={drawing.background} onDone={onDrawn} onClose={() => setDrawing(null)} />}
+      {drawing && <DrawingEditor background={drawing.background} initial={drawing.initial} onDone={onDrawn} onClose={() => setDrawing(null)} />}
     </div>
   );
 };

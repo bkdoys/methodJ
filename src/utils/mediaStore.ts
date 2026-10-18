@@ -121,7 +121,10 @@ export async function removeMedia(scope: string, ids: string[]): Promise<void> {
   if (!db) {
     ids.forEach((id) => {
       memMeta.delete(metaKey(scope, id));
-      if (![...memMeta.values()].some((m) => m.id === id)) memBlobs.delete(id);
+      if (![...memMeta.values()].some((m) => m.id === id)) {
+        memBlobs.delete(id);
+        memBlobs.delete(`draw:${id}`); // le dessin modifiable qui allait avec l'image
+      }
     });
     return;
   }
@@ -136,7 +139,10 @@ export async function removeMedia(scope: string, ids: string[]): Promise<void> {
     const orphans = ids.filter((id) => !used.has(id));
     if (orphans.length > 0) {
       const tx2 = db.transaction(BLOBS, 'readwrite');
-      orphans.forEach((id) => tx2.objectStore(BLOBS).delete(id));
+      orphans.forEach((id) => {
+        tx2.objectStore(BLOBS).delete(id);
+        tx2.objectStore(BLOBS).delete(`draw:${id}`); // le dessin modifiable qui allait avec l'image
+      });
       await completed(tx2);
     }
   } catch (err) {

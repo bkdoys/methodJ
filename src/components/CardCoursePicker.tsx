@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, Folder, Inbox, Plus, Search, X } from 'lucide-react';
+import { Folder, Inbox, Layers, Plus, Search, X } from 'lucide-react';
 import { Course, Subject } from '../types';
-import { buildCourseTree, CourseTreeNode, filterCourseTree, pathToCourse } from '../utils/courseTree';
+import { courseChoices } from '../utils/courseTree';
 import { t } from '../i18n';
 
 interface CardCoursePickerProps {
   courses: Course[];
   subjects: Subject[];
-  /** Cours mis en évidence, branche dépliée (le dernier où l'on a ajouté une carte). */
+  /** Cours mis en évidence et ramené dans la vue (le dernier où l'on a ajouté une carte). */
   defaultCourseId?: string;
   onPick: (courseId: string) => void;
   /** Carte sans cours : elle va dans « Cartes à trier », à ranger plus tard. */
@@ -18,90 +18,21 @@ interface CardCoursePickerProps {
   onClose: () => void;
 }
 
-/** Premier cours de l'arbre (dans l'ordre d'affichage). */
-function firstCourse(nodes: CourseTreeNode[]): string | undefined {
-  for (const n of nodes) {
-    const id = n.courseId ?? firstCourse(n.children);
-    if (id) return id;
-  }
-  return undefined;
-}
-
 /**
- * Choix du cours dans lequel ajouter une carte, depuis la vue Cartes : arbre discipline › dossier › cours aux
- * couleurs du catalogue, avec recherche. Un clic sur un cours ouvre son éditeur.
+ * Choix du cours où ranger des cartes : une liste de cours seulement (jamais de dossier à ouvrir), groupés par
+ * discipline, chacun avec son dossier en petit sous le titre, et une recherche. Toujours la même, avec ou sans import.
  */
 export const CardCoursePicker: React.FC<CardCoursePickerProps> = ({ courses, subjects, defaultCourseId, onPick, onPickInbox, title, subtitle, onClose }) => {
-  const tree = useMemo(() => buildCourseTree(subjects, courses), [subjects, courses]);
   const [query, setQuery] = useState('');
-  const [open, setOpen] = useState<Set<string>>(() => new Set(defaultCourseId ? pathToCourse(tree, defaultCourseId) : []));
   const lastRef = useRef<HTMLButtonElement>(null);
-
+  const groups = useMemo(() => courseChoices(subjects, courses, query), [subjects, courses, query]);
+  const hasCourses = useMemo(() => courseChoices(subjects, courses).length > 0, [subjects, courses]);
   const searching = query.trim().length > 0;
-  const shown = useMemo(() => filterCourseTree(tree, query), [tree, query]);
 
-  // La branche du dernier cours utilisé est dépliée : on la montre
+  // Le dernier cours utilisé est mis en évidence : on le montre
   useEffect(() => {
     lastRef.current?.scrollIntoView({ block: 'center' });
   }, []);
-
-  const toggle = (key: string) =>
-    setOpen((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-
-  const renderNode = (node: CourseTreeNode, depth: number): React.ReactNode => {
-    const pad = { paddingLeft: `${0.5 + depth * 1.1}rem` };
-    if (node.courseId) {
-      const last = node.courseId === defaultCourseId;
-      return (
-        <button
-          key={node.key}
-          ref={last ? lastRef : undefined}
-          type="button"
-          onClick={() => onPick(node.courseId!)}
-          style={pad}
-          className={`w-full flex items-center gap-2 py-2 pr-2 text-left text-sm rounded-lg hover:bg-teal-50 dark:hover:bg-teal-500/10 ${
-            last ? 'bg-teal-50 dark:bg-teal-500/10 ring-1 ring-teal-300 dark:ring-teal-500/40' : ''
-          }`}
-        >
-          <span className="w-4 shrink-0" />
-          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: node.color }} />
-          <span className="min-w-0 break-words text-slate-900 dark:text-slate-100">{node.label}</span>
-        </button>
-      );
-    }
-    const expanded = searching || open.has(node.key);
-    return (
-      <div key={node.key}>
-        <button
-          type="button"
-          onClick={() => toggle(node.key)}
-          aria-expanded={expanded}
-          style={pad}
-          className="w-full flex items-center gap-2 py-2 pr-2 text-left rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/60"
-        >
-          {expanded ? (
-            <ChevronDown className="w-4 h-4 shrink-0 text-slate-400" />
-          ) : (
-            <ChevronRight className="w-4 h-4 shrink-0 text-slate-400" />
-          )}
-          {node.kind === 'folder' ? (
-            <Folder className="w-4 h-4 shrink-0" style={{ color: node.color }} />
-          ) : (
-            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: node.color }} />
-          )}
-          <span className={`min-w-0 break-words text-sm text-slate-900 dark:text-slate-100 ${node.kind === 'subject' ? 'font-bold' : 'font-semibold'}`}>
-            {node.label}
-          </span>
-        </button>
-        {expanded && node.children.map((child) => renderNode(child, depth + 1))}
-      </div>
-    );
-  };
 
   return (
     <div
@@ -148,7 +79,7 @@ export const CardCoursePicker: React.FC<CardCoursePickerProps> = ({ courses, sub
           </div>
         )}
 
-        {tree.length === 0 ? (
+        {!hasCourses ? (
           <p className="p-5 text-sm text-slate-600 dark:text-slate-400">{t('Créez d\'abord un cours : les cartes sont rangées par cours.')}</p>
         ) : (
           <>
@@ -162,7 +93,7 @@ export const CardCoursePicker: React.FC<CardCoursePickerProps> = ({ courses, sub
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => {
                     // Entrée prend le premier cours trouvé
-                    const first = searching ? firstCourse(shown) : undefined;
+                    const first = searching ? groups[0]?.items[0]?.course.id : undefined;
                     if (e.key === 'Enter' && first) {
                       e.preventDefault();
                       onPick(first);
@@ -174,10 +105,43 @@ export const CardCoursePicker: React.FC<CardCoursePickerProps> = ({ courses, sub
               </div>
             </div>
             <div className="overflow-y-auto flex-1 p-2 pt-1.5">
-              {shown.length === 0 ? (
+              {groups.length === 0 ? (
                 <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-6">{t('Aucun cours ne correspond.')}</p>
               ) : (
-                shown.map((n) => renderNode(n, 0))
+                groups.map((g) => (
+                  <section key={g.subject.id} className="mb-1">
+                    <h3 className="sticky top-0 z-10 flex items-center gap-2 px-2 py-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xs text-[0.6875rem] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: g.subject.color }} />
+                      <span className="truncate">{g.subject.name}</span>
+                    </h3>
+                    {g.items.map(({ course, folderPath, color }, idx) => {
+                      const last = course.id === defaultCourseId;
+                      // En-tête de dossier (non cliquable) à chaque changement de dossier : les lignes cliquables sont toujours des cours
+                      const newFolder = folderPath !== '' && folderPath !== (idx > 0 ? g.items[idx - 1].folderPath : '');
+                      return (
+                        <React.Fragment key={course.id}>
+                          {newFolder && (
+                            <div className="flex items-center gap-1.5 px-3 pt-2 pb-0.5 text-[0.6875rem] font-semibold text-slate-500 dark:text-slate-400" aria-hidden="true">
+                              <Folder className="w-3.5 h-3.5 shrink-0" />
+                              <span className="break-words">{folderPath}</span>
+                            </div>
+                          )}
+                          <button
+                            ref={last ? lastRef : undefined}
+                            type="button"
+                            onClick={() => onPick(course.id)}
+                            className={`w-full flex items-center gap-2.5 py-2 pr-3 text-left rounded-lg hover:bg-teal-50 dark:hover:bg-teal-500/10 ${
+                              folderPath ? 'pl-7' : 'pl-3'
+                            } ${last ? 'bg-teal-50 dark:bg-teal-500/10 ring-1 ring-teal-300 dark:ring-teal-500/40' : ''}`}
+                          >
+                            <Layers className="w-3.5 h-3.5 shrink-0" style={{ color }} />
+                            <span className="min-w-0 flex-1 text-sm text-slate-900 dark:text-slate-100 break-words">{course.title}</span>
+                          </button>
+                        </React.Fragment>
+                      );
+                    })}
+                  </section>
+                ))
               )}
             </div>
           </>

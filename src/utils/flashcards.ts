@@ -4,6 +4,7 @@ import { foldText } from './courseTree';
 import { courseInNode, formatCoursePath } from './folders';
 import { getFolderColor } from './folderColors';
 import { getCourseEffectiveColor } from './colorUtils';
+import { CLOZE_SOURCE, stripRichText } from './richText';
 
 /** Un paquet = un document Firestore (1 Mo max) : 1 000 cartes de 2 × 2 000 caractères au pire restent en dessous. */
 export const MAX_CARDS_PER_DECK = 1000;
@@ -28,7 +29,7 @@ export type ClozePart =
   | { kind: 'cloze'; n: number; answer: string; hint?: string };
 
 // Réponse et indice ne traversent pas d'autres accolades : un trou mal fermé reste du texte
-const CLOZE_RE = /\{\{c(\d{1,2})::((?:(?!\{\{|\}\})[\s\S])*?)(?:::((?:(?!\{\{|\}\})[\s\S])*?))?\}\}/g;
+const CLOZE_RE = new RegExp(CLOZE_SOURCE, 'g');
 
 export function parseCloze(text: string): ClozePart[] {
   const parts: ClozePart[] = [];
@@ -181,7 +182,8 @@ export function updateCard(deck: Deck, id: string, input: CardInput, now: string
 /** Texte d'une carte pour la recherche : recto (réponses des trous comprises) puis verso, accents et casse ignorés. */
 export function cardSearchText(card: Flashcard): string {
   const front = card.kind === 'cloze' ? parseCloze(card.front).map((p) => (p.kind === 'text' ? p.text : p.answer)).join('') : card.front;
-  return foldText(`${front}\n${card.back ?? ''}`);
+  // sans les marques de mise en forme : « H2O » trouve `H~2~O`
+  return foldText(stripRichText(`${front}\n${card.back ?? ''}`));
 }
 
 /**

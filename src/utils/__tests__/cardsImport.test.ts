@@ -83,7 +83,13 @@ describe('planCardsImport', () => {
   it('turns Anki HTML into text', () => {
     const t = parseDelimited('#html:true\n#separator:tab\nA<br>B\t<b>C</b>');
     const plan = planCardsImport(t, guessMapping(t), { courses, decks: {}, defaultCourseId: 'c1' });
-    expect(plan.byCourse.c1).toEqual([{ kind: 'basic', front: 'A\nB', back: 'C' }]);
+    expect(plan.byCourse.c1).toEqual([{ kind: 'basic', front: 'A\nB', back: '**C**' }]);
+  });
+
+  it('keeps bold, italic, underline, superscript and subscript as the app markers', () => {
+    expect(htmlToText('H<sub>2</sub>O et m<sup>3</sup> : <b>gras <i>et italique</i></b> <u>sous</u>')).toBe('H~2~O et m^3^ : **gras _et italique_** ++sous++');
+    // contenu qui ne passe pas en marqueur (espace dans un exposant, marqueur déjà présent) : la balise est seulement retirée
+    expect(htmlToText('a<sup>x y</sup> <b>2**3</b>')).toBe('ax y 2**3');
   });
 });
 

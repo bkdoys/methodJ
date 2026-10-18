@@ -52,7 +52,7 @@ describe.each(['sm2-legacy', 'sm2-latest'])('planApkgImport(%s)', (name) => {
     const { plan: p } = await plan(name);
     const cellule = p.courses.find((c) => c.title === 'Cellule')!;
     const [basic, withImages, forward, reversed, cloze] = cellule.cards;
-    expect(basic).toMatchObject({ kind: 'basic', front: "Quelle organelle produit l'ATP ?", back: 'La mitochondrie' });
+    expect(basic).toMatchObject({ kind: 'basic', front: "Quelle organelle produit l'ATP ?", back: 'La **mitochondrie**' });
     expect(withImages).toMatchObject({ kind: 'basic', front: 'Légender :', back: 'Noyau', frontImageRef: 'cell.png', backImageRef: 'extra.png' });
     expect(forward).toMatchObject({ kind: 'basic', front: 'ATP', back: 'Adénosine triphosphate' });
     expect(reversed).toMatchObject({ kind: 'basic', front: 'Adénosine triphosphate', back: 'ATP', reviews: {} });
@@ -109,6 +109,16 @@ describe('planApkgImport(fsrs-latest)', () => {
     // Valeurs écrites par Anki dans cards.data pour la première carte répondue (voir make_fixtures.py)
     expect(states.some((s) => s.stability === 2.3065 && s.difficulty === 2.111)).toBe(true);
     expect(states.every((s) => s.lastReview && s.firstReview)).toBe(true);
+  });
+});
+
+describe('planApkgImport parent decks', () => {
+  it('puts the cards of a deck that has sub-decks in a course inside its own folder', async () => {
+    const { plan: p } = await plan('parent-deck');
+    expect(p.courses.map((c) => [c.subjectName, c.folderNames, c.title])).toEqual([
+      ['UE1', ['C1'], 'C1'],
+      ['UE1', ['C1'], 'Solutions'],
+    ]);
   });
 });
 

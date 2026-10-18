@@ -273,11 +273,17 @@ export function planApkgImport(pkg: AnkiPackage, opts: PlanOptions): ApkgPlan {
   }
   stats.images = ctx.used.size;
 
+  // Un paquet qui a des cartes ET des sous-paquets : ses cartes iraient en racine, à côté d'un dossier du même nom
+  // (« C1 » cours et « C1 » dossier). Elles vont plutôt dans un cours du même nom, dans ce dossier.
+  const hasChildren = (name: string) => [...byDeck.keys()].some((id) => pkg.decks.get(id)?.name.startsWith(`${name}::`));
   const courses: PlannedCourse[] = [];
   for (const [deckId, cards] of byDeck) {
     const deck = pkg.decks.get(deckId);
     const path = deck ? deck.name.split('::') : [`${t('Paquet')} ${deckId}`];
     const where = placeDeck(deckId === 1 && deck?.name === 'Default' ? [t('Par défaut')] : path, opts);
+    if (opts.recreateTree && deck && path.length >= 2 && where.folderNames.length < MAX_FOLDER_DEPTH && hasChildren(deck.name)) {
+      where.folderNames = [...where.folderNames, where.title];
+    }
     // Un paquet de plus de 1 000 cartes devient plusieurs cours : un paquet de l'appli ne tient pas plus (1 Mo)
     const parts = Math.ceil(cards.length / MAX_CARDS_PER_DECK);
     for (let i = 0; i < parts; i++) {

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowRightLeft, Check, Eye, EyeOff, FileUp, FolderInput, Layers, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
+import { ArrowRightLeft, Check, Eye, FolderInput, Layers, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import { Course, Deck, Flashcard, FlashcardKind, OcclusionMask, OcclusionMode, Subject } from '../types';
 import {
   addCard,
@@ -11,9 +11,8 @@ import {
   MAX_CARDS_PER_DECK,
   updateCard,
   validateCard,
-  wrapCloze,
 } from '../utils/flashcards';
-import { AutoTextarea } from './AutoTextarea';
+import { RichTextEditor } from './RichTextEditor';
 import { CardImage } from './CardImage';
 import { CardPreview } from './CardPreview';
 import { ImagePickerField, storeImageFile } from './ImagePickerField';
@@ -32,8 +31,6 @@ interface DeckEditorProps {
   /** Modification du paquet (enregistrée tout de suite, comme les liens du cours). */
   onChange: (change: (deck: Deck) => Deck) => void;
   onClose: () => void;
-  /** Ouvre l'import CSV avec ce cours comme destination. */
-  onImport?: () => void;
   /** Déplacement de cartes vers un autre cours (faux s'il a échoué). */
   courses?: Course[];
   subjects?: Subject[];
@@ -45,7 +42,7 @@ interface DeckEditorProps {
 }
 
 const FIELD =
-  'w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-teal-500/40 resize-y';
+  'w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-teal-500/40';
 
 /** Rédaction des cartes d'un cours : formulaire en haut (ajout ou modification), liste en dessous. */
 export const DeckEditor: React.FC<DeckEditorProps> = ({
@@ -54,7 +51,6 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
   deck,
   onChange,
   onClose,
-  onImport,
   courses = [],
   subjects = [],
   onMove,
@@ -75,9 +71,11 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
   const [search, setSearch] = useState('');
   // Cartes cochées pour un déplacement vers un autre cours
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
-  const [moveTo, setMoveTo] = useState('');
   const [showPreview, setShowPreview] = useState(false);
-  const frontRef = useRef<HTMLTextAreaElement>(null);
+  // Cours sans carte à l'ouverture : formulaire en ligne (saisie en rafale) ; sinon la liste suffit et une fenêtre sert à créer ou modifier
+  const [inlineForm] = useState(() => liveCards(deck).length === 0);
+  const [formOpen, setFormOpen] = useState(false);
+  const frontRef = useRef<HTMLDivElement>(null);
 
   const cards = liveCards(deck);
   const color = getCourseEffectiveColor(course, subject);
@@ -106,6 +104,21 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
     if (!keepKind || kind !== 'occlusion') frontRef.current?.focus();
   };
 
+  // La fenêtre s'ouvre : le curseur va sur le recto (sauf masques, où le champ est facultatif)
+  useEffect(() => {
+    if (formOpen && kind !== 'occlusion') frontRef.current?.focus();
+    // à l'ouverture seulement
+  }, [formOpen]);
+
+  const closeForm = () => {
+    resetForm();
+    setFormOpen(false);
+  };
+  const openNew = () => {
+    resetForm();
+    setFormOpen(true);
+  };
+
   const submit = () => {
     if (error || full) {
       setShowError(true);
@@ -115,6 +128,8 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
     if (editingId) onChange((d) => updateCard(d, editingId, input, now));
     else onChange((d) => addCard(d, input, now));
     resetForm();
+    // Ajout ou modification : la fenêtre se referme (le formulaire en ligne d'un cours vide, lui, reste pour la saisie en rafale)
+    setFormOpen(false);
   };
 
   const startEdit = (card: Flashcard) => {
@@ -127,30 +142,8 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
     setMasks(card.masks ?? []);
     setOcclusionMode(card.occlusionMode ?? 'hide-all');
     setShowError(false);
+    setFormOpen(true);
     if (card.kind !== 'occlusion') frontRef.current?.focus();
-  };
-
-  // Dernière sélection du champ : sur iPad, toucher le bouton fait perdre la sélection avant le clic
-  const lastSelection = useRef<{ start: number; end: number } | null>(null);
-  const rememberSelection = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
-    const { selectionStart: start, selectionEnd: end } = e.currentTarget;
-    if (start !== end) lastSelection.current = { start, end };
-  };
-
-  const hideSelection = () => {
-    const el = frontRef.current;
-    if (!el) return;
-    const live = el.selectionStart !== el.selectionEnd ? { start: el.selectionStart, end: el.selectionEnd } : null;
-    const range = live ?? lastSelection.current;
-    if (!range) return;
-    lastSelection.current = null;
-    const wrapped = wrapCloze(front, range.start, range.end);
-    if (!wrapped) return;
-    setFront(wrapped.text);
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(wrapped.cursor, wrapped.cursor);
-    });
   };
 
   // Arrivée depuis un résultat de recherche : la carte est déjà dans le formulaire
@@ -171,22 +164,8 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
       else next.add(id);
       return next;
     });
-  const otherCourses = useMemo(
-    () =>
-      [...subjects]
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .map((s) => ({
-          subject: s,
-          list: courses.filter((c) => c.subjectId === s.id && c.id !== course.id).sort((a, b) => a.title.localeCompare(b.title)),
-        }))
-        .filter((g) => g.list.length > 0),
-    [subjects, courses, course.id]
-  );
-  const moveSelected = () => {
-    if (!onMove || !moveTo || liveSelected.length === 0) return;
-    if (editingId && liveSelected.includes(editingId)) resetForm();
-    if (onMove(moveTo, liveSelected)) setSelected(new Set());
-  };
+  // Y a-t-il un autre cours où déplacer des cartes ? (la boîte « Cartes à trier » ne compte pas)
+  const hasOtherCourses = courses.some((c) => c.id !== course.id && !isInboxCourse(c));
 
   // « Cartes à trier » : chaque carte se range d'un clic, en choisissant son cours dans l'arbre des cours
   const inbox = isInboxCourse(course);
@@ -201,11 +180,11 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
     const ids = pickFor ?? [];
     setPickFor(null);
     if (!onMove || ids.length === 0) return;
-    if (editingId && ids.includes(editingId)) resetForm();
+    if (editingId && ids.includes(editingId)) closeForm();
     if (!onMove(toCourseId, ids)) return;
     setSelected((prev) => new Set([...prev].filter((id) => !ids.includes(id))));
     // Tout est rangé : la boîte est vide, on la referme (le message garde « Annuler »)
-    if (cards.every((c) => ids.includes(c.id))) onClose();
+    if (inbox && cards.every((c) => ids.includes(c.id))) onClose();
   };
 
   const remove = async (card: Flashcard) => {
@@ -217,7 +196,7 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
     });
     if (!ok) return;
     onChange((d) => deleteCard(d, card.id, new Date().toISOString()));
-    if (editingId === card.id) resetForm();
+    if (editingId === card.id) closeForm();
   };
 
   // Coller une image (capture d'écran…) : image du recto si elle manque, sinon du verso
@@ -253,6 +232,179 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
               ? t('Masquez au moins une zone : glissez sur l\'image.')
               : null;
 
+  const formEl = (
+  <div className="p-5 space-y-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30" onKeyDown={onKeyDown} onPaste={onPaste}>
+    <div className="flex items-center justify-between gap-2 flex-wrap">
+      <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 p-0.5 bg-white dark:bg-slate-900" role="tablist">
+        {(['basic', 'cloze', 'occlusion'] as const).map((k) => (
+          <button
+            key={k}
+            type="button"
+            role="tab"
+            aria-selected={kind === k}
+            onClick={() => {
+              setKind(k);
+              setShowError(false);
+            }}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+              kind === k
+                ? 'bg-teal-600 text-white'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <span className="phone:hidden">
+              {k === 'basic' ? t('Recto / verso') : k === 'cloze' ? t('Texte à trous') : t('Masques sur image')}
+            </span>
+            {/* Libellés courts sur téléphone : les trois onglets tiennent sur une ligne */}
+            <span className="hidden phone:inline">
+              {k === 'basic' ? t('Recto / verso') : k === 'cloze' ? t('Trous') : t('Masques')}
+            </span>
+          </button>
+        ))}
+      </div>
+      {editingId && (
+        <span className="text-[0.6875rem] font-semibold text-amber-700 dark:text-amber-400">{t('Modification d\'une carte')}</span>
+      )}
+    </div>
+
+    {kind === 'occlusion' && (
+      <div className="space-y-2">
+        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{t('Image à masquer')}</span>
+        <ImagePickerField
+          value={frontImage}
+          onChange={(id) => {
+            setFrontImage(id);
+            if (id !== frontImage) setMasks([]);
+          }}
+          label={t('Image à masquer')}
+          preview={false}
+          // Annoter garde les proportions de l'image : les masques déjà posés restent à leur place
+          onAnnotated={setFrontImage}
+          lockDrawWhenImage
+        />
+        {frontImage && <OcclusionEditor imageId={frontImage} masks={masks} onChange={setMasks} />}
+        {frontImage && (
+          <div className="flex items-center gap-3 flex-wrap text-xs text-slate-700 dark:text-slate-300">
+            {(['hide-all', 'hide-one'] as const).map((m) => (
+              <label key={m} className="inline-flex items-center gap-1.5">
+                <input type="radio" name="occlusion-mode" checked={occlusionMode === m} onChange={() => setOcclusionMode(m)} />
+                {m === 'hide-all' ? t('Tout masquer, en deviner un') : t('Ne masquer que celui à deviner')}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+    )}
+
+    <div className="space-y-1">
+      <div className="flex items-end justify-between gap-2">
+        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+          {kind === 'cloze' ? t('Texte') : kind === 'occlusion' ? t('Question (facultative)') : t('Recto (question)')}
+        </span>
+      </div>
+      <RichTextEditor
+        id="deck-front"
+        editorRef={frontRef}
+        value={front}
+        onChange={setFront}
+        cloze={kind === 'cloze'}
+        maxLength={MAX_CARD_TEXT}
+        minRows={kind === 'occlusion' ? 1 : 4}
+        maxHeight="min(24rem, 50vh)"
+        className={FIELD}
+        placeholder={
+          kind === 'cloze'
+            ? t('Les IEC sont contre-indiqués en cas de sténose bilatérale des artères rénales')
+            : kind === 'occlusion'
+              ? t('Nommez la structure masquée')
+              : t('Quel est le mécanisme d\'action des IEC ?')
+        }
+      />
+      {kind !== 'occlusion' && <ImagePickerField value={frontImage} onChange={setFrontImage} label={t('Image du recto')} />}
+      {kind === 'cloze' && (
+        <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
+          {gaps > 0 ? (
+            <>
+              <FlashcardText text={front} cloze className="text-slate-700 dark:text-slate-300" />
+              <span className="block mt-1">
+                {plural(gaps, '{n} trou : {n} carte à réviser', '{n} trous : {n} cartes à réviser')}
+              </span>
+            </>
+          ) : (
+            t('Sélectionnez un mot puis « Cacher la sélection ». Chaque trou devient une carte.')
+          )}
+        </p>
+      )}
+    </div>
+
+    <div className="space-y-1">
+      <span className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+        {kind === 'basic' ? t('Verso (réponse)') : t('Remarque (facultative, montrée avec la réponse)')}
+      </span>
+      <RichTextEditor
+        id="deck-back"
+        value={back}
+        onChange={setBack}
+        maxLength={MAX_CARD_TEXT}
+        minRows={kind === 'basic' ? 4 : 2}
+        maxHeight="min(24rem, 50vh)"
+        className={FIELD}
+        placeholder={kind === 'basic' ? t('Verso (réponse)') : t('Remarque (facultative, montrée avec la réponse)')}
+      />
+      {kind !== 'occlusion' && <ImagePickerField value={backImage} onChange={setBackImage} label={t('Image du verso')} />}
+    </div>
+
+    {showPreview && <CardPreview card={input} onClose={() => setShowPreview(false)} />}
+
+    {pasteError && <p className="text-xs font-semibold text-rose-600 dark:text-rose-400">{pasteError}</p>}
+
+    {showError && (errorText || full) && (
+      <p className="text-xs font-semibold text-rose-600 dark:text-rose-400">
+        {full ? t('Ce cours a atteint {n} cartes, le maximum.', { n: MAX_CARDS_PER_DECK }) : errorText}
+      </p>
+    )}
+
+    <div className="flex items-center justify-between gap-2 flex-wrap">
+      <span className="text-[0.6875rem] text-slate-400 dark:text-slate-500 hidden sm:inline">
+        {t('⌘/Ctrl + Entrée pour ajouter')}
+      </span>
+      <div className="flex items-center gap-2 ml-auto">
+        <button
+          type="button"
+          onClick={() => setShowPreview((v) => !v)}
+          aria-pressed={showPreview}
+          className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border ${
+            showPreview
+              ? 'border-teal-500 text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40'
+              : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Eye className="w-4 h-4" />
+          {t('Aperçu')}
+        </button>
+        {(!inlineForm || editingId || front || back || frontImage || backImage) && (
+          <button
+            type="button"
+            // Dans la fenêtre, « Annuler » la ferme ; dans le formulaire en ligne, il vide seulement les champs
+            onClick={() => (inlineForm ? resetForm() : closeForm())}
+            className="px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+          >
+            {t('Annuler')}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={submit}
+          className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-xs"
+        >
+          {editingId ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+          {editingId ? t('Enregistrer') : t('Ajouter la carte')}
+        </button>
+      </div>
+    </div>
+  </div>
+  );
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 dark:bg-black/70 backdrop-blur-xs overflow-y-auto">
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl my-6 overflow-hidden flex flex-col max-h-[calc(100dvh-3rem)]">
@@ -267,7 +419,7 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
               {plural(cards.length, '{n} carte', '{n} cartes')}
             </p>
           </div>
-          {inbox && onMove && otherCourses.length > 0 && cards.length > 0 && (
+          {inbox && onMove && hasOtherCourses && cards.length > 0 && (
             <button
               type="button"
               onClick={() => setPickFor(liveSelected.length > 0 ? liveSelected : cards.map((c) => c.id))}
@@ -278,16 +430,6 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
             >
               <FolderInput className="w-4 h-4" />
               {liveSelected.length > 0 ? t('Ranger ({n})', { n: liveSelected.length }) : t('Tout ranger')}
-            </button>
-          )}
-          {onImport && (
-            <button
-              type="button"
-              onClick={onImport}
-              className="flex items-center gap-1 px-2.5 py-1.5 text-[0.6875rem] font-semibold rounded-lg text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
-            >
-              <FileUp className="w-3.5 h-3.5" />
-              {t('Importer')}
             </button>
           )}
           <button
@@ -301,191 +443,55 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
         </div>
 
         <div className="overflow-y-auto flex-1">
-          {/* Formulaire */}
-          <div className="p-5 space-y-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30" onKeyDown={onKeyDown} onPaste={onPaste}>
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 p-0.5 bg-white dark:bg-slate-900" role="tablist">
-                {(['basic', 'cloze', 'occlusion'] as const).map((k) => (
-                  <button
-                    key={k}
-                    type="button"
-                    role="tab"
-                    aria-selected={kind === k}
-                    onClick={() => {
-                      setKind(k);
-                      setShowError(false);
-                    }}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                      kind === k
-                        ? 'bg-teal-600 text-white'
-                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    <span className="phone:hidden">
-                      {k === 'basic' ? t('Recto / verso') : k === 'cloze' ? t('Texte à trous') : t('Masques sur image')}
-                    </span>
-                    {/* Libellés courts sur téléphone : les trois onglets tiennent sur une ligne */}
-                    <span className="hidden phone:inline">
-                      {k === 'basic' ? t('Recto / verso') : k === 'cloze' ? t('Trous') : t('Masques')}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              {editingId && (
-                <span className="text-[0.6875rem] font-semibold text-amber-700 dark:text-amber-400">{t('Modification d\'une carte')}</span>
-              )}
-            </div>
 
-            {kind === 'occlusion' && (
-              <div className="space-y-2">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{t('Image à masquer')}</span>
-                <ImagePickerField
-                  value={frontImage}
-                  onChange={(id) => {
-                    setFrontImage(id);
-                    if (id !== frontImage) setMasks([]);
-                  }}
-                  label={t('Image à masquer')}
-                  preview={false}
-                  // Annoter garde les proportions de l'image : les masques déjà posés restent à leur place
-                  onAnnotated={setFrontImage}
-                  lockDrawWhenImage
-                />
-                {frontImage && <OcclusionEditor imageId={frontImage} masks={masks} onChange={setMasks} />}
-                {frontImage && (
-                  <div className="flex items-center gap-3 flex-wrap text-xs text-slate-700 dark:text-slate-300">
-                    {(['hide-all', 'hide-one'] as const).map((m) => (
-                      <label key={m} className="inline-flex items-center gap-1.5">
-                        <input type="radio" name="occlusion-mode" checked={occlusionMode === m} onChange={() => setOcclusionMode(m)} />
-                        {m === 'hide-all' ? t('Tout masquer, en deviner un') : t('Ne masquer que celui à deviner')}
-                      </label>
-                    ))}
+          {/* Formulaire : en ligne quand le cours n'a encore aucune carte, sinon dans une fenêtre ouverte par « Ajouter une carte » ou le crayon */}
+          {inlineForm ? (
+            formEl
+          ) : (
+            formOpen && (
+              <div
+                className="fixed inset-0 z-[62] flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 dark:bg-black/70 backdrop-blur-xs"
+                onClick={closeForm}
+                onKeyDown={(e) => e.key === 'Escape' && closeForm()}
+              >
+                <div
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label={editingId ? t('Modifier la carte') : t('Nouvelle carte')}
+                  className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl max-h-[calc(100dvh-2rem)] overflow-y-auto"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="px-5 py-3 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">{editingId ? t('Modifier la carte') : t('Nouvelle carte')}</h3>
+                    <button
+                      type="button"
+                      aria-label={t('Fermer')}
+                      onClick={closeForm}
+                      className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
                   </div>
-                )}
+                  {formEl}
+                </div>
               </div>
-            )}
-
-            <div className="space-y-1">
-              <div className="flex items-end justify-between gap-2">
-                <label htmlFor="deck-front" className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  {kind === 'cloze' ? t('Texte') : kind === 'occlusion' ? t('Question (facultative)') : t('Recto (question)')}
-                </label>
-                {kind === 'cloze' && (
-                  <button
-                    type="button"
-                    // garde la sélection du champ au clic
-                    onMouseDown={(e) => e.preventDefault()}
-                    onPointerDown={(e) => e.preventDefault()}
-                    onClick={hideSelection}
-                    className="flex items-center gap-1 px-2 py-1 text-[0.6875rem] font-semibold rounded-md text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-500/15 hover:bg-teal-100 dark:hover:bg-teal-500/25"
-                  >
-                    <EyeOff className="w-3.5 h-3.5" />
-                    {t('Cacher la sélection')}
-                  </button>
-                )}
-              </div>
-              <AutoTextarea
-                id="deck-front"
-                ref={frontRef}
-                value={front}
-                onChange={(e) => {
-                  lastSelection.current = null;
-                  setFront(e.target.value);
-                }}
-                onSelect={rememberSelection}
-                maxLength={MAX_CARD_TEXT}
-                minRows={kind === 'occlusion' ? 1 : 4}
-                className={FIELD}
-                placeholder={
-                  kind === 'cloze'
-                    ? t('Les IEC sont contre-indiqués en cas de sténose bilatérale des artères rénales')
-                    : kind === 'occlusion'
-                      ? t('Nommez la structure masquée')
-                      : t('Quel est le mécanisme d\'action des IEC ?')
-                }
-              />
-              {kind !== 'occlusion' && <ImagePickerField value={frontImage} onChange={setFrontImage} label={t('Image du recto')} />}
-              {kind === 'cloze' && (
-                <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400">
-                  {gaps > 0 ? (
-                    <>
-                      <FlashcardText text={front} cloze className="text-slate-700 dark:text-slate-300" />
-                      <span className="block mt-1">
-                        {plural(gaps, '{n} trou : {n} carte à réviser', '{n} trous : {n} cartes à réviser')}
-                      </span>
-                    </>
-                  ) : (
-                    t('Sélectionnez un mot puis « Cacher la sélection ». Chaque trou devient une carte.')
-                  )}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-1">
-              <label htmlFor="deck-back" className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                {kind === 'basic' ? t('Verso (réponse)') : t('Remarque (facultative, montrée avec la réponse)')}
-              </label>
-              <AutoTextarea
-                id="deck-back"
-                value={back}
-                onChange={(e) => setBack(e.target.value)}
-                maxLength={MAX_CARD_TEXT}
-                minRows={kind === 'basic' ? 4 : 2}
-                className={FIELD}
-              />
-              {kind !== 'occlusion' && <ImagePickerField value={backImage} onChange={setBackImage} label={t('Image du verso')} />}
-            </div>
-
-            {showPreview && <CardPreview card={input} onClose={() => setShowPreview(false)} />}
-
-            {pasteError && <p className="text-xs font-semibold text-rose-600 dark:text-rose-400">{pasteError}</p>}
-
-            {showError && (errorText || full) && (
-              <p className="text-xs font-semibold text-rose-600 dark:text-rose-400">
-                {full ? t('Ce cours a atteint {n} cartes, le maximum.', { n: MAX_CARDS_PER_DECK }) : errorText}
-              </p>
-            )}
-
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <span className="text-[0.6875rem] text-slate-400 dark:text-slate-500 hidden sm:inline">
-                {t('⌘/Ctrl + Entrée pour ajouter')}
-              </span>
-              <div className="flex items-center gap-2 ml-auto">
-                <button
-                  type="button"
-                  onClick={() => setShowPreview((v) => !v)}
-                  aria-pressed={showPreview}
-                  className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border ${
-                    showPreview
-                      ? 'border-teal-500 text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40'
-                      : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <Eye className="w-4 h-4" />
-                  {t('Aperçu')}
-                </button>
-                {(editingId || front || back || frontImage || backImage) && (
-                  <button
-                    type="button"
-                    onClick={() => resetForm()}
-                    className="px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
-                  >
-                    {t('Annuler')}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={submit}
-                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-xs"
-                >
-                  {editingId ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                  {editingId ? t('Enregistrer') : t('Ajouter la carte')}
-                </button>
-              </div>
-            </div>
-          </div>
+            )
+          )}
 
           {/* Liste */}
+          {!inlineForm && (
+            <div className="px-5 pt-4 flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t('Cartes du cours')}</span>
+              <button
+                type="button"
+                onClick={openNew}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-xs"
+              >
+                <Plus className="w-4 h-4" />
+                {t('Ajouter une carte')}
+              </button>
+            </div>
+          )}
           <div className="p-5 space-y-2">
             {cards.length > 8 && (
               <div className="relative mb-3">
@@ -500,7 +506,7 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
               </div>
             )}
 
-            {onMove && cards.length > 0 && otherCourses.length > 0 && (
+            {onMove && cards.length > 0 && hasOtherCourses && (
               <div className="flex items-center gap-2 flex-wrap text-xs mb-1">
                 {liveSelected.length === 0 ? (
                   <span className="text-slate-500 dark:text-slate-400">
@@ -526,29 +532,14 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
                     <span className="font-bold text-slate-800 dark:text-slate-200">
                       {plural(liveSelected.length, '{n} sélectionnée', '{n} sélectionnées')}
                     </span>
-                    <select
-                      value={moveTo}
-                      onChange={(e) => setMoveTo(e.target.value)}
-                      aria-label={t('Cours de destination')}
-                      className="min-w-0 max-w-[16rem] flex-1 px-2 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 dark:text-white"
-                    >
-                      <option value="">{t('— Choisir un cours —')}</option>
-                      {otherCourses.map((g) => (
-                        <optgroup key={g.subject.id} label={g.subject.name}>
-                          {g.list.map((c) => (
-                            <option key={c.id} value={c.id}>{c.title}</option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
                     <button
                       type="button"
-                      disabled={!moveTo}
-                      onClick={moveSelected}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 font-bold rounded-lg text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                      onClick={() => setPickFor(liveSelected)}
+                      title={t('Déplacer les cartes cochées dans un autre cours')}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 font-bold rounded-lg text-white bg-teal-600 hover:bg-teal-700"
                     >
                       <ArrowRightLeft className="w-3.5 h-3.5" />
-                      {t('Déplacer')}
+                      {t('Déplacer…')}
                     </button>
                     <button
                       type="button"
@@ -589,7 +580,7 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
                     : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
                 }`}
               >
-                {onMove && otherCourses.length > 0 && (
+                {onMove && hasOtherCourses && (
                   <input
                     type="checkbox"
                     checked={selected.has(card.id)}
@@ -636,7 +627,7 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
                       {plural((card.masks ?? []).length, '{n} masque', '{n} masques')}
                     </span>
                   )}
-                  {inbox && onMove && otherCourses.length > 0 && (
+                  {inbox && onMove && hasOtherCourses && (
                     <button
                       type="button"
                       onClick={() => setPickFor([card.id])}
@@ -675,7 +666,7 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({
           <CardCoursePicker
             courses={courses.filter((c) => c.id !== course.id)}
             subjects={subjects}
-            title={plural(pickFor.length, 'Ranger {n} carte', 'Ranger {n} cartes')}
+            title={inbox ? plural(pickFor.length, 'Ranger {n} carte', 'Ranger {n} cartes') : plural(pickFor.length, 'Déplacer {n} carte', 'Déplacer {n} cartes')}
             subtitle={t('Dans quel cours ?')}
             onPick={fileCards}
             onClose={() => setPickFor(null)}

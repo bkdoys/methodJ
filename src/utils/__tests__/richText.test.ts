@@ -24,6 +24,82 @@ describe('parseInline', () => {
   });
 });
 
+describe('exposant et indice', () => {
+  it('lit ^exposant^ et ~indice~ sans espace à l\'intérieur', () => {
+    expect(parseInline('H~2~O et m^3^')).toEqual([
+      { type: 'text', text: 'H' },
+      { type: 'sub', text: '2' },
+      { type: 'text', text: 'O et m' },
+      { type: 'sup', text: '3' },
+    ]);
+  });
+
+  it('laisse le texte ordinaire intact', () => {
+    for (const t of ['~5 min et ~10 min', 'a ^ b ^ c', 'x^2 et y']) {
+      expect(parseInline(t)).toEqual([{ type: 'text', text: t }]);
+    }
+  });
+
+  it('stripRichText les rend en texte', () => {
+    expect(stripRichText('H~2~O, m^3^ et **gras**')).toBe('H2O, m3 et gras');
+  });
+
+  it('serializeDom écrit SUP et SUB, sauf avec un espace', () => {
+    const text = (s: string): DomLike => ({ nodeName: '#text', nodeType: 3, textContent: s, childNodes: [] });
+    const el = (nodeName: string, ...kids: DomLike[]): DomLike => ({ nodeName, nodeType: 1, textContent: null, childNodes: kids });
+    expect(serializeDom(el('DIV', el('DIV', text('H'), el('SUB', text('2')), text('O'), el('SUP', text('a b')))))).toBe('H~2~Oa b');
+  });
+});
+
+describe('fraction', () => {
+  it('lit ⟦a/b⟧ avec mise en forme dedans', () => {
+    expect(parseInline('Rapport ⟦x^2^/2⟧ ici')).toEqual([
+      { type: 'text', text: 'Rapport ' },
+      { type: 'frac', num: [{ type: 'text', text: 'x' }, { type: 'sup', text: '2' }], den: [{ type: 'text', text: '2' }] },
+      { type: 'text', text: ' ici' },
+    ]);
+  });
+
+  it('une fraction sans barre ou mal fermée reste du texte', () => {
+    expect(parseInline('⟦abc⟧ et ⟦a/b')).toEqual([{ type: 'text', text: '⟦abc⟧ et ⟦a/b' }]);
+  });
+
+  it('stripRichText la rend a/b, et elle tient dans un trou', () => {
+    expect(stripRichText('⟦1/3⟧ de dose')).toBe('1/3 de dose');
+    expect(parseInline('{{c1::⟦1/3⟧}}', { cloze: true })).toEqual([
+      { type: 'cloze', n: 1, children: [{ type: 'frac', num: [{ type: 'text', text: '1' }], den: [{ type: 'text', text: '3' }] }] },
+    ]);
+  });
+});
+
+describe('texte à trous', () => {
+  it('lit un trou comme un nœud, avec indice et mise en forme dedans', () => {
+    expect(parseInline('Le {{c1::**cœur**::organe}} bat', { cloze: true })).toEqual([
+      { type: 'text', text: 'Le ' },
+      { type: 'cloze', n: 1, hint: 'organe', children: [{ type: 'bold', children: [{ type: 'text', text: 'cœur' }] }] },
+      { type: 'text', text: ' bat' },
+    ]);
+  });
+
+  it('la mise en forme peut enjamber un trou', () => {
+    expect(parseInline('**a {{c2::b}} c**', { cloze: true })).toEqual([
+      {
+        type: 'bold',
+        children: [
+          { type: 'text', text: 'a ' },
+          { type: 'cloze', n: 2, children: [{ type: 'text', text: 'b' }] },
+          { type: 'text', text: ' c' },
+        ],
+      },
+    ]);
+  });
+
+  it('sans l\'option, ou un trou mal fermé, reste du texte', () => {
+    expect(parseInline('{{c1::a}}')).toEqual([{ type: 'text', text: '{{c1::a}}' }]);
+    expect(parseInline('{{c1::a', { cloze: true })).toEqual([{ type: 'text', text: '{{c1::a' }]);
+  });
+});
+
 describe('parseRichText', () => {
   it('regroupe les puces et les numéros', () => {
     const blocks = parseRichText('titre\n- un\n- deux\n3. trois\n4. quatre');

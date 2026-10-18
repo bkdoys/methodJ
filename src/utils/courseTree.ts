@@ -1,5 +1,6 @@
 import { Course, Subject } from '../types';
-import { getChildFolders, resolveCourseFolderId } from './folders';
+import { getChildFolders, getFolderChain, resolveCourseFolderId } from './folders';
+import { isInboxCourse } from './inbox';
 import { getFolderColor } from './folderColors';
 import { getCourseEffectiveColor } from './colorUtils';
 
@@ -86,4 +87,49 @@ export function pathToCourse(nodes: CourseTreeNode[], courseId: string): string[
     if (inner.length > 0 || n.children.some((c) => c.courseId === courseId)) return [n.key, ...inner];
   }
   return [];
+}
+
+/** Un cours proposé dans une liste de choix : lui-même, le dossier où il est rangé (vide à la racine) et sa couleur. */
+export interface CourseChoice {
+  course: Course;
+  /** Noms des dossiers jusqu'au cours, séparés par « › » ; vide pour un cours à la racine de sa discipline. */
+  folderPath: string;
+  color: string;
+}
+
+export interface CourseChoiceGroup {
+  subject: Subject;
+  items: CourseChoice[];
+}
+
+const byName = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+
+/**
+ * Liste de cours pour choisir une destination : uniquement des cours (jamais de dossier à ouvrir), groupés par
+ * discipline, chacun avec son dossier indiqué à part, ce qui distingue deux cours de même titre. La boîte « Cartes à
+ * trier » n'en fait pas partie. `query` : mots cherchés (accents et casse ignorés, tous requis) dans le titre, le
+ * dossier et la discipline. Disciplines sans résultat omises.
+ */
+export function courseChoices(subjects: Subject[], courses: Course[], query = ''): CourseChoiceGroup[] {
+  const words = foldText(query).split(/\s+/).filter(Boolean);
+  return [...subjects]
+    .sort((a, b) => byName(a.name, b.name))
+    .map((subject) => {
+      const items = courses
+        .filter((c) => c.subjectId === subject.id && !isInboxCourse(c))
+        .map((course) => ({
+          course,
+          folderPath: getFolderChain(subject, resolveCourseFolderId(course, subject)).map((f) => f.name).join(' › '),
+          color: getCourseEffectiveColor(course, subject),
+        }))
+        .filter((item) => {
+          if (words.length === 0) return true;
+          const haystack = foldText(`${item.course.title} ${item.folderPath} ${subject.name}`);
+          return words.every((w) => haystack.includes(w));
+        })
+        // La racine d'abord, puis chaque dossier ; dans un dossier, par titre
+        .sort((a, b) => byName(a.folderPath, b.folderPath) || byName(a.course.title, b.course.title));
+      return { subject, items };
+    })
+    .filter((g) => g.items.length > 0);
 }

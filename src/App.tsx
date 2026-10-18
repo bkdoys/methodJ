@@ -1000,7 +1000,6 @@ export default function App() {
             setDeckCourseId(null);
             setDeckCardId(null);
           }}
-          onImport={() => setCardsImport({ defaultCourseId: deckCourse.id })}
           courses={courses}
           subjects={subjects}
           onMove={(toId, ids) => handleMoveCards(deckCourse.id, toId, ids)}

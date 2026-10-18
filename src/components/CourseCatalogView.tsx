@@ -123,6 +123,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
     }
   });
   const layoutRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
   const saveTreeWidth = (width: number) => {
     try {
@@ -130,6 +131,14 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
     } catch {
       // stockage indisponible : la largeur reste valable pour cette session
     }
+  };
+  // Choisir un dossier : si le haut de la liste est passé au-dessus de l'écran (page défilée), on le ramène
+  const selectNode = (next: TreeSelection | null) => {
+    setSelection(next);
+    requestAnimationFrame(() => {
+      const el = listRef.current;
+      if (el && el.getBoundingClientRect().top < 80) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    });
   };
   const setClampedTreeWidth = (width: number) => setTreeWidth(clampPanelWidth(width, layoutRef.current?.clientWidth));
   const [editingNotesCourseId, setEditingNotesCourseId] = useState<string | null>(null);
@@ -359,10 +368,10 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
       )}
       {treeOpen && (
         <div
-          className="relative flex flex-col lg:shrink-0 lg:w-[var(--tree-w)]"
+          className="relative flex flex-col lg:shrink-0 lg:w-[var(--tree-w)] lg:self-start lg:sticky lg:top-20"
           style={{ '--tree-w': `${treeWidth}px` } as React.CSSProperties}
         >
-        <aside className="flex-1 min-h-0 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-2 shadow-2xs max-h-[70vh] lg:max-h-none overflow-y-auto">
+        <aside className="flex-1 min-h-0 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-2 shadow-2xs max-h-[70vh] lg:max-h-[calc(100vh-6rem)] overflow-y-auto">
           <div className="flex items-center justify-between px-2 pb-1.5 mb-1 border-b border-slate-100 dark:border-slate-800">
             <span className="text-[0.6875rem] font-bold uppercase tracking-wide text-slate-400">{t('Disciplines')}</span>
             <button
@@ -379,7 +388,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
             subjects={subjects}
             courses={courses}
             selected={activeSelection}
-            onSelect={setSelection}
+            onSelect={selectNode}
             onDropCourse={onMoveCourse}
             onUpdateSubject={onUpdateSubjectFolders}
             onResetCourseColors={onResetCourseColors}
@@ -437,7 +446,7 @@ export const CourseCatalogView: React.FC<CourseCatalogViewProps> = ({
         </div>
         </div>
       )}
-      <div className="flex-1 min-w-0">
+      <div ref={listRef} className="flex-1 min-w-0 scroll-mt-20">
       {/* Courses List */}
       {filteredCourses.length === 0 ? (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-12 text-center space-y-3">
